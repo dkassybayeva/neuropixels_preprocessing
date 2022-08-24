@@ -2,16 +2,18 @@
 
 delete_previous_KS_run = true; %WARNING deletes all files in data folder except for Trodes-specific files
 
-addpath('C:\Users\Adam\Documents\MATLAB\neuropixels_preprocessing\sortingQuality')
-addpath('C:\Users\Adam\Documents\MATLAB\neuropixels_preprocessing\sortingQuality\core')
-addpath('C:\Users\Adam\Documents\MATLAB\neuropixels_preprocessing\sortingQuality\helpers')
-addpath(genpath('C:\Users\Adam\Documents\Kilosort-2.5')) % path to kilosort folder
-addpath('C:\Users\Adam\Documents\npy-matlab') % for converting to Phy, https://github.com/kwikteam/npy-matlab
+probenum = 2;
 
-rootZ = 'D:\Neurodata\TQ02\20210416_162720'; % the raw data binary file is in this folder CANT HAVE TRAILING SLASH
-rootH = 'D:\Neurodata\TQ02\20210416_162720'; % path to temporary binary file (same size as data, should be on fast SSD)
+addpath('C:\Users\science person\Documents\MATLAB\neuropixels_preprocessing\sortingQuality')
+addpath('C:\Users\science person\Documents\MATLAB\neuropixels_preprocessing\sortingQuality\core')
+addpath('C:\Users\science person\Documents\MATLAB\neuropixels_preprocessing\sortingQuality\helpers')
+addpath(genpath('C:\Users\science person\Documents\MATLAB\Kilosort-2.5')) % path to kilosort folder
+addpath('C:\Users\science person\Documents\npy-matlab-master') % for converting to Phy, https://github.com/kwikteam/npy-matlab
 
-pathToYourConfigFile = 'C:\Users\Adam\Documents\Kilosort-2.5\configFiles'; % take from Github folder and put it somewhere else (together with the master_file)
+rootZ = 'X:\NeuroData\Nina2\20210623_121426.rec'; % the raw data binary file is in this folder CANT HAVE TRAILING SLASH
+rootH = 'X:\NeuroData\Nina2\20210623_121426.rec'; % path to temporary binary file (same size as data, should be on fast SSD)
+
+pathToYourConfigFile = 'C:\Users\science person\Documents\MATLAB\neuropixels_preprocessing\configFiles'; % take from Github folder and put it somewhere else (together with the master_file)
 % chanMapFile = 'neuropixPhase3B1_kilosortChanMapTORBEN.mat';
 chanMapFile = 'channelMap.mat';
 
@@ -20,7 +22,7 @@ getChanMap(rootZ); %spikegadgets tool
 
 %kilosort subfolder for KS output
 [~,ss] = fileparts(rootZ);
-kfolder = strcat(ss,'.kilosort');
+kfolder = strcat(ss,'.kilosort_probe',num2str(probenum));
 if ~isfolder(fullfile(rootH,kfolder)),mkdir(fullfile(rootH,kfolder)), end
 if ~isfolder(fullfile(rootZ,kfolder)),mkdir(fullfile(rootZ,kfolder)), end
 
@@ -59,7 +61,7 @@ ops.nblocks    = 1; % blocks for registration. 0 turns it off, 1 does rigid regi
 
 
 % binary dat file
-kfile = strcat(ss,'.probe1.dat');
+kfile = strcat(ss,'.probe',num2str(probenum),'.dat');
 ops.fbinary = fullfile(rootZ, ksdatafolder, kfile);
 %ops.fbinary = 'E:\Neurodata\20210107_172745_20210108_164001\combined.dat';
 
