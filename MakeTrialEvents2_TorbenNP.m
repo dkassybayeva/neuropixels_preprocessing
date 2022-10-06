@@ -41,7 +41,7 @@ change_ind = TE.TE.nTrials(1) + 1;
 % sync Bpod events, which are the first 5 DIO at the Trodes MCU. The 6th
 % bit is used for laser pulse alignment. But there can be more than 2^5
 % Bpod states.
-[NlxEvents] = GetTrialStartTimeStampNP(Events_TTL1, Events_TS1);
+[NlxEvents] = GetTrialStartTimeStampNP(Events_TTL, Events_TS);
 
 % Set TTL alignement state (fist Bpod state) at 1 Waitingfor initial poke
 

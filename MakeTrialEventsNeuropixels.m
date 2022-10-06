@@ -96,14 +96,18 @@ TEbis.Modality = 2*ones(1,nTrials);
 %% Conditioning the trials
 for nt=1:nTrials
     
-    % Defining trial types
-    % Defining DecisionType
-    % 0 = Non-completed trials
-    % 1 = Correct given click and not rewarded (catch trials consisting
-    % of real catch trials and trials that are statistically incorrect but correct
-    % given click, later ones are most likely 50/50 trials)
-    % 2 = Correct given click and rewarded
-    % 3 = Incorrect given click and not rewarded
+    %{
+    Defining trial types
+    Defining DecisionType
+        0 = Non-completed trials
+        1 = Correct given click and not rewarded (catch trials consisting
+            of real catch trials and trials that are statistically 
+            incorrect but correct given click, later ones are most likely 
+            50/50 trials)
+        2 = Correct given click and rewarded
+        3 = Incorrect given click and not rewarded
+    %}
+
  %   if TEbis.CompletedTrial(nt)==0
  %       TEbis.DecisionType(nt)=NaN;
  %   elseif (TEbis.CompletedCatchTrial(nt)==1 || (TEbis.Rewarded(nt)==0 && TEbis.CompletedTrial(nt)==1)) && TEbis.ChoiceGivenClick(nt)==1
@@ -126,23 +130,24 @@ for nt=1:nTrials
         TEbis.SideReward(nt)=NaN;
     end
     
-    % Defining ChosenDirection
-    % 1 = Left
-    % 2 = Right
+    % Defining ChosenDirection (1 = Left, 2 = Right)
     if TEbis.CompletedTrial(nt)==1 && TEbis.ChosenDirection(nt)==1
         TEbis.CompletedChosenDirection(nt)=1;
     elseif TEbis.CompletedTrial(nt)==1 && TEbis.ChosenDirection(nt)==2
         TEbis.CompletedChosenDirection(nt)=2;
     end
     
-    % Defining SideDecisionType
-    % 1 = Left catch trials
-    % 2 = Right catch trials
-    % 3 = Left correct trials
-    % 4 = Right correct trials
-    % 5 = Incorrect left trials
-    % 6 = Incorrect right trials
-    % 7 = all remaining trials
+    %{
+    Defining SideDecisionType
+     1 = Left catch trials
+     2 = Right catch trials
+     3 = Left correct trials
+     4 = Right correct trials
+     5 = Incorrect left trials
+     6 = Incorrect right trials
+     7 = all remaining trials
+    %}
+    
 %    if TEbis.DecisionType(nt)==1 && TEbis.ChosenDirection(nt)==1
 %        TEbis.SideDecisionType(nt)=1;
 %    elseif TEbis.DecisionType(nt)==1 && TEbis.ChosenDirection(nt)==2
