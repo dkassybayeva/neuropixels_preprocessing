@@ -1,4 +1,4 @@
-function metricsToPhy(rez, savePath, cid, uQ, isiV, cR, histC)
+function metricsToPhy(savePath, cid, uQ, isiV, cR, histC)
     if ~isempty(savePath)
         fileID = fopen(fullfile(savePath, 'cluster_Quality.tsv'),'w');
         fprintf(fileID, 'cluster_id%sQuality', char(9));
@@ -16,7 +16,6 @@ function metricsToPhy(rez, savePath, cid, uQ, isiV, cR, histC)
         fprintf(fileIDH, 'cluster_id%shistC', char(9));
         fprintf(fileIDH, char([13 10]));        
 
-        %rez.est_contam_rate(isnan(rez.est_contam_rate)) = 1;
         for j = 1:length(cid)
             
             fprintf(fileID, '%d%s%.1f', cid(j) - 1, char(9), uQ(j));

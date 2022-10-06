@@ -108,7 +108,7 @@ rezToPhy(rez, fullfile(rootH,kfolder));
 % compute quality metrics
 [cids, uQ, cR, isiV, histC] = sqKilosort.computeAllMeasures(fullfile(rootH, kfolder));
 
-sqKilosort.metricsToPhy(rez, fullfile(rootH, kfolder), cids, uQ, isiV, cR, histC);
+sqKilosort.metricsToPhy(fullfile(rootH, kfolder), cids, uQ, isiV, cR, histC);
 %save them for phy
 
 %% if you want to save the results to a Matlab file...

@@ -5,11 +5,14 @@ function [cids, uQ, cR, isiV, histC] = computeAllMeasures(resultsDirectory)
     spikeTemplatesPath = fullfile(resultsDirectory,'spike_templates.npy');
 
     if exist(clusterPath, 'file')
+        fprintf('using cluster_groups.csv  \n')
         [cids, cgs] = readClusterGroupsCSV(clusterPath);
     elseif exist(spikeClustersPath, 'file')
+        fprintf('using spike_clusters.npy  \n')
         clu = readNPY(spikeClustersPath);
         cgs = 3*ones(size(unique(clu))); % all unsorted
     else
+        fprintf('using spike_templates.npy  \n')
         clu = readNPY(spikeTemplatesPath);
         cgs = 3*ones(size(unique(clu))); % all unsorted
     end
