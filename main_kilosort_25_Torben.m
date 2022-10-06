@@ -4,16 +4,21 @@ delete_previous_KS_run = true; %WARNING deletes all files in data folder except 
 
 probenum = 2;
 
-addpath('C:\Users\science person\Documents\MATLAB\neuropixels_preprocessing\sortingQuality')
-addpath('C:\Users\science person\Documents\MATLAB\neuropixels_preprocessing\sortingQuality\core')
-addpath('C:\Users\science person\Documents\MATLAB\neuropixels_preprocessing\sortingQuality\helpers')
-addpath(genpath('C:\Users\science person\Documents\MATLAB\Kilosort-2.5')) % path to kilosort folder
-addpath('C:\Users\science person\Documents\npy-matlab-master') % for converting to Phy, https://github.com/kwikteam/npy-matlab
+docs_path = 'C:\Users\science person\Documents\';
+preprocessing_script_path = strcat(docs_path, 'MATLAB\neuropixels_preprocessing\');
+sortingQuality_path = strcat(preprocessing_script_path, 'sortingQuality');
+
+addpath(sortingQuality_path)
+addpath(strcat(sortingQuality_path, '\core'))
+addpath(strcat(sortingQuality_path, '\helpers'))
+
+addpath(genpath(strcat(docs_path, 'MATLAB\Kilosort-2.5'))) % path to kilosort folder
+addpath(strcat(docs_path, 'npy-matlab-master')) % for converting to Phy, https://github.com/kwikteam/npy-matlab
 
 rootZ = 'X:\NeuroData\Nina2\20210623_121426.rec'; % the raw data binary file is in this folder CANT HAVE TRAILING SLASH
 rootH = 'X:\NeuroData\Nina2\20210623_121426.rec'; % path to temporary binary file (same size as data, should be on fast SSD)
 
-pathToYourConfigFile = 'C:\Users\science person\Documents\MATLAB\neuropixels_preprocessing\configFiles'; % take from Github folder and put it somewhere else (together with the master_file)
+pathToYourConfigFile = strcat(preprocessing_script_path, 'configFiles'); % take from Github folder and put it somewhere else (together with the master_file)
 % chanMapFile = 'neuropixPhase3B1_kilosortChanMapTORBEN.mat';
 chanMapFile = 'channelMap.mat';
 
@@ -66,12 +71,10 @@ ops.fbinary = fullfile(rootZ, ksdatafolder, kfile);
 %ops.fbinary = 'E:\Neurodata\20210107_172745_20210108_164001\combined.dat';
 
 % preprocess data to create temp_wh.dat
-% rez = preprocessDataSub(ops);
 rez = preprocessDataSub(ops);
 
-%
 % NEW STEP TO DO DATA REGISTRATION
-  % last input is for shifting data
+% last input is for shifting data
 rez = datashift2(rez, 1);
 % ORDER OF BATCHES IS NOW RANDOM, controlled by random number generator
 iseed = 1;
