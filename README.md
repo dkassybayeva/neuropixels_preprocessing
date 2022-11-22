@@ -32,19 +32,18 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 
 ## AFTER SORTING:
 
-- Copy convert_spikes.py  from MATLAB directory to KS output directory (for example: cp C:\Users\Adam\Documents\MATLAB\convert_spikes.py .\20210517_518\convert_spikes.py)
+- Copy convert_spikes_pkl_to_mat_file.py from this repository to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
+and run it (e.g., cmd: python convert_spikes.py) -> spikes_per_cluster.mat
 
-- Run python convert_spikes.py from KS directory (cmd: python convert_spikes.py)
-
-- Run MakeTTNeuropixel_batchalign (matlab, editing directories as relevant)
-
+- Run MakeTTNeuropixel(_batchalign).m in Matlab, editing directories as relevant.  This creates spike time vectors in the cellbase subdirectory, matching the Kilosort/Phy cluster information with the timekeeping from Trodes.  This data is saved for each unit in the cellbase directory under TT[shank#]_[clusterID].mat.  It also saves the waveforms in WF[shank#]_[clusterID].mat, as well as "gaps" (GAPS.mat), the cluster quality metrics (PhyLabels_[shank#].mat) and the analog input TTL events (EVENTS.mat).
 
 - For each day (from cellbase directory):
-	Copy relevant behavior file to cellbase
- 	
-	Run MakeTrialEventsNeuropixels on cellbase directory
 	
-	If 2nd day in alignment MakeTrialEvents2TorbenNP needs to be edited to say: Events_TTL2 Events_TS2 on line 45, Events_TTL1 Events_TS1 if first day
+	a) Copy relevant behavior file (BPod session file) to the cellbase directory (e.g., [subject]_[protocol]_[monthDay]_[year]_Session[#].mat)
+ 	
+	b) Run MakeTrialEventsNeuropixels.m on cellbase directory -> creates TE.mat, TEbis.mat, and TrialEvents.mat, as well as two Aligned*.mat files.  TrialEvents.mat has the extracted trial events data.
+	
+	c) If 2nd day in alignment MakeTrialEvents2TorbenNP needs to be edited to say: Events_TTL2 Events_TS2 on line 45, Events_TTL1 Events_TS1 if first day
 	
 - Run Amy's scripts:
 
