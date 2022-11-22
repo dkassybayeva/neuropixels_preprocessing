@@ -45,3 +45,13 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 	Run MakeTrialEventsNeuropixels on cellbase directory
 	
 	If 2nd day in alignment MakeTrialEvents2TorbenNP needs to be edited to say: Events_TTL2 Events_TS2 on line 45, Events_TTL1 Events_TS1 if first day
+	
+- Run Amy's scripts:
+
+	- if no RecBehav.mat is available, run MATLAB/processTrialEventsDual2AFC.m
+	
+	- MATLAB/process_TTcellbase.m -> produces traces_ms.mat
+	
+	- PYTHON/trace_utils.py
+	
+	- PYTHON/process_acdat.py: uses trace_utils.py, traces_ms.mat, and RecBehav.mat (or TE.mat or TrialEvents.mat)
