@@ -13,10 +13,21 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 7) Open anaconda powershell, and change directory to the KS output directory
 8) Start the phy anaconda environment (conda activate phy2)
 9) Start phy for clustering (phy template-gui params.py)
-10) manually cluster
-	a) (keyboard shortcuts to remember: alt +  g labels a spikes as good, alt + m labels it as bad, and :merge merges together all the selected clusters. 
-	b) We prefilter with the following stats. fr > 0.5 & Amplitude > 700 & KSLabel == ‘good’ & ISIv < 3
-	c) For aligning multiple days I’m somewhat lenient, I basically take a cell if it matches those criteria and has consistent spike amplitudes, isn’t obviously two clusters, and has consistent firing rate across the session break. If it’s a badly aligned day many cells wont look consistent, especially in the upper part of the probe. 
+10) Cluster manually
+
+	a) Keyboard shortcuts to remember: alt + g labels a spike as good, alt + m labels it as bad, and :merge merges together all the selected clusters. 
+	
+	b) We prefilter with the following stats: fr > 0.5 & Amplitude > 700 & KSLabel == ‘good’ & ISIv < 3
+	
+	c) For aligning multiple days I’m somewhat lenient. I basically take a cell if it matches those criteria and:
+	
+	- has consistent spike amplitudes
+	
+	- isn’t obviously two clusters
+	
+	- and has consistent firing rate across the session break. 
+	
+	If it’s a badly aligned day, many cells won't look consistent, especially in the upper part of the probe. 
 
 
 ## AFTER SORTING:
