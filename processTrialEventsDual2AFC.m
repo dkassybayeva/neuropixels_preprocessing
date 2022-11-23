@@ -34,14 +34,14 @@ if isfield(TEbis.Custom, 'RewardMagnitude')
 end
 
 TEbis.ChosenDirection = 3*ones(1,nTrials);
-TEbis.ChosenDirection(TE.Custom.ChoiceLeft==1)=1;%1=left; 2=right
-TEbis.ChosenDirection(TE.Custom.ChoiceLeft==0)=2;
+TEbis.ChosenDirection(TE.Custom.ChoiceLeft(1:nTrials)==1)=1; %1=left; 2=right
+TEbis.ChosenDirection(TE.Custom.ChoiceLeft(1:nTrials)==0)=2;
 % Correct and error trials
 TEbis.CorrectChoice=TE.Custom.ChoiceCorrect(1:nTrials);
 TEbis.PunishedTrial=TE.Custom.ChoiceCorrect(1:nTrials)==0;
 
 %discrimination measures
- if isfield(TE.Custom, 'AuditoryOmega')
+if isfield(TE.Custom, 'AuditoryOmega')
     TEbis.OmegaDiscri=2*abs(TE.Custom.AuditoryOmega(1:nTrials)-0.5);
     TEbis.NRightClicks = cellfun(@length,TE.Custom.RightClickTrain(1:nTrials));
     TEbis.NLeftClicks = cellfun(@length,TE.Custom.LeftClickTrain(1:nTrials));
@@ -52,13 +52,13 @@ TEbis.PunishedTrial=TE.Custom.ChoiceCorrect(1:nTrials)==0;
     
     TEbis.MostClickSide(TEbis.NRightClicks>TEbis.NLeftClicks) = 2;
     TEbis.MostClickSide(TEbis.NRightClicks<TEbis.NLeftClicks) = 1;
-    TEbis.MostClickSide(TEbis.NRightClicks==TEbis.NLeftClicks)  = 3;
+    TEbis.MostClickSide(TEbis.NRightClicks==TEbis.NLeftClicks) = 3;
     TEbis.ChoiceGivenClick=TEbis.MostClickSide==TEbis.ChosenDirection;
  else
     TEbis.ChoiceGivenClick=TEbis.CorrectChoice(1:nTrials);
  end
  
- TEbis.DV = TE.Custom.DV(1:nTrials);
+TEbis.DV = TE.Custom.DV(1:nTrials);
 %chosen direction
 
 %most click side

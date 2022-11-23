@@ -79,7 +79,7 @@ Trodestimestamps = Ttime.fields.data;  % >1GB variable for a 3h recording
 
 
 %----------------------------------------------------------------------%
-%         get index of good units and save *time* of spies
+%         get index of good units and save *time* of spikes
 %----------------------------------------------------------------------%
 good_idx = find(all((PhyLabels.group(:,1:4)=='good'),2)); % row # of 'good'
 good = PhyLabels.cluster_id( good_idx ); %Phy cluster_id labelled as 'good'
