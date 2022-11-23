@@ -9,9 +9,19 @@ import os
 import glob
 
 class DataContainer:
-    def __init__(self, dat_path, behav_df, traces_dict, neuron_mask_df = None, objID  = None, sps = None, name = None,  cluster_labels = None,
-                 metadata = None, linking_group = None, active_neurons = None, record = True, feature_df_cache = [],
-                 feature_df_keys = [], behavior_phase = None):
+    def __init__(self, dat_path, behav_df, traces_dict, 
+                 neuron_mask_df=None,
+                 objID=None,
+                 sps=None,
+                 name=None,
+                 cluster_labels=None,
+                 metadata=None,
+                 linking_group=None,
+                 active_neurons=None,
+                 record=False,
+                 feature_df_cache=[],
+                 feature_df_keys=[], 
+                 behavior_phase=None):
 
         self.name = name
         self.metadata = metadata
@@ -55,7 +65,7 @@ class DataContainer:
             else:
                 neurons = np.arange(0, self.n_neurons)
                 df_dict = {'neurons':neurons}
-                if len(active_neurons) > 0:
+                if active_neurons is not None and len(active_neurons) > 0:
                     active_mask = np.zeros_like(neurons)
                     active_mask[active_neurons] = 1
                     df_dict['active_mask'] = active_mask
@@ -133,6 +143,7 @@ class DataContainer:
             raise("Not Implemented")
         if traces is None:
             raise("Not Implemented")
+            
         if type(trial_indexer) == str:
             trial_id = self.behav_df[trial_indexer].index.to_list()
         elif type(trial_indexer) == list:
@@ -175,7 +186,7 @@ class DataContainer:
                 tr = self[ :, self.active_neurons[self.cluster_labels == c], phase_indexer]
                 yield tr
 
-    def to_pickle(self, remove_old = False):
+    def to_pickle(self, remove_old=False):
         if remove_old:
             print("warning, deleting all old obj files")
             trace_files = glob.glob(self.dat_path+"*traces_dict.pkl")
@@ -190,13 +201,17 @@ class DataContainer:
             feature_files = glob.glob(self.dat_path + "*feature_df*.pkl")
             [os.remove(f) for f in feature_files]
 
-        with open(self.dat_path + self.objID + "traces_dict.pkl", 'wb') as f:
+        save_dir = self.dat_path + '/' + self.objID + '/'
+        
+        if not os.path.isdir(save_dir):
+            os.mkdir(save_dir)
+        with open(save_dir + 'traces_dict.pkl', 'wb') as f:
             pickle.dump(self.traces_dict, f)
 
-        with open(self.dat_path + self.objID + "behav_df.pkl", 'wb') as f:
+        with open(save_dir + "behav_df.pkl", 'wb') as f:
             pickle.dump(self.behav_df, f)
 
-        with open(self.dat_path + self.objID + "persistent_info.pkl", 'wb') as f:
+        with open(save_dir + "persistent_info.pkl", 'wb') as f:
 
             persistent_info = {'cluster_labels':self.cluster_labels,
                                'active_neurons':self.active_neurons,
@@ -253,26 +268,46 @@ class DataContainer:
 
 
 class TwoAFC(DataContainer):
-    def __init__(self, dat_path, behav_df, traces_dict, neuron_mask_df = None, objID  = None, sps = None, name = None,  cluster_labels = None,
-                 metadata = None, linking_group = None, active_neurons = None, record = True, feature_df_cache = [],
-                 feature_df_keys = [], session = None, behavior_phase = None):
+    def __init__(self, dat_path, behav_df, traces_dict, 
+                 neuron_mask_df=None, 
+                 objID=None, 
+                 sps=None, 
+                 name=None,
+                 cluster_labels=None,
+                 metadata=None,
+                 linking_group=None, 
+                 active_neurons=None, 
+                 record=False, 
+                 feature_df_cache=[], 
+                 feature_df_keys=[], 
+                 session=None, 
+                 behavior_phase=None):
 
-        super().__init__(dat_path, behav_df, traces_dict, neuron_mask_df, objID, sps, name, cluster_labels,
-                 metadata, linking_group, active_neurons, record, feature_df_cache, feature_df_keys,
-                         behavior_phase)
+        super().__init__(dat_path, behav_df, traces_dict, neuron_mask_df, 
+                         objID, sps, name, cluster_labels, metadata, 
+                         linking_group, active_neurons, record, 
+                         feature_df_cache, feature_df_keys, behavior_phase)
 
         self.session = session
 
+
 class Multiday_2AFC(DataContainer):
-    def __init__(self, dat_path, obj_list, cell_mapping, objID = None, sps = None, name = None,  cluster_labels = None,
-                 metadata = None, active_neurons = None, record = True, feature_df_cache = [],
-                 feature_df_keys = []):
+    def __init__(self, dat_path, obj_list, cell_mapping, 
+                 objID=None,
+                 sps=None,
+                 name=None,
+                 cluster_labels=None,
+                 metadata=None,
+                 active_neurons=None,
+                 record=True,
+                 feature_df_cache=[],
+                 feature_df_keys=[]):
 
         assert('session' in obj_list[0].behav_df.keys())
 
         self.behav_df = pd.concat([obj.behav_df for obj in obj_list])
         self.n_sessions = len(obj_list)
-        traces_dict = map_traces(self.behav_df, obj_list, matches = cell_mapping)
+        traces_dict = map_traces(self.behav_df, obj_list, matches=cell_mapping)
 
         self.name = name
         self.metadata = metadata
