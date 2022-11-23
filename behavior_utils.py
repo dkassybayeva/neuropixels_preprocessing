@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 def load_df(data_dir):
     raw_dict = loadmat(data_dir)
-    behav_dict = {key: np.array(raw_dict[key]).squeeze() for key in raw_dict if '__' not in key}
+    behav_dict = {key: np.array(raw_dict[key]).squeeze() for key in raw_dict if '__' not in key and key!='Settings'}
     behav_df = pd.DataFrame.from_dict(behav_dict)
 
     # so that we can use this code for session data that doesnt have catch trials!
@@ -30,7 +30,7 @@ def trim_df(behav_df):
     'evidence', 'prior', 'probe',  'prev_completed_1', 'prev_evidence_1', 'prev_stim_dir_1', 'prev_rewarded_1', ''
                      'prev_resp_dir_1', 'prev_correct_1', 'WT_qs', 'prev_WT_qs_1']]
 
-def convert_df(behav_df, type = 'SessionData', WTThresh = None, trim = True):
+def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim=True):
     '''
     TODO: Map confidence for waiting time rats
 
@@ -47,7 +47,7 @@ def convert_df(behav_df, type = 'SessionData', WTThresh = None, trim = True):
                 (often the same as correct, the exception is probe trials in the reward bias task)
         reward -  value of the recieved reward
     '''
-    if type == 'RatPriors':
+    if session_type == 'RatPriors':
         print('WARNING: Assuming no probe trials, all completed rewarded')
         behav_df['CatchTrial'] = False
         behav_df['rewarded'] = behav_df['was_correct'].astype('bool')
@@ -59,7 +59,7 @@ def convert_df(behav_df, type = 'SessionData', WTThresh = None, trim = True):
         behav_df['trial'] = np.arange(0, len(behav_df))
         behav_df['before_switch'] = 0
 
-    if type == 'SessionData':
+    if session_type == 'SessionData':
         #behav_df = behav_df.rename(columns=column_dict)
         behav_df['rewarded'] = behav_df['Rewarded'].astype('bool')
         behav_df['correct'] = behav_df['CorrectChoice'].astype('bool')
