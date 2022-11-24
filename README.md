@@ -1,4 +1,4 @@
-# neuropixels_preprocessing
+# Neuropixels Preprocessing
 Preprocessing pipeline for Neuropixels recordings using kilosort, additional cluster metrics, Phy2, and export functions to cellbase
 
 ## Extracting Traces Using Trodes
@@ -13,7 +13,7 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 
 ## Clustering:
 
-5) Run either Kilsort/main\_kilosort\_25\_Torben.m or Kilsort/main\_kilosort\_25\_Batch.m, depending on whether you are processing one day, or processing multiple days. You must edit the file paths in the script. It’s good for the temporary files to be located on an SSD for speed, but the KS output file doesn’t have to be. 
+5) Run either Kilsort/main\_kilosort\_25\_Torben.m or Kilsort/main\_kilosort\_25\_Batch.m, depending on whether you are processing one day, or processing multiple days. You must edit the file paths in the script. It’s good for the temporary files to be located on an SSD for speed, but the KS output file doesn’t have to be. The config files are found in Kilosort/configFiles.
 
 6) Open anaconda powershell, and change directory to the Kilosort (KS) output directory
 
@@ -41,15 +41,15 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 ## After Clustering (scripts in post\_cluster/ directory):
 
 - Copy convert_spikes_pkl_to_mat_file.py from this repository to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
-and run it (e.g., cmd: python convert_spikes.py) -> spikes_per_cluster.mat
+and run it (e.g., cmd: python convert_spikes.py) **-> spikes_per_cluster.mat**
 
-- Run MakeTTNeuropixel(\_batchalign).m in Matlab, editing directories as relevant.  This creates spike time vectors in the cellbase subdirectory, matching the Kilosort/Phy cluster information with the timekeeping from Trodes.  This data is saved for each unit in the cellbase directory under TT[shank#]\_[clusterID].mat.  It also saves the waveforms in WF[shank#]\_[clusterID].mat, as well as "gaps" (GAPS.mat), the cluster quality metrics (PhyLabels\_[shank#].mat) and the analog input TTL events (EVENTS.mat).
+- Run MakeTTNeuropixel(\_batchalign).m in Matlab, editing directories as relevant.  This creates spike time vectors in the cellbase subdirectory, matching the Kilosort/Phy cluster information with the timekeeping from Trodes.  This data is saved for each unit in the cellbase directory under **TT[shank#]\_[clusterID].mat**.  It also saves the waveforms in WF[shank#]\_[clusterID].mat, as well as "gaps" (GAPS.mat), the cluster quality metrics (PhyLabels\_[shank#].mat) and the analog input TTL events (EVENTS.mat).
 
 - For each day (from cellbase directory):
 	
 	a) Copy relevant behavior file (BPod session file) to the cellbase directory (e.g., [subject]\_[protocol]\_[monthDay]\_[year]\_Session[#].mat)
  	
-	b) Run MakeTrialEventsNeuropixels.m on cellbase directory -> creates TE.mat, TEbis.mat, and TrialEvents.mat, as well as two Aligned*.mat files.  TrialEvents.mat has the extracted trial events data.
+	b) Run MakeTrialEventsNeuropixels.m on cellbase directory **-> creates TE.mat, TEbis.mat, and TrialEvents.mat**, as well as two Aligned*.mat files.  TrialEvents.mat has the extracted trial events data.
 	
 	c) If 2nd day in alignment MakeTrialEvents2TorbenNP needs to be edited to say: Events\_TTL2 Events\_TS2 on line 45, Events\_TTL1 Events\_TS1 if first day
 	
