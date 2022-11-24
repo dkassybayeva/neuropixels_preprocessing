@@ -3,10 +3,14 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 
 ## Preprocessing steps
 
-1) Transfer .rec file for days you wish to process from the server. It’s best for this to go to an SSD
-2) Open trodes 2.0.1 (important that its not 2.1.1, and you have to open it from file explorer -- C/Users/Adam/Documents/trodes2.0.1
+1) Transfer .rec file for days you wish to process from the server. It’s best for this to go to an SSD (i.e., X: or Y: drive).
+
+2) Open Trodes 
+
 3) From the main menu select load a playback file, and open your desired .rec file
+
 4) File -> extract -> analgio, dio, kilosort, “start”. This takes a few hours to run on an SSD and overnight on an HDD
+
 5) After double checking the backup of the .rec file is still on the server (and correct size etc.), delete the local copy to save space. 
 
 ## CLUSTERING:
