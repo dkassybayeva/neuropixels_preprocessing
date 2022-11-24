@@ -1,7 +1,7 @@
 # neuropixels_preprocessing
 Preprocessing pipeline for Neuropixels recordings using kilosort, additional cluster metrics, Phy2, and export functions to cellbase
 
-## Preprocessing steps
+## Extracting Traces Using Trodes
 
 1) Transfer .rec file for days you wish to process from the server. It’s best for this to go to an SSD (i.e., X: or Y: drive).
 
@@ -9,19 +9,19 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 
 3) File -> extract -> analgio, dio, kilosort, “start”. This takes a few hours to run on an SSD and overnight on an HDD.  This will result in new folders in the same directory as the .rec file, one for DIO, analog, and kilosort, each containing their respective .dat files.
 
-5) After double checking the backup of the .rec file is still on the server (and correct size etc.), delete the local copy to save space. 
+4) After double checking the backup of the .rec file is still on the server (and correct size etc.), delete the local copy to save space. 
 
-## CLUSTERING:
+## Clustering:
 
-6) Run either main\_kilosort\_25\_Torben.m or main\_kilosort\_25\_Batch.m, depending on whether you are processing one day, or processing multiple days. You must edit the file paths in the script. It’s good for the temporary files to be located on an SSD for speed, but the KS output file doesn’t have to be. 
+5) Run either main\_kilosort\_25\_Torben.m or main\_kilosort\_25\_Batch.m, depending on whether you are processing one day, or processing multiple days. You must edit the file paths in the script. It’s good for the temporary files to be located on an SSD for speed, but the KS output file doesn’t have to be. 
 
-7) Open anaconda powershell, and change directory to the Kilosort (KS) output directory
+6) Open anaconda powershell, and change directory to the Kilosort (KS) output directory
 
-8) Start the phy anaconda environment (conda activate phy2)
+7) Start the phy anaconda environment (conda activate phy2)
 
-9) Start phy for clustering (phy template-gui params.py)
+8) Start phy for clustering (phy template-gui params.py)
 
-10) Cluster manually
+9) Cluster manually
 
 	a) Keyboard shortcuts to remember: alt + g labels a spike as good, alt + m labels it as bad, and :merge merges together all the selected clusters. 
 	
@@ -38,7 +38,7 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 	If it’s a badly aligned day, many cells won't look consistent, especially in the upper part of the probe. 
 
 
-## AFTER CLUSTERING:
+## After Clustering:
 
 - Copy convert_spikes_pkl_to_mat_file.py from this repository to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
 and run it (e.g., cmd: python convert_spikes.py) -> spikes_per_cluster.mat
