@@ -6,11 +6,11 @@ import glob
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from mat73 import loadmat
 
 
 # ---------- Amy Functions ------------ #
 from behavior_utils import load_df, convert_df, trim_df
-from mat73 import loadmat
 from data_objs import TwoAFC #, Multiday_2AFC
 from plotting_utils import plot_condition_average
 from trace_utils import create_traces_np, trial_start_align
