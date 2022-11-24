@@ -8,11 +8,17 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 3) From the main menu select load a playback file, and open your desired .rec file
 4) File -> extract -> analgio, dio, kilosort, “start”. This takes a few hours to run on an SSD and overnight on an HDD
 5) After double checking the backup of the .rec file is still on the server (and correct size etc.), delete the local copy to save space. 
+
+## CLUSTERING:
+
 6) Run either main\_kilosort\_25\_Torben.m or main\_kilosort\_25\_Batch.m, depending on whether you are processing one day, or processing multiple days. You must edit the file paths in the script. It’s good for the temporary files to be located on an SSD for speed, but the KS output file doesn’t have to be. 
 
 7) Open anaconda powershell, and change directory to the Kilosort (KS) output directory
+
 8) Start the phy anaconda environment (conda activate phy2)
+
 9) Start phy for clustering (phy template-gui params.py)
+
 10) Cluster manually
 
 	a) Keyboard shortcuts to remember: alt + g labels a spike as good, alt + m labels it as bad, and :merge merges together all the selected clusters. 
@@ -30,7 +36,7 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 	If it’s a badly aligned day, many cells won't look consistent, especially in the upper part of the probe. 
 
 
-## AFTER SORTING:
+## AFTER CLUSTERING:
 
 - Copy convert_spikes_pkl_to_mat_file.py from this repository to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
 and run it (e.g., cmd: python convert_spikes.py) -> spikes_per_cluster.mat
@@ -46,11 +52,17 @@ and run it (e.g., cmd: python convert_spikes.py) -> spikes_per_cluster.mat
 	c) If 2nd day in alignment MakeTrialEvents2TorbenNP needs to be edited to say: Events\_TTL2 Events\_TS2 on line 45, Events\_TTL1 Events\_TS1 if first day
 	
 - Run Amy's scripts:
-
-	- if no RecBehav.mat is available, run MATLAB/processTrialEventsDual2AFC.m
+	- MATLAB/processTrialEventsDual2AFC.m **--> RecBehav.mat**
+	    - curates results in to TrialEvents.mat of all trials from Bpod
+	    - adds some [1 x nTrials] fields 
+	    - removes any Bpod settings structs or anything that isn't [1 x nTrials] array
 	
-	- MATLAB/process\_TTcellbase.m -> produces traces\_ms.mat
+	- MATLAB/process\_TTcellbase.m **--> traces\_ms.mat**
 	
-	- PYTHON/trace\_utils.py
+	    - combines all TT[shank#]\_[clusterID].mat files created by MakeTTNeuropixel(\_batchalign).m into a signle binary matrix with spike times
 	
-	- PYTHON/process\_acdat.py: uses trace\_utils.py, traces\_ms.mat, and RecBehav.mat (or TE.mat or TrialEvents.mat)
+	- PYTHON/process\_acdat.py: uses **traces\_ms.m** and **RecBehav.mat**
+	
+	    - requires (pip install): mat73, imblearn
+	    - aligns the spiking and behavioral data to different events (e.g., trial start vs response start)
+	    - collects all data (including spiking and behavioral data [now pandas DataFrame]) into a DataContainer object specific to the experiment type (e.g., 2AFC) and saves the entire object using pickle
