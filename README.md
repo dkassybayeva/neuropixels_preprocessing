@@ -13,7 +13,7 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 
 ## Clustering:
 
-5) Run either main\_kilosort\_25\_Torben.m or main\_kilosort\_25\_Batch.m, depending on whether you are processing one day, or processing multiple days. You must edit the file paths in the script. It’s good for the temporary files to be located on an SSD for speed, but the KS output file doesn’t have to be. 
+5) Run either Kilsort/main\_kilosort\_25\_Torben.m or Kilsort/main\_kilosort\_25\_Batch.m, depending on whether you are processing one day, or processing multiple days. You must edit the file paths in the script. It’s good for the temporary files to be located on an SSD for speed, but the KS output file doesn’t have to be. 
 
 6) Open anaconda powershell, and change directory to the Kilosort (KS) output directory
 
@@ -38,7 +38,7 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 	If it’s a badly aligned day, many cells won't look consistent, especially in the upper part of the probe. 
 
 
-## After Clustering:
+## After Clustering (scripts in post\_cluster/ directory):
 
 - Copy convert_spikes_pkl_to_mat_file.py from this repository to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
 and run it (e.g., cmd: python convert_spikes.py) -> spikes_per_cluster.mat
@@ -53,18 +53,17 @@ and run it (e.g., cmd: python convert_spikes.py) -> spikes_per_cluster.mat
 	
 	c) If 2nd day in alignment MakeTrialEvents2TorbenNP needs to be edited to say: Events\_TTL2 Events\_TS2 on line 45, Events\_TTL1 Events\_TS1 if first day
 	
-- Run Amy's scripts:
-	- MATLAB/processTrialEventsDual2AFC.m **--> RecBehav.mat**
-	    - curates results in to TrialEvents.mat of all trials from Bpod
-	    - adds some [1 x nTrials] fields 
-	    - removes any Bpod settings structs or anything that isn't [1 x nTrials] array
-	
-	- MATLAB/process\_TTcellbase.m **--> traces\_ms.mat**
-	
-	    - combines all TT[shank#]\_[clusterID].mat files created by MakeTTNeuropixel(\_batchalign).m into a signle binary matrix with spike times
-	
-	- PYTHON/process\_acdat.py: uses **traces\_ms.m** and **RecBehav.mat**
-	
-	    - requires (pip install): mat73, imblearn
-	    - aligns the spiking and behavioral data to different events (e.g., trial start vs response start)
-	    - collects all data (including spiking and behavioral data [now pandas DataFrame]) into a DataContainer object specific to the experiment type (e.g., 2AFC) and saves the entire object using pickle
+- processTrialEventsDual2AFC.m **--> RecBehav.mat**
+    - curates results in to TrialEvents.mat of all trials from Bpod
+    - adds some [1 x nTrials] fields 
+    - removes any Bpod settings structs or anything that isn't [1 x nTrials] array
+
+- process\_TTcellbase.m **--> traces\_ms.mat**
+
+    - combines all TT[shank#]\_[clusterID].mat files created by MakeTTNeuropixel(\_batchalign).m into a signle binary matrix with spike times
+
+- process\_acdat.py: uses **traces\_ms.m** and **RecBehav.mat**
+
+    - requires (pip install): mat73, imblearn
+    - aligns the spiking and behavioral data to different events (e.g., trial start vs response start)
+    - collects all data (including spiking and behavioral data [now pandas DataFrame]) into a DataContainer object specific to the experiment type (e.g., 2AFC) and saves the entire object using pickle
