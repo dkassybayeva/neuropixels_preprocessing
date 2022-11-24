@@ -5,11 +5,9 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 
 1) Transfer .rec file for days you wish to process from the server. It’s best for this to go to an SSD (i.e., X: or Y: drive).
 
-2) Open Trodes 
+2) Open Trodes. From the main menu select Open Playback File, and browse to your desired .rec file.
 
-3) From the main menu select load a playback file, and open your desired .rec file
-
-4) File -> extract -> analgio, dio, kilosort, “start”. This takes a few hours to run on an SSD and overnight on an HDD
+3) File -> extract -> analgio, dio, kilosort, “start”. This takes a few hours to run on an SSD and overnight on an HDD.  This will result in new folders in the same directory as the .rec file, one for DIO, analog, and kilosort, each containing their respective .dat files.
 
 5) After double checking the backup of the .rec file is still on the server (and correct size etc.), delete the local copy to save space. 
 
