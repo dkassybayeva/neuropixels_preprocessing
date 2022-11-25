@@ -1,3 +1,11 @@
+"""
+Data structures for handling spiking and behavioral data from Neuropixel experiments.
+
+Adapted from https://github.com/achristensen56/KepecsCode.git
+
+Adaptation by Greg Knoll: Nov 2022
+"""
+
 import pickle
 import pandas as pd
 from sqlalchemy import create_engine, update, delete
@@ -121,57 +129,57 @@ class DataContainer:
             tracking_df.to_sql('2AFC_tracking', con=con, if_exists='append')
 
     def __getitem__(self, item):
+        # --------indexing arguments------------- #
         assert(len(item) == 3)
-        trial_indexer = item[0]
-        phase_indexer = item[2]
-        if phase_indexer == "interp":
+        trial_property_column = item[0]  # e.g., trial outcome
+        neuron_indexer = item[1]  # can be a list of neurons, any valid neuron indexing
+        phase_indexer = item[2]  # selects to what the traces are aligned
+        # --------------------------------------- #
+
+        # ---------- first get rows (trials) that match value of column of interest ------------ #
+        if type(trial_property_column) == str:
+            trial_id = self.behav_df[trial_property_column].index.to_list()
+        elif type(trial_property_column) == list:
+            if np.issubdtype(type(trial_property_column[0]), np.integer):
+                trial_id = trial_property_column
+            elif type(trial_property_column[0]) == str:
+                idx = np.logical_and.reduce([self.behav_df[ti] for ti in trial_property_column])
+                trial_id = self.behav_df[idx].index.to_list()
+            else:
+                raise "Not Implemented"
+        elif type(trial_property_column) == slice:
+            trial_id = trial_property_column
+        elif type(trial_property_column) == dict:
+            matched_rows = [(self.behav_df[ti] == trial_property_column[ti]).to_numpy() for ti in trial_property_column]
+            idx = np.logical_and.reduce(matched_rows)
+            trial_id = self.behav_df[idx].index.to_list()
+        else:
+            raise "Not Implemented"
+        # ----------------------------------------------------------------------------- #
+
+        # -----------------------Choose type of trace---------------------------------- #
+        if type(phase_indexer) == slice:
             traces = self.interp_traces
-            phi = slice(None, None, None)
+            return traces[trial_id][:, neuron_indexer][:, :, phase_indexer]
+        elif phase_indexer == "interp":
+            traces = self.interp_traces
         elif phase_indexer == "response":
             traces = self.ca_traces
-            phi = slice(None, None, None)
         elif phase_indexer == "stimulus":
             traces = self.sa_traces
-            phi = slice(None, None, None)
         elif phase_indexer == 'reward':
             traces = self.ra_traces
-            phi = slice(None, None, None)
-        elif type(phase_indexer) == slice:
-            traces = self.interp_traces
-            phi = phase_indexer
         else:
-            raise("Not Implemented")
+            raise "Not Implemented"
         if traces is None:
-            raise("Not Implemented")
-            
-        if type(trial_indexer) == str:
-            trial_id = self.behav_df[trial_indexer].index.to_list()
-        elif type(trial_indexer) == list:
-            if np.issubdtype(type(trial_indexer[0]), np.integer):
-                trial_id = trial_indexer
-            elif type(trial_indexer[0]) == str:
-                trial_id = self.behav_df[np.logical_and.reduce([self.behav_df[ti] for ti in trial_indexer])].index.to_list()
-            else:
-                raise("not implemented")
-        elif type(trial_indexer) == slice:
-            trial_id = trial_indexer
-        elif type(trial_indexer) == dict:
-            trial_id = self.behav_df[np.logical_and.reduce([(self.behav_df[ti] == trial_indexer[ti]).to_numpy() for ti in trial_indexer])].index.to_list()
-        else:
-            raise("Not Implemented")
+            raise "Not Implemented"
+        # ----------------------------------------------------------------------------- #
 
-        traces = traces[trial_id]
-
-        #neuron indexer can be a list of neurons, any valid neuron indexing
-        neuron_indexer = item[1]
-        traces = traces[:, neuron_indexer, :]
-
-        traces = traces[:, :, phi]
-
-        return traces
+        # -----Index the traces and return----- #
+        return traces[trial_id][:, neuron_indexer]
 
     def __setitem__(self, key, value):
-        raise("Not Implemented")
+        raise "Not Implemented"
 
     def __str__(self):
         return str(self.metadata)
@@ -220,7 +228,8 @@ class DataContainer:
                                'neuron_mask_df':self.neuron_mask_df,
                                'name': self.name,
                                'metadata': self.metadata,
-                               'behavior_phase': self.behavior_phase}
+                               'behavior_phase': self.behavior_phase,
+                               'sps': self.sps}
 
             pickle.dump(persistent_info, f)
 
@@ -360,4 +369,4 @@ def from_pickle(dat_path, objID, obj_class):
     with open(dat_path + objID + "persistent_info.pkl", 'rb') as f:
         kwargs = pickle.load(f)
 
-    return obj_class(dat_path, behav_df = behav_df, traces_dict = traces_dict, objID = objID, record = False, **kwargs)
+    return obj_class(dat_path, behav_df=behav_df, traces_dict=traces_dict, objID=objID, record=False, **kwargs)
