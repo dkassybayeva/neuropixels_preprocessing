@@ -63,22 +63,30 @@ def create_experiment_data_object(i, datapath):
     meta_d['stimulus'] = stimulus[i]
     meta_d['behavior_phase'] = session_number[i]
     
-    # load neural data
-    data = loadmat(cellbase + "traces_ms.mat")["spikes"]
+    # load neural data: [number of neurons x time bins in ms]
+    spike_times = loadmat(cellbase + "traces_ms.mat")["spikes"]
     
     # make pandas behavior dataframe
     behav_df = load_df(cellbase + "RecBehav.mat")
 
+    # format entries of dataframe for analysis (e.g., int->bool)
     cbehav_df = convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=True)
     
-    # align and reshape data
-    data, _ = trial_start_align(cbehav_df, data, 1000)
+    # align spike times to behavioral data
+    # spike_times = array [n_neurons x n_trials x longest_trial period in ms]
+    spike_times, _ = trial_start_align(cbehav_df, spike_times, 1000)
     
-    data_ds = data.reshape(data.shape[0], data.shape[1], -1, timestep_ds).sum(axis=-1)
+    # subsample (bin) data:
+    # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
+    # then sum over the dt bins
+    n_neurons = spike_times.shape[0]
+    n_trials = spike_times.shape[1]
+    spike_times_ds = spike_times.reshape(n_neurons, n_trials, -1, timestep_ds)
+    spike_times_ds = spike_times_ds.sum(axis=-1)
     
     # create trace alignments
     traces_dict = create_traces_np(cbehav_df, 
-                                   data_ds, 
+                                   spike_times_ds,
                                    sps=sps, 
                                    aligned_ind=0, 
                                    filter_by_trial_num=False,

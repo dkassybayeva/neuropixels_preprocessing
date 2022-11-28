@@ -12,7 +12,10 @@ def trial_start_align(behav_df, traces, sps):
 
     behav_df = behav_df[~np.isnan(behav_df.TrialStartAligned)]
 
+    # trial start in bins (index)
     t_starts = np.round(sps*behav_df['TrialStartAligned']).astype('int')
+    
+    # number of bins in a trial
     trial_len = np.ceil(sps*(behav_df['trial_len']).to_numpy()).astype('int')
 
     longest_trial = max(trial_len)
@@ -42,11 +45,18 @@ def trial_start_align(behav_df, traces, sps):
         print(i, t_starts[i],  trial_len[i], traces.shape)
         spikes[i, :, 0:trial_len[i]] = traces[:, t_starts[i]:(t_starts[i] + trial_len[i])]
 
+    # rearrange spiking data from
+    # [n_trials x n_neurons x time] -> [n_neurons x n_trials x time]
     spikes = spikes.transpose(1, 0, 2)
 
     return spikes, behav_df
 
-def create_traces_np(behav_df, traces, sps, traces_aligned = 'ResponseStart', aligned_ind = 40, filter_by_trial_num = False, preITI = .5):
+
+def create_traces_np(behav_df, traces, sps,
+                     traces_aligned='ResponseStart',
+                     aligned_ind=40,
+                     filter_by_trial_num=False,
+                     preITI=.5): 
     '''
     create different alignments from neuropixels data. The standard alignments are:
     stim_aligned
@@ -69,11 +79,10 @@ def create_traces_np(behav_df, traces, sps, traces_aligned = 'ResponseStart', al
     time_interp
 
     '''
-    n_neurons, n_trials, trial_length  = traces.shape
+    n_neurons, n_trials, n_time_bins  = traces.shape
 
     #behav_df.loc[behav_df['TrialNumber'] == max(behav_df['TrialNumber']), 'next_trial_start'] = behav_df.loc[behav_df['TrialNumber'] == max(behav_df['TrialNumber']), 'TrialStartAligned']  + 60
 
-    trial_len = behav_df['trial_len'].to_numpy()
 
     #only sending in completed trials now
     if filter_by_trial_num:
@@ -81,48 +90,64 @@ def create_traces_np(behav_df, traces, sps, traces_aligned = 'ResponseStart', al
     else:
         trial_number = behav_df.index.to_numpy()
 
-    print(max(trial_number), n_trials)
+    assert trial_number.size == n_trials
+    print(max(trial_number) + 1, n_trials)
+
 
     resp_on = behav_df['ResponseStart'].to_numpy()
     resp_off = behav_df['ResponseEnd'].to_numpy()
     center_poke = behav_df['PokeCenterStart'].to_numpy()
+    
     stim_on = behav_df['StimulusOnset'].to_numpy()
     stim_off = behav_df['StimulusOffset'].to_numpy()
+    trial_len_arr = behav_df['trial_len'].to_numpy()
 
     if traces_aligned == "TrialStart":
-        response_ind = np.round(sps*resp_on).astype('int')
-        reward_ind = np.round(sps*resp_off).astype('int')
-        stim_ind = np.round(sps*stim_on).astype('int')
-        poke_ind = np.round(sps*center_poke).astype('int')
-        move_ind = np.round(sps*stim_off).astype('int')
-        iti_ind = (trial_len*sps).astype('int')
+        response_ind = np.round(resp_on * sps).astype('int')
+        reward_ind = np.round(resp_off * sps).astype('int')
+        poke_ind = np.round(center_poke * sps).astype('int')
+        
+        stim_ind = np.round(stim_on * sps).astype('int')
+        move_ind = np.round(stim_off * sps).astype('int')
+        iti_ind = (trial_len_arr * sps).astype('int')
 
     if traces_aligned == 'ResponseStart':
-        response_ind = np.array([int(aligned_ind)]*len(trial_number))
-        #reward is waiting time after choice, which starts at aligned ind
-        reward_ind = (sps*(resp_off - resp_on) + aligned_ind).astype('int') #things are already response aligned
-        #stimulus is resposne time before choice, which starts at aligned ind
-        stim_ind = (aligned_ind - sps*(resp_on - stim_on)).astype('int')
+        response_ind = np.array([int(aligned_ind)] * len(trial_number))
+        
+        # reward is waiting time after choice, which starts at aligned_ind
+        # things are already response aligned
+        reward_ind = (sps * (resp_off - resp_on) + aligned_ind).astype('int') 
         poke_ind = (aligned_ind - sps*(resp_on - center_poke)).astype('int')
+        
+        # stimulus is response time before choice, which starts at aligned ind
+        stim_ind = (aligned_ind - sps*(resp_on - stim_on)).astype('int')
         move_ind = (aligned_ind - sps*(resp_on - stim_off)).astype('int')
-        #next trial start is trial_len - resp_o
-        iti_ind = (sps*(trial_len - resp_on) + aligned_ind).astype('int')
+        
+        # next trial start is trial_len_arr - resp_on
+        iti_ind = (sps*(trial_len_arr - resp_on) + aligned_ind).astype('int')
 
-    smin = np.min(poke_ind) - int(sps*preITI)
 
-    if smin  < 0:
+    # ---------------------------------------------------------------------- #
+    # Padding the traces with zeros such that all aligned traces 
+    # of the same type are the same length
+    # ---------------------------------------------------------------------- #
+    
+    # Calculate padding size at beginning and end of trace
+    smin = np.min(poke_ind) - int(sps * preITI)
+
+    if smin < 0:
         prepad = int(np.ceil(abs(smin)))
     else:
         prepad = 0
 
     imax = np.max([int(np.max(iti_ind)), np.max(reward_ind) + int(2*sps)])
 
-    if imax > trial_length:
-        postpad = int(np.ceil(imax - trial_length))
+    if imax > n_time_bins:
+        postpad = int(np.ceil(imax - n_time_bins))
     else:
         postpad = 0
 
-
+    # Update the indices with the appropriate offset
     response_ind += prepad
     reward_ind += prepad
     stim_ind += prepad
@@ -130,16 +155,59 @@ def create_traces_np(behav_df, traces, sps, traces_aligned = 'ResponseStart', al
     move_ind += prepad
     iti_ind += prepad
 
-    padded_traces = np.pad(traces[:, trial_number, :], pad_width = [(0, 0), (0, 0), (prepad, postpad)], mode = 'empty').astype('uint8')
+    # Add padding to the time axis of the traces
+    padded_traces = np.pad(traces[:, trial_number, :], 
+                           pad_width=[(0, 0), (0, 0), (prepad, postpad)], 
+                           mode='empty'
+                          ).astype('uint8')
+    # --------------------------------------------------------------------- #
 
 
+    # ---------------------------------------------------------------------- #
+    # Calculate the aligned traces
+    # ---------------------------------------------------------------------- #
+    
+    def align_helper(begin_arr, end_arr, index_arr, n_bins):
+        len_arr = end_arr - begin_arr
+        register_len = index_arr - begin_arr
+        register_point = max(register_len)
+        s = (register_point - register_len)
+        
+        _aligned_arr = np.zeros([n_trials, n_neurons, n_bins], dtype='uint16')
+        for i in range(len(begin_arr)):
+            _temp = padded_traces[:, i, begin_arr[i]:end_arr[i]]
+            _aligned_arr[i, :, s[i]:(s[i]+len_arr[i])] = _temp
+            
+        return _aligned_arr
+    
+    # -----------------------Stimulus aligned------------------------------- #
     stim_begin = np.array([poke_ind[i] - int(.5*sps) for i in range(len(stim_ind))])
-    stim_end = np.array([min(move_ind[i]+ int(.15*sps), stim_ind[i] + int(.6*sps))  for i in range(len(stim_ind))])
+    stim_end = np.array([min(move_ind[i] + int(.15*sps), stim_ind[i] + int(.6*sps)) for i in range(len(stim_ind))])
     stim_len = stim_end - stim_begin
     poke_len = stim_ind - stim_begin
     stim_point = max(poke_len)
     s = (stim_point - poke_len)
-
+    
+    stim_aligned = (np.zeros([ len(trial_number), n_neurons, int(2.5*sps)])*np.nan).astype('uint16')
+    for i in range(len(stim_begin)):
+        stim_aligned[i, :, s[i]:(s[i] + stim_len[i])] =  padded_traces[:, i, stim_begin[i] :stim_end[i] ]
+    
+    # ------------
+    stims = range(len(stim_ind))
+    stim_begin2 = np.array([poke_ind[i] - int(.5*sps) for i in stims])
+    
+    move_plus = move_ind + int(.15*sps)
+    stim_ind_plus =  stim_ind + int(.6*sps)
+    stim_end2 = np.array([min(move_plus[i], stim_ind_plus[i]) for i in stims])
+    
+    stim_aligned2 = align_helper(stim_begin2, stim_end2, stim_ind, int(2.5*sps))
+    assert np.all(stim_aligned == stim_aligned2)
+    
+    
+    
+    
+    
+    # -----------------------Response aligned------------------------------- #
     response_begin = np.array([max(stim_end[i], response_ind[i] - int(sps)) for i in range(len(stim_end))])
     response_end = np.array([min(response_ind[i]+ int(10*sps), reward_ind[i] +int(2*sps)) for i in range(len(response_ind))])
 
@@ -147,30 +215,40 @@ def create_traces_np(behav_df, traces, sps, traces_aligned = 'ResponseStart', al
     pre_resp_len = response_ind - response_begin
     choice_point = max(pre_resp_len)
     r = (choice_point - pre_resp_len)
+    
+    response_aligned = (np.zeros([len(trial_number), n_neurons,  int(13.5*sps)])*np.nan).astype('uint16')
+    for i in range(len(stim_begin)):
+        response_aligned[i, :, r[i]: r[i] + response_len[i]] = padded_traces[:, i, response_begin[i]:response_end[i]]
 
+
+    # ------------
+    response_aligned2 = align_helper(response_begin, response_end, 
+                                     response_ind, int(13.5*sps))
+    assert np.all(response_aligned == response_aligned2)
+
+    # -----------------------Reward aligned--------------------------------- #
     reward_begin = np.array([max(response_ind[i], reward_ind[i] - int(8*sps)) for i in range(len(response_end))])
-    print([iti_ind[i] for i in range(len(iti_ind))])
-    print([reward_ind[i] for i in range(len(iti_ind))])
+    # print([iti_ind[i] for i in range(len(iti_ind))])
+    # print([reward_ind[i] for i in range(len(iti_ind))])
     reward_end = np.array([min(reward_ind[i] + int(2*sps), iti_ind[i]) for i in range(len(iti_ind))])
 
     reward_len = reward_end - reward_begin
-
     WT_len = reward_ind - reward_begin
     reward_point = max(WT_len)
     w = reward_point - WT_len
 
-
-
-    stim_aligned = (np.zeros([ len(trial_number), n_neurons, int(2.5*sps)])*np.nan).astype('uint16')
-    response_aligned = (np.zeros([len(trial_number), n_neurons,  int(13.5*sps)])*np.nan).astype('uint16')
     reward_aligned = (np.zeros([ len(trial_number), n_neurons, int(10.1*sps)])*np.nan).astype('uint16')
-
     for i in range(len(stim_begin)):
-
-        stim_aligned[i, :, s[i]:(s[i] + stim_len[i])] =  padded_traces[:, i, stim_begin[i] :stim_end[i] ]
-        response_aligned[i, :, r[i]: r[i] + response_len[i]] = padded_traces[:, i, response_begin[i]:response_end[i]]
         reward_aligned[i, :, w[i]: w[i] + reward_len[i]] = padded_traces[:, i, reward_begin[i]:reward_end[i]]
 
+    # ----------------
+    reward_aligned2 = align_helper(reward_begin, reward_end, 
+                                   reward_ind, int(10.1*sps))
+    
+    assert np.all(reward_aligned == reward_aligned2)
+    
+
+    # -----------------------Interpolated aligned--------------------------- #
     interp_traces = []
     for i in range(len(stim_ind)):
         if (stim_ind[i] - poke_ind[i]) < 1:
@@ -202,7 +280,11 @@ def create_traces_np(behav_df, traces, sps, traces_aligned = 'ResponseStart', al
         interp_traces.append(create_trial_interp(padded_traces[:, i, :].reshape([n_neurons, -1]), interp_frames = interp_frames, interp_lens = interp_lens))
 
     interp_traces = np.array(interp_traces)
+    
 
+    # ---------------------------------------------------------------------- #
+    # Save traces and important variables used to create them
+    # ---------------------------------------------------------------------- #
     traces_dict = {'interp_traces': interp_traces,
                    'stim_aligned': stim_aligned,
                    'response_aligned': response_aligned,
