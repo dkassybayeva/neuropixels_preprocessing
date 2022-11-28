@@ -8,6 +8,15 @@ import pandas as pd
 from imblearn.under_sampling import RandomUnderSampler
 import tqdm
 
+import matplotlib.pyplot as plt
+from scipy import stats
+import os
+import glob
+import pickle
+import scipy.io as sio
+from datetime import date
+from scipy.signal import find_peaks
+
 def trial_start_align(behav_df, traces, sps):
 
     behav_df = behav_df[~np.isnan(behav_df.TrialStartAligned)]
@@ -129,7 +138,7 @@ def create_traces_np(behav_df, traces, sps,
 
     # ---------------------------------------------------------------------- #
     # Padding the traces with zeros such that all aligned traces 
-    # of the same type are the same length
+    # are the same length
     # ---------------------------------------------------------------------- #
     
     # Calculate padding size at beginning and end of trace
@@ -168,87 +177,68 @@ def create_traces_np(behav_df, traces, sps,
     # ---------------------------------------------------------------------- #
     
     def align_helper(begin_arr, end_arr, index_arr, n_bins):
+        """
+        Given the beginning and end of a certain type of event,
+        this function finds the point at which that event is indexed
+        and its delay from the beginning of the event.
+        
+        All traces for a given event are then aligned to a common reference
+        point by their offset from the maximum delay.
+        
+        Parameters
+        ----------
+        begin_arr : [ARRAY] start times.
+        end_arr : [ARRAY] end times. :P
+        index_arr : [ARRAY] times at which event was registered.
+        n_bins : TYPE
+            DESCRIPTION.
+
+        Returns
+        -------
+        _aligned_arr : [ARRAY] aligned traces.
+        reference_point : [INT] max delay from beginning, used as reference.
+
+        """
         len_arr = end_arr - begin_arr
-        register_len = index_arr - begin_arr
-        register_point = max(register_len)
-        s = (register_point - register_len)
+        
+        delay_arr = index_arr - begin_arr
+        reference_point = max(delay_arr)
+        offset = (reference_point - delay_arr)
         
         _aligned_arr = np.zeros([n_trials, n_neurons, n_bins], dtype='uint16')
-        for i in range(len(begin_arr)):
+        for i in range(n_trials):
             _temp = padded_traces[:, i, begin_arr[i]:end_arr[i]]
-            _aligned_arr[i, :, s[i]:(s[i]+len_arr[i])] = _temp
+            _aligned_arr[i, :, offset[i]:(offset[i]+len_arr[i])] = _temp
             
-        return _aligned_arr
+        return _aligned_arr, reference_point
+    
     
     # -----------------------Stimulus aligned------------------------------- #
-    stim_begin = np.array([poke_ind[i] - int(.5*sps) for i in range(len(stim_ind))])
-    stim_end = np.array([min(move_ind[i] + int(.15*sps), stim_ind[i] + int(.6*sps)) for i in range(len(stim_ind))])
-    stim_len = stim_end - stim_begin
-    poke_len = stim_ind - stim_begin
-    stim_point = max(poke_len)
-    s = (stim_point - poke_len)
-    
-    stim_aligned = (np.zeros([ len(trial_number), n_neurons, int(2.5*sps)])*np.nan).astype('uint16')
-    for i in range(len(stim_begin)):
-        stim_aligned[i, :, s[i]:(s[i] + stim_len[i])] =  padded_traces[:, i, stim_begin[i] :stim_end[i] ]
-    
-    # ------------
     stims = range(len(stim_ind))
-    stim_begin2 = np.array([poke_ind[i] - int(.5*sps) for i in stims])
+    stim_begin = np.array([poke_ind[i] - int(.5*sps) for i in stims])
     
     move_plus = move_ind + int(.15*sps)
     stim_ind_plus =  stim_ind + int(.6*sps)
-    stim_end2 = np.array([min(move_plus[i], stim_ind_plus[i]) for i in stims])
+    stim_end = np.array([min(move_plus[i], stim_ind_plus[i]) for i in stims])
     
-    stim_aligned2 = align_helper(stim_begin2, stim_end2, stim_ind, int(2.5*sps))
-    assert np.all(stim_aligned == stim_aligned2)
-    
-    
-    
+    stim_aligned, stim_point = align_helper(stim_begin, stim_end, stim_ind, int(2.5*sps))
     
     
     # -----------------------Response aligned------------------------------- #
     response_begin = np.array([max(stim_end[i], response_ind[i] - int(sps)) for i in range(len(stim_end))])
     response_end = np.array([min(response_ind[i]+ int(10*sps), reward_ind[i] +int(2*sps)) for i in range(len(response_ind))])
 
-    response_len = response_end - response_begin
-    pre_resp_len = response_ind - response_begin
-    choice_point = max(pre_resp_len)
-    r = (choice_point - pre_resp_len)
-    
-    response_aligned = (np.zeros([len(trial_number), n_neurons,  int(13.5*sps)])*np.nan).astype('uint16')
-    for i in range(len(stim_begin)):
-        response_aligned[i, :, r[i]: r[i] + response_len[i]] = padded_traces[:, i, response_begin[i]:response_end[i]]
+    response_aligned, choice_point = align_helper(response_begin, response_end, response_ind, int(13.5*sps))
 
-
-    # ------------
-    response_aligned2 = align_helper(response_begin, response_end, 
-                                     response_ind, int(13.5*sps))
-    assert np.all(response_aligned == response_aligned2)
 
     # -----------------------Reward aligned--------------------------------- #
     reward_begin = np.array([max(response_ind[i], reward_ind[i] - int(8*sps)) for i in range(len(response_end))])
-    # print([iti_ind[i] for i in range(len(iti_ind))])
-    # print([reward_ind[i] for i in range(len(iti_ind))])
     reward_end = np.array([min(reward_ind[i] + int(2*sps), iti_ind[i]) for i in range(len(iti_ind))])
-
-    reward_len = reward_end - reward_begin
-    WT_len = reward_ind - reward_begin
-    reward_point = max(WT_len)
-    w = reward_point - WT_len
-
-    reward_aligned = (np.zeros([ len(trial_number), n_neurons, int(10.1*sps)])*np.nan).astype('uint16')
-    for i in range(len(stim_begin)):
-        reward_aligned[i, :, w[i]: w[i] + reward_len[i]] = padded_traces[:, i, reward_begin[i]:reward_end[i]]
-
-    # ----------------
-    reward_aligned2 = align_helper(reward_begin, reward_end, 
-                                   reward_ind, int(10.1*sps))
     
-    assert np.all(reward_aligned == reward_aligned2)
-    
+    reward_aligned, reward_point = align_helper(reward_begin, reward_end, reward_ind, int(10.1*sps))    
 
-    # -----------------------Interpolated aligned--------------------------- #
+
+    # -----------------------Interpolated----------------------------------- #
     interp_traces = []
     for i in range(len(stim_ind)):
         if (stim_ind[i] - poke_ind[i]) < 1:
@@ -264,20 +254,24 @@ def create_traces_np(behav_df, traces, sps,
                          np.arange(response_ind[i] + .75*sps, reward_ind[i]).astype('int'),
                          np.arange(reward_ind[i], iti_ind[i]).astype('int')]
 
-        print(poke_ind[i], stim_ind[i], move_ind[i], response_ind[i])
-        print(reward_ind[i], iti_ind[i])
-        print([len(f) for f in interp_frames])
-        print(padded_traces.shape)
+        # print(poke_ind[i], stim_ind[i], move_ind[i], response_ind[i])
+        # print(reward_ind[i], iti_ind[i])
+        # print([len(f) for f in interp_frames])
+        # print(padded_traces.shape)
 
         interp_lens = [int(.5*sps),
-                       int(.2*sps),#stim_begin = 1
-                       int(.35*sps),#stim_end = 2
-                       int(.15*sps),#response_begin = 3
+                       int(.2*sps),   # stim_begin = 1
+                       int(.35*sps),  # stim_end = 2
+                       int(.15*sps),  # response_begin = 3
                        int(.5*sps),
                        int(3*sps),
                        int(.5*sps)]
 
-        interp_traces.append(create_trial_interp(padded_traces[:, i, :].reshape([n_neurons, -1]), interp_frames = interp_frames, interp_lens = interp_lens))
+        trace_i = padded_traces[:, i, :].reshape([n_neurons, -1])
+        interp_trace = create_trial_interp(trace_i, 
+                                           interp_frames=interp_frames, 
+                                           interp_lens=interp_lens)
+        interp_traces.append(interp_trace)
 
     interp_traces = np.array(interp_traces)
     
@@ -285,28 +279,29 @@ def create_traces_np(behav_df, traces, sps,
     # ---------------------------------------------------------------------- #
     # Save traces and important variables used to create them
     # ---------------------------------------------------------------------- #
-    traces_dict = {'interp_traces': interp_traces,
-                   'stim_aligned': stim_aligned,
-                   'response_aligned': response_aligned,
-                   'reward_aligned': reward_aligned,
+    traces_dict = {'stim_aligned': stim_aligned,
                    'stim_ind': stim_point,
+                   'response_aligned': response_aligned,
                    'response_ind': choice_point,
+                   'reward_aligned': reward_aligned,
                    'reward_ind': reward_point,
+                   'interp_traces': interp_traces,
                    'interp_inds': interp_lens}
 
     return traces_dict
 
 
-def custom_interp(x,yp):
+def custom_interp(x, yp):
     out = []
     for yp_ in [t_ for t_ in yp]:
-        out.append(np.interp(x,np.arange(len(yp_)),yp_))
+        out.append(np.interp(x, np.arange(len(yp_)), yp_))
     return np.array(out).T
+
 
 def create_trial_interp(traces, interp_frames, interp_lens):
     ts = [custom_interp(np.linspace(0,int_f.shape[0],il), traces[:, int_f]) for (int_f, il) in zip(interp_frames, interp_lens)]
-
     return np.concatenate(ts).T
+
 
 def get_feature_df(behav_df, all_coding_inds, traces, code_names=['prev_response_side1', 'prev_correct', 'stim_dir'], rat_name = 'none'):
     d_all = []
@@ -339,19 +334,8 @@ def get_feature_df(behav_df, all_coding_inds, traces, code_names=['prev_response
     return df
 
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-from scipy import stats
-import os
-import glob
-import pickle
-import scipy.io as sio
-from datetime import date
-from scipy.signal import find_peaks
 
 
-# pims
 
 
 # LOAD DATA
