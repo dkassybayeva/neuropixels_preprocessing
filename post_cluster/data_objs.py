@@ -10,7 +10,7 @@ import pickle
 import pandas as pd
 from sqlalchemy import create_engine, update, delete
 import numpy as np
-from trace_utils import get_feature_df
+from trace_utils import get_trace_feature_df
 from scipy.ndimage import gaussian_filter1d
 from obj_utils import *
 import os
@@ -233,13 +233,25 @@ class DataContainer:
 
             pickle.dump(persistent_info, f)
 
-    def get_feature_df(self, alignment = 'reward', variables = ['rewarded'], force_new = False, save = True, filter_by = None,
-                       filter = False, filter_active = False):
-        '''
-        :param alignment:
-        :param variables:
-        :return:
-        '''
+    def get_feature_df(self, alignment='reward',
+                             variables=['rewarded'],
+                             force_new=False,
+                             apply_Gauss_filter_to_traces=False,
+                             selected_neurons=[],
+                             save=True):
+        """
+        A wrapper function to check whether a given feature dataframe has already been created and cached.
+        If not, a new dataframe is created, and cached if desired.
+
+        :param alignment: [string] behavioral event to which traces are aligned
+        :param variables: [list of strings] desired behavior task variables (column names) to add to features
+        :param force_new: create a new cache, even if one already exists
+        :param apply_Gauss_filter_to_traces: if True, applies a Gaussian temporal smoothing filter to the traces
+        :param selected_neurons: [numpy array or string] indices of neurons of interest
+        :param save: [bool] whether to cache (save) the newly created dataframe
+        :return: [pandas Dataframe] see docstring of get_trace_feature_df() in trace_utils.py
+        """
+
         matches = [(cache[0] == alignment) & (cache[1] == variables) for cache in self.feature_df_keys]
         if (sum(matches) > 0) and not force_new:
             cache_ind = np.where(matches)[0]
@@ -247,30 +259,28 @@ class DataContainer:
             feature_df = pickle.load(open(self.feature_df_cache[int(cache_ind[0])], 'rb'))
             print('loaded a cached feature df')
         else:
+            # Get all traces from all neurons that match the prescribed alignment
             traces = self[:, :, alignment]
-            if filter:
-                traces = gaussian_filter1d(traces, sigma = 1, axis = 2)
+            if apply_Gauss_filter_to_traces:
+                traces = gaussian_filter1d(traces, sigma=1, axis=2)
 
-            if filter_active:
-                feature_df = get_feature_df(self.behav_df, self.active_neurons, traces = traces, code_names = variables, rat_name = self.objID)
-            else:
-                if filter_by is not None:
-                    feature_df = get_feature_df(self.behav_df, filter_by, traces=traces,
-                                                code_names=variables,
-                                                rat_name=self.objID)
-                else:
-                    feature_df = get_feature_df(self.behav_df, np.arange(self.n_neurons), traces=traces, code_names=variables,
-                                            rat_name=self.objID)
+            # the given list of selected neurons will be used, unless it is empty or if 'active' is passed instead
+            if selected_neurons == 'active':
+                selected_neurons = self.active_neurons
+            elif not len(selected_neurons):
+                selected_neurons = np.arange(self.n_neurons)
 
+            feature_df = get_trace_feature_df(self.behav_df, selected_neurons,
+                                              traces=traces, behavior_variables=variables, rat_name=self.objID)
 
-            print("made a brand new feature df")
+            print("Created new feature df.")
             if save:
-                print("caching the new feature df")
                 self.feature_df_keys.append([alignment, variables])
                 fname = self.dat_path + self.objID + '_feature_df_' + str(len(self.feature_df_keys)) + '.pkl'
                 with open (fname, 'wb') as f:
                     pickle.dump(feature_df, f)
 
+                print("New feature df cached.")
                 self.feature_df_cache.append(fname)
 
         return feature_df
