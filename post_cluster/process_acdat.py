@@ -1,3 +1,8 @@
+"""
+Adapted from https://github.com/achristensen56/KepecsCode.git
+
+Adaptation by Greg Knoll: Nov 2022
+"""
 #%% Import native and custom libraries
 import datetime
 import glob
