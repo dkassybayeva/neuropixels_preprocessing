@@ -303,32 +303,51 @@ def create_trial_interp(traces, interp_frames, interp_lens):
     return np.concatenate(ts).T
 
 
-def get_feature_df(behav_df, all_coding_inds, traces, code_names=['prev_response_side1', 'prev_correct', 'stim_dir'], rat_name = 'none'):
-    d_all = []
-    for nrn in all_coding_inds:
-        all_traces = traces[:, nrn, :].astype('float32')  # trials, frame
+def get_trace_feature_df(behav_df, selected_neurons, traces,
+                   behavior_variables=['prev_response_side1', 'prev_correct', 'stim_dir'],
+                   rat_name = 'none'):
+    """
+    Creates a dataframe of the spiking response ('activity') for all selected neurons and
+    pairs the values of the given behavioral task variables with the spiking response in each time bin.
 
+    :param behav_df: [pandas Dataframe] with values of behavioral variables from each trial
+    :param selected_neurons: [numpy array] of neurons to use
+    :param traces: [numpy array] spiking responses ('activity') with dimensions [#trials x #neurons x #time bins]
+    :param behavior_variables: [list] names of task variables, such as trial outcome or wait time
+    :param rat_name: [string]
+    :return: [pandas Dataframe] each row contains the result of a single time bin within a given trial,
+            or 'feature', with columns:
+                - behavior variable values
+                - neuron number
+                - trial number
+                - spiking response ('activity') of a single time bin
+                - time bin number
+                - rat name
+    """
+    dataframe_list = []
+    for nrn in selected_neurons:
+        all_traces = traces[:, nrn, :].astype('float32')  # trials, frame
         n_trials, n_frames = all_traces.shape
 
-        vars_to_plot = [np.repeat(behav_df[code_name], n_frames) for code_name in code_names]
+        # Concatenate all traces into one long array, with the time axis repeating: [trial 1, trial 2, ...]
+        repeated_time_indices = np.tile(np.arange(n_frames), n_trials)
+        traces_in_single_series = all_traces.flatten()
 
-        #todo use index of behav_df
-        trials = np.repeat(range(n_trials), n_frames)
-        #trials = np.repeat(behav_df.index.to_numpy(), n_frames)
-        dff = np.reshape(all_traces, -1)  # trials,frames
+        # Concatenate all trial info into one long array, with the result for a single trial
+        # repeated at each time step: [result_trial1 x n_frames, ..., result_trialN x n_frames]
+        trials = np.repeat(behav_df.index.to_numpy(), n_frames)
+        trial_results = [np.repeat(behav_df[code_name], n_frames) for code_name in behavior_variables]
 
-        frames = np.tile(np.arange(n_frames), n_trials)
+        # Combine results
+        dict_names = behavior_variables + ['activity', 'time', 'neuron', 'trial']
+        vars_to_plot = trial_results + [traces_in_single_series, repeated_time_indices, nrn, trials]
+        result_dict = dict(zip(dict_names, vars_to_plot))
 
-        dict_names = code_names + ['activity', 'time', 'neuron', 'trial']
-        vars_to_plot = vars_to_plot + [dff, frames, nrn, trials]
+        # Convert to dataframe and append to dataframe list
+        dataframe_list.append(pd.DataFrame(result_dict))
 
-        dict = {cn: vtp for (cn, vtp) in zip(dict_names, vars_to_plot)}
-
-        d_ = pd.DataFrame(dict)
-
-        d_all.append(d_)
-    df = pd.concat(d_all).copy().reset_index()
-
+    # Convert the dataframe list into single master dataframe
+    df = pd.concat(dataframe_list).copy().reset_index()
     df['rat_name'] = rat_name
 
     return df
