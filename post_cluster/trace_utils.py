@@ -10,6 +10,7 @@ import tqdm
 
 import matplotlib.pyplot as plt
 from scipy import stats
+from scipy.stats import spearmanr
 import os
 import glob
 import pickle
@@ -831,9 +832,8 @@ def split_multiday(behav_df, traces_dict):
     return priors, dates, sessions, dfs, traces_dicts
 
 
-from scipy.stats import spearmanr
 
-def filter_active(obj, set_active = False, n_bootstraps = 10, cor_val = .95, save = False):
+def filter_active(obj, set_active=False, n_bootstraps=10, cor_val=.95, save=False):
 
     _, n_neurons, trial_len = obj.interp_traces.shape
 
@@ -868,14 +868,14 @@ def filter_active(obj, set_active = False, n_bootstraps = 10, cor_val = .95, sav
     return obj
 
 
-def update_active(obj, active, save = True):
-    act_inds = np.where(active)[0]
-    obj.active_neurons = act_inds
+def update_active(obj, active, save=True):
     print("updated active inds for rat: " +  obj.name)
-
+    obj.active_neurons = np.where(active)[0]
     if save:
         obj.to_pickle()
         print("saved new active inds")
+
+
 def compute_d_primes(traces, var_data, n_shuff = 1000, distance = "dprime", balance_by = None):
 
     var_data2 = balance_by
