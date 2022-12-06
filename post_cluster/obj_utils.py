@@ -68,9 +68,12 @@ def map_traces(behav_df, obj_list, matches):
 
     return interp_dict
 
-def group_iter_clusters(obj_list, phase_indexer, filter_active = True, require_all_clusters = False, cluster_list = None):
+def get_cluster_traces(obj_list, phase_indexer, filter_active=True, require_all_clusters=False, cluster_list=None):
+    """
+    Returns an iterable group of lists containing the cluster labels, behavioral dataframes, neural traces, rat names.
+    """
 
-    labels = [l for obj in obj_list for l in obj.cluster_labels]
+    labels = np.array([obj.cluster_labels for obj in obj_list]).flatten()
     n_clusters = len(np.unique(labels))
 
     if require_all_clusters:
@@ -88,20 +91,20 @@ def group_iter_clusters(obj_list, phase_indexer, filter_active = True, require_a
         obj_list = objs_red
 
 
-    for c in np.unique(labels):
-        dfs = []
+    for cluster_id in np.unique(labels):
+        behavior_df_list = []
         traces = []
-        names = []
+        rat_names = []
         for obj in obj_list:
             if filter_active:
-                clust = np.array(obj.active_neurons)[obj.cluster_labels == c]
+                clust = obj.active_neurons[obj.cluster_labels == cluster_id]
             else:
-                clust = np.arange(0, obj.n_neurons)[obj.cluster_labels == c]
+                clust = np.arange(0, obj.n_neurons)[obj.cluster_labels == cluster_id]
 
             if len(clust) > 0:
-                dfs.append(obj.behav_df)
+                behavior_df_list.append(obj.behav_df)
                 traces.append(obj[:, clust, phase_indexer])
-                names.append(obj.objID)
+                rat_names.append(obj.name)
             else:
                 print("uhoh the cluster was too small")
-        yield(c, dfs, traces, names)
+        yield(cluster_id, behavior_df_list, traces, rat_names)

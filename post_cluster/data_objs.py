@@ -10,11 +10,12 @@ import pickle
 import pandas as pd
 from sqlalchemy import create_engine, update, delete
 import numpy as np
-from trace_utils import get_trace_feature_df
 from scipy.ndimage import gaussian_filter1d
-from obj_utils import *
 import os
 import glob
+
+from neuropixels_preprocessing.post_cluster.trace_utils import get_trace_feature_df
+from neuropixels_preprocessing.post_cluster.obj_utils import *
 
 class DataContainer:
     def __init__(self, dat_path, behav_df, traces_dict, 
