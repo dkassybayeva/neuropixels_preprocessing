@@ -306,7 +306,7 @@ def create_trial_interp(traces, interp_frames, interp_lens):
 
 def get_trace_feature_df(behav_df, selected_neurons, traces,
                    behavior_variables=['prev_response_side1', 'prev_correct', 'stim_dir'],
-                   rat_name = 'none'):
+                   rat_name='none'):
     """
     Creates a dataframe of the spiking response ('activity') for all selected neurons and
     pairs the values of the given behavioral task variables with the spiking response in each time bin.

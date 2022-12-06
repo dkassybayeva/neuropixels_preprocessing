@@ -91,7 +91,7 @@ class DataContainer:
                               "total number of neurons or number of active neurons")
 
                     df_dict['cluster_mask'] = cluster_mask
-                self.neuron_mask_df = pd.DataFrame(df_dict, index = df_dict["neurons"], columns= ["cluster_mask", "active_mask"])
+                self.neuron_mask_df = pd.DataFrame(df_dict, index=df_dict["neurons"], columns=["cluster_mask", "active_mask"])
 
             self.traces_dict = traces_dict
         self.behav_df = behav_df
@@ -271,7 +271,7 @@ class DataContainer:
                 selected_neurons = np.arange(self.n_neurons)
 
             feature_df = get_trace_feature_df(self.behav_df, selected_neurons,
-                                              traces=traces, behavior_variables=variables, rat_name=self.objID)
+                                              traces=traces, behavior_variables=variables, rat_name=self.name)
 
             print("Created new feature df.")
             if save:

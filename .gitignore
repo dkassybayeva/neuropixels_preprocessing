@@ -3,3 +3,4 @@
 *.m~
 __pycache__
 .idea/
+__init__.py
