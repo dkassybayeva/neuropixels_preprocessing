@@ -22,9 +22,9 @@ def trial_start_align(behav_df, traces, sps):
 
     behav_df = behav_df[~np.isnan(behav_df.TrialStartAligned)]
 
-    # ----------------------------------------------------------------------------- #
-    # Find the longest trial, so that all trials can be zero padded to the same len
-    # ----------------------------------------------------------------------------- #
+    # ----------------------------------------------------------------------- #
+    # Find longest trial, so that all trials can be zero padded to same len
+    # ----------------------------------------------------------------------- #
     # number of bins in a trial
     trial_len = np.ceil(sps*(behav_df['trial_len']).to_numpy()).astype('int')
 
@@ -34,20 +34,24 @@ def trial_start_align(behav_df, traces, sps):
     if longest_trial < 12000:
         longest_trial = 12000
     elif longest_trial < 24000:
-        longest_trial = 12000
+        longest_trial = 24000
     elif longest_trial < max_allowable_len:
         longest_trial = max_allowable_len
     else:
-        # In this case, the longest trial is longer than some arbitrary limit and will be truncated.
-        # However, the next-longest may also be longer than the upper limit, so all trials that are longer
-        # than the limit need to be truncated.
-        # This is not the case above, where extending the longest_trial does not change that it is the longest.
+        # In this case, the longest trial is longer than some arbitrary limit 
+        # and will be truncated. However, the next-longest may also be longer 
+        # than the upper limit, so all trials that are longer than the limit 
+        # need to be truncated.
+        # This is not the case above, where extending the longest_trial does 
+        # not change that it is the longest.
         print("Warning: Truncating very long trials.")
 
         longest_trial = max_allowable_len
         trial_len[trial_len > max_allowable_len] = longest_trial
-        behav_df.loc[behav_df['trial_len'] > max_allowable_len, 'trial_len'] = longest_trial
-    # ----------------------------------------------------------------------------- #
+        
+        long_idx = (sps * behav_df['trial_len']) > max_allowable_len
+        behav_df.loc[long_idx, 'trial_len'] = longest_trial / sps  # store in s
+    # ----------------------------------------------------------------------- #
 
     # trial start in bins (index) in the recording system timeframe
     t_starts = np.round(sps*behav_df['TrialStartAligned']).astype('int')
