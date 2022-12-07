@@ -50,7 +50,7 @@ sps = 1000 / timestep_ds  # samples per second (1000ms)
 
 metadata = {'time_investment': True,
             'reward_bias': False,
-            'prior': False,
+            'prior': False,  # Could possibly be Amy's code for a task type that was previously used
             'experimenter': 'Amy',
             'region': 'lOFC',
             'recording_type': 'neuropixels',
@@ -77,7 +77,7 @@ def create_experiment_data_object(i, datapath):
     # format entries of dataframe for analysis (e.g., int->bool)
     cbehav_df = convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=True)
     
-    # align spike times to behavioral data
+    # align spike times to behavioral data timeframe
     # spike_times = array [n_neurons x n_trials x longest_trial period in ms]
     spike_times, _ = trial_start_align(cbehav_df, spike_times, 1000)
     

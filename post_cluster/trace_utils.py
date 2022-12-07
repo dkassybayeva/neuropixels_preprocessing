@@ -22,33 +22,38 @@ def trial_start_align(behav_df, traces, sps):
 
     behav_df = behav_df[~np.isnan(behav_df.TrialStartAligned)]
 
-    # trial start in bins (index)
-    t_starts = np.round(sps*behav_df['TrialStartAligned']).astype('int')
-    
+    # ----------------------------------------------------------------------------- #
+    # Find the longest trial, so that all trials can be zero padded to the same len
+    # ----------------------------------------------------------------------------- #
     # number of bins in a trial
     trial_len = np.ceil(sps*(behav_df['trial_len']).to_numpy()).astype('int')
 
     longest_trial = max(trial_len)
+    max_allowable_len = 36000
 
     if longest_trial < 12000:
         longest_trial = 12000
     elif longest_trial < 24000:
         longest_trial = 12000
-    elif longest_trial < 36000:
-        longest_trial = 36000
+    elif longest_trial < max_allowable_len:
+        longest_trial = max_allowable_len
     else:
-        longest_trial = 36000
+        # In this case, the longest trial is longer than some arbitrary limit and will be truncated.
+        # However, the next-longest may also be longer than the upper limit, so all trials that are longer
+        # than the limit need to be truncated.
+        # This is not the case above, where extending the longest_trial does not change that it is the longest.
+        print("Warning: Truncating very long trials.")
 
-        longest_ind  = (behav_df['trial_len']).argmax().to_numpy()
-        trial_len[longest_ind] = longest_trial
+        longest_trial = max_allowable_len
+        trial_len[trial_len > max_allowable_len] = longest_trial
+        behav_df.loc[behav_df['trial_len'] > max_allowable_len, 'trial_len'] = longest_trial
+    # ----------------------------------------------------------------------------- #
 
-        behav_df.loc[(behav_df['trial_len']).argmax(), 'trial_len'] = longest_trial
-        print(behav_df.loc[(behav_df['trial_len']).argmax(), 'trial_len'])
-        print("warning, truncating a very long trial")
+    # trial start in bins (index) in the recording system timeframe
+    t_starts = np.round(sps*behav_df['TrialStartAligned']).astype('int')
 
     n_trials = len(behav_df)
     n_neurons = traces.shape[0]
-
     spikes = np.zeros([n_trials, n_neurons, longest_trial]).astype('uint8')
 
     for i in range(n_trials):
@@ -126,7 +131,10 @@ def create_traces_np(behav_df, traces, sps,
         
         # reward is waiting time after choice, which starts at aligned_ind
         # things are already response aligned
-        reward_ind = (sps * (resp_off - resp_on) + aligned_ind).astype('int') 
+        reward_ind = (sps * (resp_off - resp_on) + aligned_ind).astype('int')
+
+        # trial start (enters center poke) from animal's perspective but negative
+        # because it's relative to the response start
         poke_ind = (aligned_ind - sps*(resp_on - center_poke)).astype('int')
         
         # stimulus is response time before choice, which starts at aligned ind
@@ -240,6 +248,8 @@ def create_traces_np(behav_df, traces, sps,
 
 
     # -----------------------Interpolated----------------------------------- #
+    # AKA time warping (see Williams et al. (2020)
+    # will have the biggest effect in the response delay period
     interp_traces = []
     for i in range(len(stim_ind)):
         if (stim_ind[i] - poke_ind[i]) < 1:
@@ -260,13 +270,13 @@ def create_traces_np(behav_df, traces, sps,
         # print([len(f) for f in interp_frames])
         # print(padded_traces.shape)
 
-        interp_lens = [int(.5*sps),
+        interp_lens = [int(.5*sps),   # ITI
                        int(.2*sps),   # stim_begin = 1
                        int(.35*sps),  # stim_end = 2
                        int(.15*sps),  # response_begin = 3
-                       int(.5*sps),
-                       int(3*sps),
-                       int(.5*sps)]
+                       int(.5*sps),   # arbitrary buffer?
+                       int(3*sps),    # time investment (feedback delay)
+                       int(.5*sps)]   # arbitrary buffer?
 
         trace_i = padded_traces[:, i, :].reshape([n_neurons, -1])
         interp_trace = create_trial_interp(trace_i, 
