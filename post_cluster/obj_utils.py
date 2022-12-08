@@ -7,10 +7,13 @@ import numpy as np
 import os
 import glob
 
-def make_dir_if_not_exist(path):
+def make_dir_if_nonexistent(path):
     """create a directory if it doesn't exist"""
     if not os.path.exists(path):
         os.makedirs(path)
+        print(f"{path} created.")
+    else:
+        print(f"{path} already exists.")
 
 def clear_obj_files(path):
     files = glob.glob(path + ".pkl")
