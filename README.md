@@ -62,7 +62,7 @@ and run it (e.g., cmd: python convert_spikes.py) **-> spikes_per_cluster.mat**
 
     - combines all TT[shank#]\_[clusterID].mat files created by MakeTTNeuropixel(\_batchalign).m into a signle binary matrix with spike times
 
-- process\_acdat.py: uses **traces\_ms.m** and **RecBehav.mat**
+- create\_data\_objects\_with\_aligned\_traces.py: uses **traces\_ms.m** and **RecBehav.mat**
 
     - requires (pip install): mat73, imblearn
     - aligns the spiking and behavioral data to different events (e.g., trial start vs response start)
