@@ -37,6 +37,7 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 	
 	If it’s a badly aligned day, many cells won't look consistent, especially in the upper part of the probe. 
 
+10) Reevaluate the cluster metrics by running rerun\_metrics\_after\_cluster\_alteration.m
 
 ## After Clustering (scripts in post\_cluster/ directory):
 
