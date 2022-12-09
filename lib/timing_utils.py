@@ -14,7 +14,7 @@ import pandas as pd
 import h5py
 from joblib import load, dump
 
-from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile
+from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import get_Trodes_timestamps
 
 
 def create_spike_mat(session_path, kilosort_dir, date, probe_num, fs):
@@ -35,8 +35,7 @@ def create_spike_mat(session_path, kilosort_dir, date, probe_num, fs):
     # load Trodes timestamps - in the general kilosort folder (of first probe)
     timestamp_file = kilosort_dir.format(1) + date + '.timestamps.dat'
     # >1GB variable for a 3h recording
-    trodes_timestamps_tuples = readTrodesExtractedDataFile(timestamp_file)['data']
-    trodes_timestamps = np.array([t[0] for t in trodes_timestamps_tuples])
+    trodes_timestamps = get_Trodes_timestamps(timestamp_file)
     #----------------------------------------------------------------------#
     
     

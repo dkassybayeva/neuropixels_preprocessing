@@ -1,9 +1,61 @@
 #!/usr/bin/python
-#Requires numpy to be installed. re and sys are defaults for python
-#assumes python 2.7
+"""
+Requires numpy to be installed. re and sys are defaults for python
+assumes >python 2.7
+
+Originally from Trodes/Resources/TrodesToPython/readTrodesExtractedDataFile3.py
+
+Adapted by Greg Knoll
+Dec 9th, 2022
+"""
 import numpy as np
 import re
 from sys import argv
+
+
+def get_Trodes_timestamps(filename):
+    """
+    Instead of reading all metadata and creating an unnecessary tuple for each
+    timestamp, this function skips the metadata and simply returns the
+    timestamp data as a numpy array with datatype 'uint32'.
+    
+    Author: Greg Knoll
+
+    Parameters
+    ----------
+    filename : [string] full path and file name of Trodes timestamps.dat file.
+
+    Raises
+    ------
+    Exception : if the first line is not <Start settings>
+
+    Returns
+    -------
+    timestamp data [numpy array with dtype='uint32']
+
+    """
+    with open(filename, 'rb') as f:
+        # Check if first line is start of settings block
+        if f.readline().decode('ascii').strip() != '<Start settings>':
+            raise Exception("Settings format not supported")
+            
+        # Simply iterate through the metadata until data is reached
+        fields = True
+        for line in f:
+            # Read through block of settings
+            if(fields):
+                line = line.decode('ascii').strip()
+                if line == '<End settings>':
+                    # End of settings block, signal end of fields
+                    fields = False
+                    break
+                
+        # Reads rest of file at once
+        return np.fromfile(f, 'uint32')
+
+
+
+
 # Main function
 def readTrodesExtractedDataFile(filename):
     with open(filename, 'rb') as f:
