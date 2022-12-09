@@ -155,25 +155,10 @@ def extract_TTL_events(session_path, gap_filename, save_dir):
     dio_file_list = listdir(dio_path)
     n_channels = len(dio_file_list)
     
-    """ TODO: delete after testing
-    % Original Matlab code converted in the block below 
-    num_Din = len(flist)
-    TTLs_ts = []
-    for i=1:num_Din
-        Din_each = readTrodesExtractedDataFile(flist(i).name)
-        if (isempty(Din_each))
-            disp(['File read error: ',flist])
-            return
-
-        Din_cell{i} = double(Din_each.fields(2).data)
-        ts_Din_cell{i} = double(Din_each.fields(1).data)/Din_each.clockrate
-        
-        TTLs_ts = [TTLs_ts ts_Din_cell{i}]
-
     
-    TTLs_ts = unique(TTLs_ts).T
-    """
-    
+    # ------------------------------------------------------------ #
+    #           Load and organize TTL timestamps and states
+    # ------------------------------------------------------------ #
     TTL_timestamps = np.array([])
     timestamp_list = []
     state_list = []
@@ -202,62 +187,39 @@ def extract_TTL_events(session_path, gap_filename, save_dir):
         
     assert sum(map(len, state_list)) == TTL_timestamps.size
     assert sum(map(len, timestamp_list)) == TTL_timestamps.size
+    # ------------------------------------------------------------ #
     
     
-    """ TODO: delete after testing
-    % Original Matlab code converted in the block below 
-    TTLs = zeros(size(TTLs_ts))
-    Din_matrix = zeros(num_Din,length(TTLs_ts))
-    
-    # Din matrix
-    for j=1:num_Din
-        for i=1:length(TTLs_ts)
-            idx = find(ts_Din_cell{j} == TTLs_ts(i),1)
-            ts_tmp = TTLs_ts(i)
-            
-            if ~isempty(idx)
-                Din_matrix(j,i) = Din_cell{j}(idx)
-            else
-                Din_matrix(j,i) = Din_matrix(j,i-1)
-
-        Din_matrix(j,:) = Din_matrix(j,:) * 2^(j-1)   # Convert it to decimal
-
-    TTLs = sum(Din_matrix,1)
-    """
+    # ------------------------------------------------------------ #
+    #  Create n-channel-bit code with length as long as unique timestamps
+    # ------------------------------------------------------------ #
     TTL_timestamps = np.unique(TTL_timestamps)
     states_mat = np.zeros((n_channels, TTL_timestamps.size))
     
+    # Register the state of each channel at each global timestamp
+    # and interpolate between timestamps
     for ch_i in range(n_channels):
+        # TODO: this could probably be done without iteration, e.g.:
+        # idx = np.nonzero(np.in1d(TTL_timestamps, timestamp_list[ch_i]).sum())[0]
         for ts_i in range(TTL_timestamps.size):
-            #idx = np.nonzero(np.in1d(TTL_timestamps, timestamp_list[ch_i]).sum())[0]
-            
+             
             idx = np.where((timestamp_list[ch_i] == TTL_timestamps[ts_i]))[0]
-            if idx.size:
+            if idx.size:  # state switch
                 states_mat[ch_i, ts_i] = state_list[ch_i][idx]
-            else:
+            else:  # interpolate
                 states_mat[ch_i, ts_i] = states_mat[ch_i, ts_i-1]
 
-        states_mat[ch_i] = states_mat[ch_i] * 2**ch_i  # Each channel=bit
+        coding_bit = 2**ch_i  # Each channel represents particular bit in code
+        states_mat[ch_i] = states_mat[ch_i] * coding_bit  
         
-    TTL_code = np.sum(states_mat, axis=0)  # Convert to 6-bit code
+    TTL_code = np.sum(states_mat, axis=0)  # Convert to n-channel-bit code
     assert TTL_code.size == TTL_timestamps.size
+    # ------------------------------------------------------------ #
     
-    """ TODO: delete after testing
-    % Original Matlab code converted in the block below 
-    TTLs = [TTLs repmat([-1], [1, length(gaps.gaps_ts)])]
-    TTLs_ts = [TTLs_ts gaps.gaps_ts']
-    
-    [TTLs_ts, sort_ind] = sort(TTLs_ts)
-    TTLs = TTLs(sort_ind)
-        
-    # change formats for Cellbase process
-    Events_TTL = TTLs
-    Events_TS = TTLs_ts
-    
-    save(fullfile(cellbase_dir,'EVENTS.mat'),'Events_TS', 'Events_TTL');
-    """
-    
-    # now consider gaps in the recordings
+
+    # ------------------------------------------------------------ #
+    #           Now consider gaps in the recordings
+    # ------------------------------------------------------------ #
     gaps = load(save_dir + gap_filename)
     gap_timestamps = gaps['gaps_ts']
     
@@ -272,7 +234,10 @@ def extract_TTL_events(session_path, gap_filename, save_dir):
     sort_idx = np.argsort(TTL_timestamps)
     TTL_timestamps = TTL_timestamps[sort_idx]
     TTL_code = TTL_code[sort_idx]
+    # ------------------------------------------------------------ #
     
-    # save results
+    # ------------------------------------------------------------ #
+    #                      Save results
+    # ------------------------------------------------------------ #
     results = {'TTL_code': TTL_code, 'timestamps': TTL_timestamps}
     dump(results, save_dir + 'TTL_events.npy', compress=3) 
