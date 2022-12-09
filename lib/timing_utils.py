@@ -9,15 +9,18 @@ Created on Thu Dec  8 03:54:44 2022
 
 @author: Greg Knoll
 """
+from os import listdir
 import numpy as np
 import pandas as pd
 import h5py
 from joblib import load, dump
 
-from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import get_Trodes_timestamps
+from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 \
+    import get_Trodes_timestamps, readTrodesExtractedDataFile
 
 
-def create_spike_mat(session_path, kilosort_dir, date, probe_num, fs):
+def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
+                     save_individual_spiketrains):
     #----------------------------------------------------------------------#
     #                   Load Kilosort/Phy Spike Data
     #----------------------------------------------------------------------#
@@ -32,8 +35,6 @@ def create_spike_mat(session_path, kilosort_dir, date, probe_num, fs):
     #----------------------------------------------------------------------#
     #              Load Trodes Times for Relative Timekeeping
     #----------------------------------------------------------------------#
-    # load Trodes timestamps - in the general kilosort folder (of first probe)
-    timestamp_file = kilosort_dir.format(1) + date + '.timestamps.dat'
     # >1GB variable for a 3h recording
     trodes_timestamps = get_Trodes_timestamps(timestamp_file)
     #----------------------------------------------------------------------#
@@ -78,9 +79,10 @@ def create_spike_mat(session_path, kilosort_dir, date, probe_num, fs):
         # Trodes saves timestamp as index in sampling frequency
         spike_train = global_spike_times / fs  # actual spike times in seconds
          
-        # save spike times
-        spike_time_file = f'spike_times_in_sec_shank={probe_num}_clust={clust_i}.npy'
-        dump(spike_train, cellbase_dir + spike_time_file, compress=3)    
+        if save_individual_spiketrains:
+            # save spike times
+            spike_time_file = f'spike_times_in_sec_shank={probe_num}_clust={clust_i}.npy'
+            dump(spike_train, cellbase_dir + spike_time_file, compress=3)    
         
         # register spikes in the spike matrix
         spiktime_ms_inds = np.round(spike_train * 1000).astype('int')
@@ -91,61 +93,186 @@ def create_spike_mat(session_path, kilosort_dir, date, probe_num, fs):
     print('\nSaved to ' + cellbase_dir)
 
 
-def calc_intersample_periods(timestamps, fs=30000., threshold=0.001, save_dir=''):
+def find_recording_gaps(timestamp_file, fs, max_ISI, save_dir):
     """
-    Returns lengths and start times of intersample periods.
+    Detects abnormalities in the lengths of the periods between samples which
+    may result from the recording device temporarily going offline.
 
     Parameters
     ----------
     timestamps : [numpy array] trodes timestamps.
     fs : [float] sampling frequency. The default is 30000.
-    threshold : [float] size of gap in seconds to keep. 
-                The default is 0.001 (1ms).
+    max_ISI : [float] largest period between samples (ISI=intersample interval)
+              allowed before the period is considered a "gap" in the recording
+              The default is 0.001 (1ms).
 
     Returns
     -------
     None.  Saves the results to gaps
 
     """
+    trodes_timestamps = get_Trodes_timestamps(timestamp_file)
+    
     # length of gaps
-    gaps = np.diff(timestamps) / fs
+    gaps = np.diff(trodes_timestamps) / fs
     
     # gaps_ts are timestamps where gaps *start*
-    gaps_ts = timestamps[gaps > threshold] / fs
+    gaps_ts = trodes_timestamps[:-1][gaps > max_ISI] / fs
     
-    gaps = gaps[gaps > threshold]
-    gaps_ts = gaps_ts[gaps > threshold]
+    gaps = gaps[gaps > max_ISI]
+    gaps_ts = gaps_ts[gaps > max_ISI]
     
     # also save some info for later in cellbase folder
     results = {'gaps': gaps, 'gaps_ts': gaps_ts}
-    gap_filename = f"trodes_intersample_periods_longer_than_{threshold}s.npy"
+    gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
     dump(results, save_dir + gap_filename, compress=3)
     
     return gap_filename
 
 
-def process_behavioral_events(trodes_timestamps, fs, threshold, session_path):
+def extract_TTL_events(session_path, gap_filename, save_dir):
     """
-    Convert Trodes Analog Input to TTL Events
+    Converts 6 analog channels to TTL-like event times in seconds
+    TTL = transistor-transistor logic
 
+    Requires export of .DIO in Trodes.
+    
+    Original Matlab version: LC/QC/TO 2018-21
+    Ported to python: Greg Knoll 2022
+    
     Parameters
     ----------
-    trodes_timestamps : TYPE
-        DESCRIPTION.
-    fs : TYPE
-        DESCRIPTION.
-    threshold : TYPE
-        DESCRIPTION.
-    session_path : TYPE
-        DESCRIPTION.
-
+    fname is a .rec file (full path)
+    
     Returns
     -------
-    None.
-
+    Events_TTL, Events_TS
     """
-    save_dir = session_path + 'cellbase/'
-    gap_filename = calc_intersample_periods(trodes_timestamps, fs, threshold, save_dir)
-    events_TTL, events_TS = extractTTLs(session_path, gap_filename)
-    results = {'TTL': events_TTL, 'TS': events_TS}
-    dump(results, save_dir + 'events.npy', compress=3) 
+         
+    dio_path = '.'.join(session_path.split('.')[:-1]) + '.DIO/'
+    
+    # each analog MCU input pin will have its own .dat file
+    dio_file_list = listdir(dio_path)
+    n_channels = len(dio_file_list)
+    
+    """ TODO: delete after testing
+    % Original Matlab code converted in the block below 
+    num_Din = len(flist)
+    TTLs_ts = []
+    for i=1:num_Din
+        Din_each = readTrodesExtractedDataFile(flist(i).name)
+        if (isempty(Din_each))
+            disp(['File read error: ',flist])
+            return
+
+        Din_cell{i} = double(Din_each.fields(2).data)
+        ts_Din_cell{i} = double(Din_each.fields(1).data)/Din_each.clockrate
+        
+        TTLs_ts = [TTLs_ts ts_Din_cell{i}]
+
+    
+    TTLs_ts = unique(TTLs_ts).T
+    """
+    
+    TTL_timestamps = np.array([])
+    timestamp_list = []
+    state_list = []
+    for din_filename in dio_file_list:
+        if not('Din' in din_filename and '.dat' in din_filename):
+            continue
+        
+        # Load the channel dictionary: data + metadata
+        channel_dict = readTrodesExtractedDataFile(dio_path + din_filename)
+        if not channel_dict:
+            print('Error while trying to read ' + din_filename)
+            continue
+        
+        # Each data point is (timestamp, state) -> break into separate arrays
+        channel_data = channel_dict['data']
+        channel_states = np.array([tup[1] for tup in channel_data])
+        channel_timestamps = np.array([tup[0] for tup in channel_data])
+        assert channel_states.shape == channel_timestamps.shape
+        
+        # Convert timestamps to seconds and save both structures in their
+        # respective containers
+        ch_timestamps_sec = channel_timestamps / int(channel_dict['clockrate'])
+        TTL_timestamps = np.append(TTL_timestamps, ch_timestamps_sec)
+        timestamp_list.append(ch_timestamps_sec)
+        state_list.append(channel_states)
+        
+    assert sum(map(len, state_list)) == TTL_timestamps.size
+    assert sum(map(len, timestamp_list)) == TTL_timestamps.size
+    
+    
+    """ TODO: delete after testing
+    % Original Matlab code converted in the block below 
+    TTLs = zeros(size(TTLs_ts))
+    Din_matrix = zeros(num_Din,length(TTLs_ts))
+    
+    # Din matrix
+    for j=1:num_Din
+        for i=1:length(TTLs_ts)
+            idx = find(ts_Din_cell{j} == TTLs_ts(i),1)
+            ts_tmp = TTLs_ts(i)
+            
+            if ~isempty(idx)
+                Din_matrix(j,i) = Din_cell{j}(idx)
+            else
+                Din_matrix(j,i) = Din_matrix(j,i-1)
+
+        Din_matrix(j,:) = Din_matrix(j,:) * 2^(j-1)   # Convert it to decimal
+
+    TTLs = sum(Din_matrix,1)
+    """
+    TTL_timestamps = np.unique(TTL_timestamps)
+    states_mat = np.zeros((n_channels, TTL_timestamps.size))
+    
+    for ch_i in range(n_channels):
+        for ts_i in range(TTL_timestamps.size):
+            #idx = np.nonzero(np.in1d(TTL_timestamps, timestamp_list[ch_i]).sum())[0]
+            
+            idx = np.where((timestamp_list[ch_i] == TTL_timestamps[ts_i]))[0]
+            if idx.size:
+                states_mat[ch_i, ts_i] = state_list[ch_i][idx]
+            else:
+                states_mat[ch_i, ts_i] = states_mat[ch_i, ts_i-1]
+
+        states_mat[ch_i] = states_mat[ch_i] * 2**ch_i  # Each channel=bit
+        
+    TTL_code = np.sum(states_mat, axis=0)  # Convert to 6-bit code
+    assert TTL_code.size == TTL_timestamps.size
+    
+    """ TODO: delete after testing
+    % Original Matlab code converted in the block below 
+    TTLs = [TTLs repmat([-1], [1, length(gaps.gaps_ts)])]
+    TTLs_ts = [TTLs_ts gaps.gaps_ts']
+    
+    [TTLs_ts, sort_ind] = sort(TTLs_ts)
+    TTLs = TTLs(sort_ind)
+        
+    # change formats for Cellbase process
+    Events_TTL = TTLs
+    Events_TS = TTLs_ts
+    
+    save(fullfile(cellbase_dir,'EVENTS.mat'),'Events_TS', 'Events_TTL');
+    """
+    
+    # now consider gaps in the recordings
+    gaps = load(save_dir + gap_filename)
+    gap_timestamps = gaps['gaps_ts']
+    
+    # append their timestamps to the timestamps array
+    TTL_timestamps = np.append(TTL_timestamps, gap_timestamps)
+    
+    # add -1 as placeholder code for the gaps
+    TTL_code = np.append(TTL_code, -1 * np.ones(gap_timestamps.size))
+    assert TTL_code.size == TTL_timestamps.size
+    
+    # resort the timestamps
+    sort_idx = np.argsort(TTL_timestamps)
+    TTL_timestamps = TTL_timestamps[sort_idx]
+    TTL_code = TTL_code[sort_idx]
+    
+    # save results
+    results = {'TTL_code': TTL_code, 'timestamps': TTL_timestamps}
+    dump(results, save_dir + 'TTL_events.npy', compress=3) 
