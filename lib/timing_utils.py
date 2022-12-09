@@ -125,7 +125,7 @@ def calc_intersample_periods(timestamps, fs=30000., threshold=0.001, save_dir=''
     return gap_filename
 
 
-def process_trodes_events(trodes_timestamps, fs, threshold, session_path):
+def process_behavioral_events(trodes_timestamps, fs, threshold, session_path):
     """
     Convert Trodes Analog Input to TTL Events
 
