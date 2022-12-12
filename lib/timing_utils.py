@@ -269,3 +269,68 @@ def extract_TTL_events(session_path, gap_filename, save_dir):
     # ------------------------------------------------------------ #
     results = {'TTL_code': TTL_code, 'timestamps': TTL_timestamps}
     dump(results, save_dir + 'TTL_events.npy', compress=3) 
+
+
+def group_codes_and_timestamps_by_trial(TTL_code, timestamps):
+    """
+    Group TTLs and their timestamps by trial. 
+    This is tricky, since in TRODES we (TO/2020-2021) are using 5 bits to
+    sync Bpod events, which are the first 5 DIO at the Trodes MCU. The 6th
+    bit is used for laser pulse alignment. 
+    However, there can be more than 2^5 Bpod states.
+    
+    Parameters
+    ----------
+    TTL_code, Events_TS [numpy arrays]
+    
+    Returns
+    -------
+    list with length n_trials, in which each element is a dictionary:
+        'TTL_code': list of TTL codes (states) encountered in the trial
+        'timestamps': list of timestampts of the codes (states)
+    """
+
+    start_code = 1  # trialStart (WaitForInitialPoke)
+    pre_start = 0  # no state (between trials)
+    post_start = 2  # state that is always followed by start_code state
+    
+    first_start = np.where(TTL_code==start_code)[0][0]
+    n_codes = len(TTL_code)
+    
+    # Break Nlx events into a cell array by trials
+    n_trials = 0
+    events_and_timestamps_per_trial = []
+    
+    # create new data structures for trial's events
+    curr_trial_codes = []
+    curr_trial_timestamps = []
+    for x in range(first_start, n_codes):
+        # if a trial start
+        if TTL_code[x] == start_code and TTL_code[x-1]==pre_start and TTL_code[x+1]==post_start:
+            n_trials = n_trials + 1
+            if x != first_start:
+                # save previous trial's events to global container
+                events_and_timestamps_per_trial.append(
+                                    {'TTL_code': curr_trial_codes, 
+                                     'timestamps': curr_trial_timestamps})
+            
+            # create new data structures for trial's events
+            curr_trial_codes = []
+            curr_trial_timestamps = []
+        elif TTL_code[x]==1:  # DUPLICATE STATE CODE!!!
+            # This state is also 1, but it is not a start code, 
+            # because it is not preceded by 0 and followed by 2.
+            # Now that we have access to more bits, correct this state to
+            # 2^5+1=33 (Corrected value is SPECIFIC TO STATE MATRIX!)
+            TTL_code[x] = 33
+            
+        # append event to current trial's events and timestamps
+        curr_trial_codes.append(TTL_code[x])
+        curr_trial_timestamps.append(timestamps[x])
+    events_and_timestamps_per_trial.append({'TTL_code': curr_trial_codes, 
+                                        'timestamps': curr_trial_timestamps})
+
+    assert len(events_and_timestamps_per_trial) == n_trials
+        
+    return events_and_timestamps_per_trial
+
