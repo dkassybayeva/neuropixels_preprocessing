@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import h5py
 from joblib import load, dump
+from scipy.io import loadmat
 
 from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 \
     import get_Trodes_timestamps, readTrodesExtractedDataFile
@@ -169,9 +170,10 @@ def extract_TTL_events(session_path, gap_filename, save_dir):
     ----------
     fname is a .rec file (full path)
     
-    Returns
+    Saves
     -------
-    Events_TTL, Events_TS
+    TTL codes as time series with accompanying timestamps in 'TTL_events.npy'
+    in the directory save_dir
     """
          
     dio_path = '.'.join(session_path.split('.')[:-1]) + '.DIO/'
