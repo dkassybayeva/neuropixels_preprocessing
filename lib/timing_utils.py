@@ -1,9 +1,6 @@
 """
-Make spike time vectors for single unit recordings 
-with Neuropixels & Trodes
-
-convert KS2.5 clustering results, cured in Phy, to spike times 
-using Trode's timestamps
+Library for processing timing events recorded by Trodes from 
+Neuropixels probes and Bpod protocols
 
 Created on Thu Dec  8 03:54:44 2022
 
@@ -21,6 +18,34 @@ from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedData
 
 def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
                      save_individual_spiketrains):
+    """
+    Make spiking matrix (and optionally individual spike time vectors, or 
+    spike trains) for single unit recordings from Neuropixels & Trodes, 
+    after clustering by Kilosort and manual curation by Phy.
+
+    Converts KS2.5 clustering results, cured in Phy, to spike times 
+    using Trode's timestamps.
+
+    Parameters
+    ----------
+    session_path : TYPE
+        DESCRIPTION.
+    timestamp_file : TYPE
+        DESCRIPTION.
+    date : TYPE
+        DESCRIPTION.
+    probe_num : TYPE
+        DESCRIPTION.
+    fs : TYPE
+        DESCRIPTION.
+    save_individual_spiketrains : TYPE
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
     #----------------------------------------------------------------------#
     #                   Load Kilosort/Phy Spike Data
     #----------------------------------------------------------------------#
@@ -235,6 +260,7 @@ def extract_TTL_events(session_path, gap_filename, save_dir):
     TTL_timestamps = TTL_timestamps[sort_idx]
     TTL_code = TTL_code[sort_idx]
     # ------------------------------------------------------------ #
+    
     
     # ------------------------------------------------------------ #
     #                      Save results
