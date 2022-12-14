@@ -420,14 +420,17 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
     # Load trial events structure
     session_data = loadmat(cellbase_dir + behavior_mat_file)['SessionData']
     
-    # change_ind = TE.TE.nTrials(1) + 1
     n_trials = session_data[0,0]['nTrials'][0][0] + 1
     behav_start_ts = session_data[0,0]['TrialStartTimestamp'][0]
     # --------------------------------------------------------------------- #
+    
 
     # --------------------------------------------------------------------- #
     # Reconcile the recorded and behavioral timestamps
     # --------------------------------------------------------------------- #
+    
+    # First check the number of trials
+    assert n_trials == len(aligned_trialwise_TTLs)
     
     # # Match timestamps - in case of mismatch, try to fix
     # if ~ismatch(ts,son2)
@@ -473,12 +476,7 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
     #     error('MakeTrialEvents:noOutput','Synchronization process failed.')
 
     
-    # if ~isempty(Alignedtrialwise_TTLsAll),
-    #     save([sessionpath filesep 'Alignedtrialwise_TTLsAll.mat'],'Alignedtrialwise_TTLsAll')
-    
 
-    # if ~isempty(Alignedtrialwise_TTLs),
-    #     save([sessionpath filesep 'Alignedtrialwise_TTLs.mat'],'Alignedtrialwise_TTLsAll')
 
 
 
