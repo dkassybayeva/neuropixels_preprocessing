@@ -336,15 +336,22 @@ def group_codes_and_timestamps_by_trial(TTL_code, timestamps):
 
 
 def align_TTL_events(trialwise_TTLs, align_idx=1):
-    # Set TTL alignement state (fist Bpod state) at 1 Waitingfor initial poke
+    """
+    Set TTL alignement state to the start_code (1=WaitingForInitialPoke).
+    """
+    # Alignedtrialwise_TTLsAll = np.zeros((3, n_trials))
     
-    Alignedtrialwise_TTLsAll = cell(3,length(trialwise_TTLs))
+    for tw_TTL in trialwise_TTLs:
+        # Alignedtrialwise_TTLsAll{1,i} = trialwise_TTLs{1,i}
+        # size(trialwise_TTLs{2,i}(Alignedtrialwise_TTLsAll{1,i}==idx))
+        # Alignedtrialwise_TTLsAll{2,i}=trialwise_TTLs{2,i}-trialwise_TTLs{2,i}(Alignedtrialwise_TTLsAll{1,i}==idx)
+        # Alignedtrialwise_TTLsAll{3,i}=trialwise_TTLs{2,i}(Alignedtrialwise_TTLsAll{1,i}==idx)
+        start_idx = int(np.where(np.array(tw_TTL['TTL_code']) == align_idx)[0])
+        start_time = tw_TTL['timestamps'][start_idx]
+        tw_TTL['aligned_timestamps'] = tw_TTL['timestamps'] - start_time
+        tw_TTL['start_time'] = start_time
     
-    for i=1:length(trialwise_TTLs):
-        Alignedtrialwise_TTLsAll{1,i} = trialwise_TTLs{1,i}
-        size(trialwise_TTLs{2,i}(Alignedtrialwise_TTLsAll{1,i}==idx))
-        Alignedtrialwise_TTLsAll{2,i}=trialwise_TTLs{2,i}-trialwise_TTLs{2,i}(Alignedtrialwise_TTLsAll{1,i}==idx)
-        Alignedtrialwise_TTLsAll{3,i}=trialwise_TTLs{2,i}(Alignedtrialwise_TTLsAll{1,i}==idx)
+    return trialwise_TTLs
 
     
     #remove laser trials (tagging protocol) using specific TTL (NLX system)
