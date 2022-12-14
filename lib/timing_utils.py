@@ -354,36 +354,24 @@ def align_TTL_events(trialwise_TTLs, align_idx=1, save=('', False)):
     return trialwise_TTLs, start_times
 
 
-def remove_laser_trials(trialwise_TTLs, laser_TTL=526):
+def remove_laser_trials(trialwise_TTLs, start_times, laser_TTL=526):
     """
     Remove laser trials (tagging protocol) 
     using specific hard-codee TTL code 526 (NLX system)
     """
-    # Alignedtrialwise_TTLs=[]
-    # EventTTL_task_behavior = []
-    # EventTimestamps_behavior = []
+
     laser_trials = []
-    # for i =1:size(Alignedtrialwise_TTLsAll,2)
-    #     if ~any(Alignedtrialwise_TTLsAll{1,i}==526) #hard-code TTL 526
-    #         Alignedtrialwise_TTLs=cat(2,Alignedtrialwise_TTLs,Alignedtrialwise_TTLsAll(:,i))
-    #         EventTTL_task_behavior = [EventTTL_task_behavior,trialwise_TTLs{1,i}]
-    #         EventTimestamps_behavior = [EventTimestamps_behavior,trialwise_TTLs{2,i}]
-    #     else
-    #         ii=[ii,i]
+
     for i, tw_TTL in enumerate(trialwise_TTLs):
         if laser_TTL in tw_TTL['TTL_code']: 
             laser_trials.append(i)
             del trialwise_TTLs[i]
-        # else: 
-        #     Alignedtrialwise_TTLs=cat(2,Alignedtrialwise_TTLs,trialwise_TTLs(:,i))
-        #     EventTTL_task_behavior = [EventTTL_task_behavior,trialwise_TTLs{1,i}]
-        #     EventTimestamps_behavior = [EventTimestamps_behavior,trialwise_TTLs{2,i}]
+            del start_times[i]
    
     if len(laser_trials):
         print(f'Removed {len(laser_trials)} laser trials: {laser_trials}')
             
-    return trialwise_TTLs
-
+    return trialwise_TTLs, start_times
 
 
 def make_trial_events(cellbase_dir, behavior_mat_file):
