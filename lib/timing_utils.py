@@ -335,7 +335,7 @@ def group_codes_and_timestamps_by_trial(TTL_code, timestamps):
     return events_and_timestamps_per_trial
 
 
-def align_TTL_events(trialwise_TTLs, align_idx=1):
+def align_TTL_events(trialwise_TTLs, align_idx=1, save=('', False)):
     """
     Set TTL alignement state to the start_code (1=WaitingForInitialPoke).
     """
@@ -350,22 +350,42 @@ def align_TTL_events(trialwise_TTLs, align_idx=1):
         start_time = tw_TTL['timestamps'][start_idx]
         tw_TTL['aligned_timestamps'] = tw_TTL['timestamps'] - start_time
         tw_TTL['start_time'] = start_time
+     
+    if save[0]:
+        dump(trialwise_TTLs, save[1] + 'aligned_TTL_events.npy', compress=3)
     
     return trialwise_TTLs
 
-    
-    #remove laser trials (tagging protocol) using specific TTL (NLX system)
-    Alignedtrialwise_TTLs=[]
-    EventTTL_task_behavior = []
-    EventTimestamps_behavior = []
-    ii=[]
-    for i =1:size(Alignedtrialwise_TTLsAll,2)
-        if ~any(Alignedtrialwise_TTLsAll{1,i}==526) #hard-code TTL 526
-            Alignedtrialwise_TTLs=cat(2,Alignedtrialwise_TTLs,Alignedtrialwise_TTLsAll(:,i))
-            EventTTL_task_behavior = [EventTTL_task_behavior,trialwise_TTLs{1,i}]
-            EventTimestamps_behavior = [EventTimestamps_behavior,trialwise_TTLs{2,i}]
-        else
-            ii=[ii,i]
+
+def remove_laser_trials(trialwise_TTLs, laser_TTL=526):
+    """
+    Remove laser trials (tagging protocol) 
+    using specific hard-codee TTL code 526 (NLX system)
+    """
+    # Alignedtrialwise_TTLs=[]
+    # EventTTL_task_behavior = []
+    # EventTimestamps_behavior = []
+    laser_trials = []
+    # for i =1:size(Alignedtrialwise_TTLsAll,2)
+    #     if ~any(Alignedtrialwise_TTLsAll{1,i}==526) #hard-code TTL 526
+    #         Alignedtrialwise_TTLs=cat(2,Alignedtrialwise_TTLs,Alignedtrialwise_TTLsAll(:,i))
+    #         EventTTL_task_behavior = [EventTTL_task_behavior,trialwise_TTLs{1,i}]
+    #         EventTimestamps_behavior = [EventTimestamps_behavior,trialwise_TTLs{2,i}]
+    #     else
+    #         ii=[ii,i]
+    for i, tw_TTL in enumerate(trialwise_TTLs):
+        if laser_TTL in tw_TTL['TTL_code']: 
+            laser_trials.append(i)
+            del trialwise_TTLs[i]
+        # else: 
+        #     Alignedtrialwise_TTLs=cat(2,Alignedtrialwise_TTLs,trialwise_TTLs(:,i))
+        #     EventTTL_task_behavior = [EventTTL_task_behavior,trialwise_TTLs{1,i}]
+        #     EventTimestamps_behavior = [EventTimestamps_behavior,trialwise_TTLs{2,i}]
+   
+    if len(laser_trials):
+        print(f'Removed {len(laser_trials)} laser trials: {laser_trials}')
+            
+    return trialwise_TTLs
 
 
 
@@ -408,9 +428,9 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
     
     trialwise_TTLs = group_codes_and_timestamps_by_trial(**TTL_results)
     
+    aligned_trialwise_TTLs = align_TTL_events(trialwise_TTLs, save=(True, cellbase_dir))
     
-    
-
+    aligned_trialwise_TTLs = remove_laser_trials(aligned_trialwise_TTLs)
     
     # # Synchronization
     # son = find(EventTTL_task_behavior==idx) 
