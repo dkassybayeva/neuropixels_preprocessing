@@ -395,6 +395,9 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
     channel which serves as the basis for synchronization.
     """
     
+    # --------------------------------------------------------------------- #
+    # Trial start time recorded by the recording system (Neuralynx)
+    # --------------------------------------------------------------------- #
     # Load converted TRODES event file 
     try:
         TTL_results = load(cellbase_dir + 'TTL_events.npy')
@@ -402,32 +405,29 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
         print('TTL_events.npy file not found.  Make sure the TTL events \n\
         have been extraced from the TRODES .DIO files.')
 
-    # Load trial events structure
-    # SE_filename = [sessionpath filesep 'TE.mat']
-    # TE = load(SE_filename)
+    trialwise_TTLs = group_codes_and_timestamps_by_trial(**TTL_results)
     
+    aligned_trialwise_TTLs, recorded_start_ts = align_TTL_events(trialwise_TTLs, save=(True, cellbase_dir))
+    
+    aligned_trialwise_TTLs, recorded_start_ts = remove_laser_trials(aligned_trialwise_TTLs, recorded_start_ts)
+    
+    assert aligned_trialwise_TTLs[0]['start_time'] == recorded_start_ts[0]  
+    # --------------------------------------------------------------------- #
+    
+    # --------------------------------------------------------------------- #
+    # Trial start in absolute time from the behavior control system
+    # --------------------------------------------------------------------- #
+    # Load trial events structure
     session_data = loadmat(cellbase_dir + behavior_mat_file)['SessionData']
     
     # change_ind = TE.TE.nTrials(1) + 1
     n_trials = session_data[0,0]['nTrials'][0][0] + 1
-    
-    trialwise_TTLs = group_codes_and_timestamps_by_trial(**TTL_results)
-    
-    aligned_trialwise_TTLs = align_TTL_events(trialwise_TTLs, save=(True, cellbase_dir))
-    
-    aligned_trialwise_TTLs = remove_laser_trials(aligned_trialwise_TTLs)
-    
-    # # Synchronization
-    # son = find(EventTTL_task_behavior==idx) 
-    
-    # TE2 = TE.TE
-    # son2 = EventTimestamps_behavior(son)   # Trial start time recorded by the recording system (Neuralynx)
-    
-    
-    # ts = TE2.TrialStartTimestamp   # Trial start in absolut time recorded by the behavior control system
-    trial_start_ts = session_data[0,0]['TrialStartTimestamp'][0]
+    behav_start_ts = session_data[0,0]['TrialStartTimestamp'][0]
+    # --------------------------------------------------------------------- #
 
-    
+    # --------------------------------------------------------------------- #
+    # Reconcile the recorded and behavioral timestamps
+    # --------------------------------------------------------------------- #
     
     # # Match timestamps - in case of mismatch, try to fix
     # if ~ismatch(ts,son2)
