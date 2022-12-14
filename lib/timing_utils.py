@@ -339,22 +339,19 @@ def align_TTL_events(trialwise_TTLs, align_idx=1, save=('', False)):
     """
     Set TTL alignement state to the start_code (1=WaitingForInitialPoke).
     """
-    # Alignedtrialwise_TTLsAll = np.zeros((3, n_trials))
+    start_times = []
     
     for tw_TTL in trialwise_TTLs:
-        # Alignedtrialwise_TTLsAll{1,i} = trialwise_TTLs{1,i}
-        # size(trialwise_TTLs{2,i}(Alignedtrialwise_TTLsAll{1,i}==idx))
-        # Alignedtrialwise_TTLsAll{2,i}=trialwise_TTLs{2,i}-trialwise_TTLs{2,i}(Alignedtrialwise_TTLsAll{1,i}==idx)
-        # Alignedtrialwise_TTLsAll{3,i}=trialwise_TTLs{2,i}(Alignedtrialwise_TTLsAll{1,i}==idx)
         start_idx = int(np.where(np.array(tw_TTL['TTL_code']) == align_idx)[0])
         start_time = tw_TTL['timestamps'][start_idx]
         tw_TTL['aligned_timestamps'] = tw_TTL['timestamps'] - start_time
         tw_TTL['start_time'] = start_time
+        start_times.append(start_time)
      
     if save[0]:
         dump(trialwise_TTLs, save[1] + 'aligned_TTL_events.npy', compress=3)
     
-    return trialwise_TTLs
+    return trialwise_TTLs, start_times
 
 
 def remove_laser_trials(trialwise_TTLs, laser_TTL=526):
