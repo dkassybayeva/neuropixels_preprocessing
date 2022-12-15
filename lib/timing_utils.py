@@ -504,7 +504,7 @@ def clear_ttls_with_isi_violation(ttl_signal, min_ISI=0.5):
     """
     Eliminate recorded TTL's within 0.5s from each other (broken TTL pulse).
     """        
-    isi_violations = np.where(np.diff(np.array(ttl_signal)) < min_ISI)[0]
+    isi_violations = np.where(np.diff(ttl_signal) < min_ISI)[0]
     # ISI between index i and i+1 is difference index i, but we want to remove
     # index i+1, so add 1 to the ISI violation index
     isi_violations = (isi_violations + 1).astype('int')
@@ -532,20 +532,25 @@ def clear_ttls_with_isi_violation(ttl_signal, min_ISI=0.5):
 #     return son2
     
 
-# def trytomatch(ts,son2):
+def reconcile_with_shift(s1, s2, compare_window=15):
+    """
+    Find the shift which minimizes the difference between two time series
+    within a comparison window of fixed size.
     
-#     # Try to match time series by shifting
-#     len = length(son2) - 15
-#     minx = nan(1,len)
-#     for k = 1:len
-#         minx(k) = max(diff(ts(1:15)-son2(k:k+14)))  # calculate difference in the function of shift
+    Returns the second time series, s2, shifted by the optimal shift amount.
+    """
+    room_to_shift = len(s2) - compare_window
+    max_diffs = np.empty(room_to_shift)
+    for shift_size in range(room_to_shift):
+        # calculate difference in the function of shift
+        s2_shift = s2[shift_size:(shift_size+compare_window)]
+        max_diffs[shift_size] = max(np.diff(s1[:compare_window] - s2_shift))  
 
-#     mn = min(abs(minx))
-#     minx2 = find(abs(minx)==mn)
-#     minx2 = minx2(1)   # find minimal difference = optimal shift
-#     son2 = son2(minx2:min(minx2+length(ts)-1,length(son2)))
+    # minimal difference = optimal shift
+    smallest_discrepancy_idx = np.argmin(np.abs(max_diffs)) 
+    adjusted_end = min(smallest_discrepancy_idx + len(s1), len(s2))
+    return s2[smallest_discrepancy_idx:adjusted_end]
     
-#     return son2
     
 
 
