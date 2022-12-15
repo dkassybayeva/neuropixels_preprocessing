@@ -480,24 +480,46 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
 
 
 
-# def ismatch(ts, son2):
-#     """
-#     Check if the two time series match notwithstanding a constant drift.
+def is_match(s1, s2):
+    """
+    Check if two time series match notwithstanding a constant drift.
     
-#     Note: abs(max()) is OK, because the derivative is usually a small neg. 
-#     number due to drift of the timestamps.  In contrast, max(abs)) would 
-#     require a higher tolerance taking the drift into account (if 2 event time 
-#     stamps are far, the drift between them can be large)
+    Note: abs(max()) is OK, because the derivative is usually a small neg. 
+    number due to drift of the timestamps.  In contrast, max(abs)) would 
+    require a higher tolerance taking the drift into account (if 2 event time 
+    stamps are far, the drift between them can be large)
     
-#     return [bool] 
-#     """
+    return [bool] 
+    """
 
-#     clen = min(len(ts), len(son2))
+    clen = min(len(s1), len(s2))
     
-#     # The difference between the timestamps on 2 systems may have a constant 
-#     # drift, but it's derivative should still be ~0
-#     max_difference = np.diff(ts[:(clen - 1)] - son2[:(clen - 1)]).max()
-#     return abs(max_difference) < 0.1 
+    # The difference between the timestamps on 2 systems may have a constant 
+    # drift, but it's derivative should still be ~0
+    max_difference = np.diff(s1[:clen] - s2[:clen]).max()
+    return abs(max_difference) < 0.1 
+
+
+def clear_ttls_with_isi_violation(ttl_signal, min_ISI=0.5):
+    """
+    Eliminate recorded TTL's within 0.5s from each other (broken TTL pulse).
+    """
+    idx = []
+    for k in range(len(ttl_signal) - 1):
+        s1 = ttl_signal[k]
+        s2 = ttl_signal[k+1]
+        if s2 - s1 < min_ISI:
+            idx.append(k+1)
+            
+    isi_violations = np.where(np.diff(np.array(ttl_signal)) < min_ISI)[0]
+    # ISI between index i and i+1 is difference index i, but we want to remove
+    # index i+1, so add 1 to the ISI violation index
+    isi_violations = (isi_violations + 1).astype('int')
+    
+    assert np.all(idx == isi_violations)
+
+    ttl_signal2 = [t for i,t in enumerate(ttl_signal) if i not in isi_violations]
+    return ttl_signal
 
 
 # def tryinterp(ts, son2, change_point):
@@ -536,18 +558,7 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
 #     return son2
     
 
-# def clearttls(son2):
-    
-#     # Eliminate recorded TTL's within 0.5s from each other
-#     inx = []
-#     for k = 1:length(son2)-1
-#         s1 = son2(k)
-#         s2 = son2(k+1)
-#         if s2 - s1 < 0.5
-#             inx = [inx k+1] ##ok<AGROW>
 
-#     son2(inx) = []
-#     return son2
 
 
 # def shortenTE(TE2,shinx):
