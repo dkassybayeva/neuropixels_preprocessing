@@ -503,23 +503,13 @@ def is_match(s1, s2):
 def clear_ttls_with_isi_violation(ttl_signal, min_ISI=0.5):
     """
     Eliminate recorded TTL's within 0.5s from each other (broken TTL pulse).
-    """
-    idx = []
-    for k in range(len(ttl_signal) - 1):
-        s1 = ttl_signal[k]
-        s2 = ttl_signal[k+1]
-        if s2 - s1 < min_ISI:
-            idx.append(k+1)
-            
+    """        
     isi_violations = np.where(np.diff(np.array(ttl_signal)) < min_ISI)[0]
     # ISI between index i and i+1 is difference index i, but we want to remove
     # index i+1, so add 1 to the ISI violation index
     isi_violations = (isi_violations + 1).astype('int')
-    
-    assert np.all(idx == isi_violations)
 
-    ttl_signal2 = [t for i,t in enumerate(ttl_signal) if i not in isi_violations]
-    return ttl_signal
+    return [t for i,t in enumerate(ttl_signal) if i not in isi_violations]
 
 
 # def tryinterp(ts, son2, change_point):
