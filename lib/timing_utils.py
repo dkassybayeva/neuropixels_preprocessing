@@ -411,7 +411,8 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
     
     aligned_trialwise_TTLs, recorded_start_ts = remove_laser_trials(aligned_trialwise_TTLs, recorded_start_ts)
     
-    assert aligned_trialwise_TTLs[0]['start_time'] == recorded_start_ts[0]  
+    assert aligned_trialwise_TTLs[0]['start_time'] == recorded_start_ts[0]
+    recorded_start_ts = np.array(recorded_start_ts)
     # --------------------------------------------------------------------- #
     
     # --------------------------------------------------------------------- #
@@ -475,10 +476,6 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
     # else
     #     error('MakeTrialEvents:noOutput','Synchronization process failed.')
 
-    
-
-
-
 
 def is_match(s1, s2):
     """
@@ -509,7 +506,7 @@ def clear_ttls_with_isi_violation(ttl_signal, min_ISI=0.5):
     # index i+1, so add 1 to the ISI violation index
     isi_violations = (isi_violations + 1).astype('int')
 
-    return [t for i,t in enumerate(ttl_signal) if i not in isi_violations]
+    return np.array([t for i,t in enumerate(ttl_signal) if i not in isi_violations])
 
 
 # def tryinterp(ts, son2, change_point):
