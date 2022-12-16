@@ -598,67 +598,50 @@ def shorten_session_data(session_data, n_trials):
 
 
     
-def create_behavioral_dataframe(behavior_mat_file):
+def create_behavioral_dataframe(cellbase_dir):
     """
-    Requires TrialEvents.mat from make_trial_events().
+    Creates additional useful fields in the session data (trial events).
+
+    :param cellbase_dir: [string] directory where TrialEvents.npy was saved.
+    :return: [None] Overwrites TrialEvents.npy
     """
-    # Load the behavioral file
-    # Uses a string that is specific to the behaviour file name (depends on task)
-    print('Loading behavior file: ' + behavior_mat_file)
+    # Load the session data in TrialEvents.npy
+    session_data = load(cellbase_dir + 'TrialEvents.npy')
+    TE = session_data
+
+    WT_low_threshold = 0  # Lower cut-off for waiting time turning all to NaN
     
-        
-    #behav_mat = loadmat(behavior_mat_file)
-    
-    #session_trial_event_data = behav_mat['SessionData']
-    # TEbis=SessionData
-    # save(fullfile(Directory,'TE.mat'),'TE')
-    
-    
-    
-    """
-    ## Create additional fields in the Trial Event structure
-    disp('Creating additional fields in the Trial Event structure')
-    
-    TEbis=load(fullfile(Directory,'TrialEvents.mat'))
-    TE=TEbis
-    
-    WT_low_threshold=0 # Lower cut off for waiting time turning all to NaN
-    
-    #nTrial
     nTrials = TE.nTrials-1
     TEbis.nTrials=nTrials
     TEbis.TrialNumber = 1:nTrials
-    #discrimination measures
-    #TEbis.OmegaDiscri=2*abs(TE.Custom.AuditoryOmega(1:nTrials)-0.5)
-    #TEbis.NRightClicks = cellfun(@length,TE.Custom.RightClickTrain(1:nTrials))
-    #TEbis.NLeftClicks = cellfun(@length,TE.Custom.LeftClickTrain(1:nTrials))
-    #TEbis.RatioDiscri=log10(TEbis.NRightClicks./TEbis.NLeftClicks)
-    #TEbis.BetaDiscri=(TEbis.NRightClicks-TEbis.NLeftClicks)./(TEbis.NRightClicks+TEbis.NLeftClicks)
-    #TEbis.AbsBetaDiscri=abs(TEbis.BetaDiscri)
-    #TEbis.AbsRatioDiscri=abs(TEbis.RatioDiscri)
-    #chosen direction
+
+    # chosen direction (1=left, 2=right)
     TEbis.ChosenDirection = 3*ones(1,nTrials)
-    TEbis.ChosenDirection(TE.Custom.ChoiceLeft==1)=1#1=left 2=right
+    TEbis.ChosenDirection(TE.Custom.ChoiceLeft==1)=1
     TEbis.ChosenDirection(TE.Custom.ChoiceLeft==0)=2
+
     # Correct and error trials
     TEbis.CorrectChoice=TE.Custom.ChoiceCorrect(1:nTrials)
     TEbis.PunishedTrial=TE.Custom.ChoiceCorrect(1:nTrials)==0
-    #most click side
-    #TEbis.MostClickSide(TEbis.NRightClicks>TEbis.NLeftClicks) = 2
-    #TEbis.MostClickSide(TEbis.NRightClicks<TEbis.NLeftClicks) = 1
-    #TEbis.MostClickSide(TEbis.NRightClicks==TEbis.NLeftClicks)  = 3
+
     # Trial where rat gave a response
     TEbis.CompletedTrial= ~isnan(TE.Custom.ChoiceLeft(1:nTrials)) & TEbis.TrialNumber>30
+
     # Rewarded Trials
     TEbis.Rewarded=TE.Custom.Rewarded(1:nTrials)==1
+
     # Trials where rat sampled but did not respond
     TEbis.UnansweredTrials=(TEbis.CompletedTrial(1:nTrials)==0 & TE.Custom.EarlyWithdrawal(1:nTrials)==1)
+
     #CatchTrial
     TEbis.CatchTrial = TE.Custom.CatchTrial(1:nTrials)
+
     # Correct catch trials
-    TEbis.CompletedCatchTrial=TEbis.CompletedTrial(1:nTrials)==1 & TE.Custom.CatchTrial(1:nTrials)==1 
+    TEbis.CompletedCatchTrial=TEbis.CompletedTrial(1:nTrials)==1 & TE.Custom.CatchTrial(1:nTrials)==1
+
     # Correct trials, but rat was waiting too short
     TEbis.CorrectShortWTTrial=TE.Custom.ChoiceCorrect(1:nTrials)==1 & TE.Custom.FeedbackTime(1:nTrials)<0.5
+
     # These are all the waiting time trials (correct catch and incorrect trials)
     TEbis.CompletedWTTrial= (TEbis.CompletedCatchTrial(1:nTrials)==1 | TEbis.PunishedTrial(1:nTrials)==1) & TEbis.CompletedTrial(1:nTrials)
     
@@ -680,7 +663,7 @@ def create_behavioral_dataframe(behavior_mat_file):
     ## Conditioning the trials
     for nt=1:nTrials
         
-        #{
+        """
         Defining trial types
         Defining DecisionType
             0 = Non-completed trials
@@ -690,18 +673,8 @@ def create_behavioral_dataframe(behavior_mat_file):
                 50/50 trials)
             2 = Correct given click and rewarded
             3 = Incorrect given click and not rewarded
-        #}
-    
-     #   if TEbis.CompletedTrial(nt)==0
-     #       TEbis.DecisionType(nt)=NaN
-     #   elseif (TEbis.CompletedCatchTrial(nt)==1 || (TEbis.Rewarded(nt)==0 && TEbis.CompletedTrial(nt)==1)) && TEbis.ChoiceGivenClick(nt)==1
-     #       TEbis.DecisionType(nt)=1
-     #   elseif TEbis.Rewarded(nt)==1
-     #       TEbis.DecisionType(nt)=2
-     #   elseif (TEbis.CompletedCatchTrial(nt)==1 || (TEbis.Rewarded(nt)==0 && TEbis.CompletedTrial(nt)==1)) && TEbis.ChoiceGivenClick(nt)==0
-     #       TEbis.DecisionType(nt)=3
-     #   end
-        
+        """
+
         if TEbis.Rewarded(nt)==1 && TEbis.Modality(nt)==1
             TEbis.SideReward(nt)=1
         elseif TEbis.Rewarded(nt)==1  && TEbis.Modality(nt)==2
@@ -720,8 +693,8 @@ def create_behavioral_dataframe(behavior_mat_file):
         elseif TEbis.CompletedTrial(nt)==1 && TEbis.ChosenDirection(nt)==2
             TEbis.CompletedChosenDirection(nt)=2
         end
-        
-        #{
+
+        """
         Defining SideDecisionType
          1 = Left catch trials
          2 = Right catch trials
@@ -730,24 +703,8 @@ def create_behavioral_dataframe(behavior_mat_file):
          5 = Incorrect left trials
          6 = Incorrect right trials
          7 = all remaining trials
-        #}
-        
-    #    if TEbis.DecisionType(nt)==1 && TEbis.ChosenDirection(nt)==1
-    #        TEbis.SideDecisionType(nt)=1
-    #    elseif TEbis.DecisionType(nt)==1 && TEbis.ChosenDirection(nt)==2
-    #        TEbis.SideDecisionType(nt)=2
-    #    elseif TEbis.DecisionType(nt)==2 && TEbis.ChosenDirection(nt)==1
-    #        TEbis.SideDecisionType(nt)=3
-    #    elseif TEbis.DecisionType(nt)==2 && TEbis.ChosenDirection(nt)==2
-    #        TEbis.SideDecisionType(nt)=4
-    #    elseif TEbis.DecisionType(nt)==3 && TEbis.ChosenDirection(nt)==1
-    #        TEbis.SideDecisionType(nt)=5
-    #    elseif TEbis.DecisionType(nt)==3 && TEbis.ChosenDirection(nt)==2
-    #        TEbis.SideDecisionType(nt)=6
-    #    else
-    #        TEbis.SideDecisionType(nt)=7
-    #    end
-        
+         """
+
         if TEbis.Modality(nt)==1 && TEbis.ChosenDirection(nt)==1 && TEbis.CompletedTrial(nt)==1
             TEbis.ModReward(nt)=1
         elseif TEbis.Modality(nt)==2 && TEbis.ChosenDirection(nt)==1 && TEbis.CompletedTrial(nt)==1
@@ -786,7 +743,7 @@ def create_behavioral_dataframe(behavior_mat_file):
     TEbis.ResponseEnd=zeros(1,TEbis.nTrials)
     TEbis.PokeCenterStart=zeros(1,TEbis.nTrials)
     TEbis.StimulusOnset=zeros(1,TEbis.nTrials)
-     TEbis.LaserTrialTrainLength=zeros(1,TEbis.nTrials)
+    TEbis.LaserTrialTrainLength=zeros(1,TEbis.nTrials)
     
     for nt=1:TEbis.nTrials
         TEbis.StimulusOnset(nt)=TE.RawEvents.Trial{nt}.States.stimulus_delivery_min(1)
@@ -797,12 +754,6 @@ def create_behavioral_dataframe(behavior_mat_file):
         elseif ~isnan(TE.RawEvents.Trial{nt}.States.start_Lin(1))
             TEbis.ResponseStart(nt)=TE.RawEvents.Trial{nt}.States.start_Lin(1)
             TEbis.ResponseEnd(nt)=TE.RawEvents.Trial{nt}.States.start_Lin(1) + TE.Custom.FeedbackTime(nt)
-            #     elseif ~isnan(TE.RawEvents.Trial{nt}.States.PunishStart(1)) && isnan(TE.RawEvents.Trial{nt}.States.StillWaiting(end))
-            #         TEbis.ResponseStart(nt)=TE.RawEvents.Trial{nt}.States.PunishStart(1)
-            #         TEbis.ResponseEnd(nt)=(TE.RawEvents.Trial{nt}.States.Punish(end))
-            #     elseif ~isnan(TE.RawEvents.Trial{nt}.States.PunishStart(1))
-            #         TEbis.ResponseStart(nt)=TE.RawEvents.Trial{nt}.States.PunishStart(1)
-            #         TEbis.ResponseEnd(nt)=(TE.RawEvents.Trial{nt}.States.StillWaiting(end))
         else
             TEbis.ResponseStart(nt)=NaN
             TEbis.ResponseEnd(nt)=NaN
@@ -865,4 +816,3 @@ def create_behavioral_dataframe(behavior_mat_file):
     save(fullfile(Directory,  'TrialEvents.mat'),'-struct','TEbis')
     
     disp('Additional events created and Trial Event saved')
-    """
