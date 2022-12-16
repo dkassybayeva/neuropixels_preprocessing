@@ -423,7 +423,7 @@ def add_TTL_trial_start_times_to_behav_data(cellbase_dir, behavior_mat_file):
     # Load trial events structure
     session_data = loadmat(cellbase_dir + behavior_mat_file, simplify_cells=True)['SessionData']
     
-    n_trials = session_data['nTrials'] + 1
+    n_trials = session_data['nTrials']
     behav_start_ts = session_data['TrialStartTimestamp']
     # --------------------------------------------------------------------- #
     
@@ -433,7 +433,7 @@ def add_TTL_trial_start_times_to_behav_data(cellbase_dir, behavior_mat_file):
     # --------------------------------------------------------------------- #
     print('Reconciling recorded and behavioral timestamps...')
     # First check the number of trials
-    assert n_trials == len(aligned_trialwise_TTLs)
+    print(f'{n_trials} behavioral trials, {len(aligned_trialwise_TTLs)} TTLs')
     
     # Match timestamps - in case of mismatch, try to fix
     if not is_match(behav_start_ts, recorded_start_ts):
