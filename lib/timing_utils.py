@@ -433,24 +433,25 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
     # First check the number of trials
     assert n_trials == len(aligned_trialwise_TTLs)
     
-    # # Match timestamps - in case of mismatch, try to fix
-    # if ~ismatch(ts,son2)
-    #     # note: obsolete due the introduction of TTL parsing
-    #     son2 = clearttls(son2) # eliminate recorded TTL's within 0.5s from each other - broken TTL pulse
-    #     if ~ismatch(ts,son2)
-    #         son2 = trytomatch(ts,son2)  # try to match time series by shifting
-    #         if ~ismatch(ts,son2)
-    #             son2 = tryinterp(ts,son2, change_ind) # interpolate missing TTL's or delete superfluous TTL's up to 10 erroneous TTl's
-    #             if ~ismatch(ts,son2)  # TTL matching failure
-    #                 error('MakeTrialEvents:TTLmatch','Matching TTLs failed.')
-    #             else
-    #                 warning('MakeTrialEvents:TTLmatch','Missing TTL interpolated.')
+    # Match timestamps - in case of mismatch, try to fix
+    if not is_match(behav_start_ts, recorded_start_ts):
+        print("Timestamps do not match.  Removing ISI violations...")
+        # note: obsolete due the introduction of TTL parsing
+        recorded_start_ts = clear_ttls_with_isi_violation(recorded_start_ts) 
+        
+        if not is_match(behav_start_ts, recorded_start_ts):
+            print('Still no match. Try to match time series by shifting...')
+            recorded_start_ts = reconcile_with_shift(behav_start_ts, recorded_start_ts)  
+            
+            if not is_match(behav_start_ts, recorded_start_ts):
+                print('Still no match. Try to interpolate missing TTLs...')
+                recorded_start_ts = try_interpolation(behav_start_ts, recorded_start_ts, 
+                                                      first_trial_of_next_session=n_trials+1) 
+                
+                if not is_match(behav_start_ts, recorded_start_ts):
+                    Exception('Matching TTLs failed.')
 
-    #         else
-    #             warning('MakeTrialEvents:TTLmatch','Shifted TTL series.')
-
-    #     else
-    #         warning('MakeTrialEvents:TTLmatch','Broken TTLs cleared.')
+    print('Timestamp matching resolved.')
 
     
     # # Eliminate last TTL's recorded in only one system
