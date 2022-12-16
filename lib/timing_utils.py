@@ -606,63 +606,72 @@ def create_behavioral_dataframe(cellbase_dir):
     :return: [None] Overwrites TrialEvents.npy
     """
     # Load the session data in TrialEvents.npy
-    session_data = load(cellbase_dir + 'TrialEvents.npy')
-    TE = session_data
+    _sd = load(cellbase_dir + 'TrialEvents.npy')
+    # TE = _sd
 
-    WT_low_threshold = 0  # Lower cut-off for waiting time turning all to NaN
+    WT_low_threshold = 0.  # Lower cut-off for waiting time turning all to NaN
     
-    nTrials = TE.nTrials-1
-    TEbis.nTrials=nTrials
-    TEbis.TrialNumber = 1:nTrials
+    n_trials = _sd['nTrials'] - 1  # throw out last trial (may be incomplete)
+    _sd['nTrials'] = n_trials
+    _sd['TrialNumber'] = np.arange(n_trials)
 
-    # chosen direction (1=left, 2=right)
-    TEbis.ChosenDirection = 3*ones(1,nTrials)
-    TEbis.ChosenDirection(TE.Custom.ChoiceLeft==1)=1
-    TEbis.ChosenDirection(TE.Custom.ChoiceLeft==0)=2
+    def one_zero_idx(data_obj):
+        one_choice_idx = data_obj == 1.
+        zero_choice_idx = data_obj == 0.        
+        return one_choice_idx, zero_choice_idx
+        
+    # Chosen direction (1=left, 2=right, -1=nan)
+    choice_left = _sd['Custom']['ChoiceLeft'][:n_trials]
+    left_choice_idx, right_choice_idx = one_zero_idx(choice_left)
+    _sd['ChosenDirection'] = -1 * np.ones(n_trials)
+    _sd['ChosenDirection'][left_choice_idx] = 1
+    _sd['ChosenDirection'][right_choice_idx] = 2
 
     # Correct and error trials
-    TEbis.CorrectChoice=TE.Custom.ChoiceCorrect(1:nTrials)
-    TEbis.PunishedTrial=TE.Custom.ChoiceCorrect(1:nTrials)==0
+    choice_correct = _sd['Custom']['ChoiceCorrect'][:n_trials]
+    _sd['CorrectChoice'], _sd['PunishedTrial'] = one_zero_idx(choice_correct)
 
     # Trial where rat gave a response
-    TEbis.CompletedTrial= ~isnan(TE.Custom.ChoiceLeft(1:nTrials)) & TEbis.TrialNumber>30
+    _sd['CompletedTrial'] = np.logical_and(choice_left > -1, _sd['TrialNumber'] > 30)
 
     # Rewarded Trials
-    TEbis.Rewarded=TE.Custom.Rewarded(1:nTrials)==1
+    _sd['Rewarded'], _ = one_zero_idx(_sd['Custom']['Rewarded'][:n_trials])
 
     # Trials where rat sampled but did not respond
-    TEbis.UnansweredTrials=(TEbis.CompletedTrial(1:nTrials)==0 & TE.Custom.EarlyWithdrawal(1:nTrials)==1)
+    complete, incomplete = one_zero_idx(_sd['CompletedTrial'])
+    early = _sd['Custom']['EarlyWithdrawal'][:n_trials] == 1
+    _sd['UnansweredTrials'] = np.logical_and(incomplete, early)
 
-    #CatchTrial
-    TEbis.CatchTrial = TE.Custom.CatchTrial(1:nTrials)
+    # CatchTrial
+    _sd['CatchTrial'] = _sd['Custom']['CatchTrial'][:n_trials]
 
     # Correct catch trials
-    TEbis.CompletedCatchTrial=TEbis.CompletedTrial(1:nTrials)==1 & TE.Custom.CatchTrial(1:nTrials)==1
+    _sd['CompletedCatchTrial'] = np.logical_and(complete, _sd['CatchTrial']==1)
 
     # Correct trials, but rat was waiting too short
-    TEbis.CorrectShortWTTrial=TE.Custom.ChoiceCorrect(1:nTrials)==1 & TE.Custom.FeedbackTime(1:nTrials)<0.5
+    wait_too_short = _sd['Custom']['FeedbackTime'][:n_trials] < 0.5
+    _sd['CorrectShortWTTrial'] = np.logical_and(_sd['CorrectChoice'], wait_too_short)
 
     # These are all the waiting time trials (correct catch and incorrect trials)
-    TEbis.CompletedWTTrial= (TEbis.CompletedCatchTrial(1:nTrials)==1 | TEbis.PunishedTrial(1:nTrials)==1) & TEbis.CompletedTrial(1:nTrials)
+    catch_or_wrong = np.logical_or(_sd['CompletedCatchTrial'], _sd['PunishedTrial'])
+    _sd['CompletedWTTrial']= np.logical_and(catch_or_wrong, _sd['CompletedTrial'])
     
     # Trials were rat answered but did not receive reward
-    WTTrial=TEbis.CompletedTrial(1:nTrials)==1 & (TEbis.PunishedTrial(1:nTrials)==1 | TE.Custom.CatchTrial(1:nTrials)==1)
-    
-    TEbis.WaitingTimeTrial=WTTrial
+    punish_or_catch = np.logical_or(_sd['PunishedTrial'], _sd['CatchTrial'])
+    _sd['WaitingTimeTrial'] = np.logical_and(_sd['CompletedTrial'], punish_or_catch)
     
     # Waiting Time
-    TEbis.WaitingTime=TE.Custom.FeedbackTime
+    _sd['WaitingTime'] = _sd['Custom']['FeedbackTime']
     
     # Threshold for waiting time
-    TEbis.WaitingTime(TEbis.WaitingTime<WT_low_threshold)=NaN
+    _sd['WaitingTime'][_sd['WaitingTime'] < WT_low_threshold] = np.nan
     
-    # This is to indicate whether choice matches actual click train (important for difficult trials)
-    #TEbis.ChoiceGivenClick=TEbis.MostClickSide==TEbis.ChosenDirection
-    #modality
-    TEbis.Modality = 2*ones(1,nTrials)
-    ## Conditioning the trials
-    for nt=1:nTrials
-        
+ 
+    # Modality
+    _sd['Modality'] = 2 * np.ones(n_trials)
+    
+    # Conditioning the trials
+    for nt in range(n_trials):  
         """
         Defining trial types
         Defining DecisionType
@@ -674,145 +683,142 @@ def create_behavioral_dataframe(cellbase_dir):
             2 = Correct given click and rewarded
             3 = Incorrect given click and not rewarded
         """
-
-        if TEbis.Rewarded(nt)==1 && TEbis.Modality(nt)==1
-            TEbis.SideReward(nt)=1
-        elseif TEbis.Rewarded(nt)==1  && TEbis.Modality(nt)==2
-            TEbis.SideReward(nt)=2
-        elseif TEbis.Rewarded(nt)==0 && TEbis.CompletedTrial(nt)==1  && TEbis.Modality(nt)==1
-            TEbis.SideReward(nt)=3
-        elseif TEbis.Rewarded(nt)==0 && TEbis.CompletedTrial(nt)==1  && TEbis.Modality(nt)==2
-            TEbis.SideReward(nt)=4
-        else
-            TEbis.SideReward(nt)=NaN
-        end
+        nt_reward = _sd['Rewarded'][nt]
+        nt_mod = _sd['Modality'][nt]
+        nt_complete = _sd['CompletedTrial'][nt]
+        nt_chosen_dir = _sd['ChosenDirection'][nt]
+        if nt_reward and nt_mod:
+            code = 1
+        elif nt_reward and nt_mod==2:
+            code = 2
+        elif ~nt_reward and nt_complete and nt_mod:
+            code = 3
+        elif ~nt_reward and nt_complete and nt_mod==2:
+            code = 4
+        else:
+            code = np.nan
+        _sd['SideReward'][nt] = code
         
         # Defining ChosenDirection (1 = Left, 2 = Right)
-        if TEbis.CompletedTrial(nt)==1 && TEbis.ChosenDirection(nt)==1
-            TEbis.CompletedChosenDirection(nt)=1
-        elseif TEbis.CompletedTrial(nt)==1 && TEbis.ChosenDirection(nt)==2
-            TEbis.CompletedChosenDirection(nt)=2
-        end
+        if nt_complete and nt_chosen_dir > 0:
+            _sd['CompletedChosenDirection'][nt] = nt_chosen_dir
 
         """
         Defining SideDecisionType
-         1 = Left catch trials
-         2 = Right catch trials
-         3 = Left correct trials
-         4 = Right correct trials
-         5 = Incorrect left trials
-         6 = Incorrect right trials
-         7 = all remaining trials
-         """
+          1 = Left catch trials
+          2 = Right catch trials
+          3 = Left correct trials
+          4 = Right correct trials
+          5 = Incorrect left trials
+          6 = Incorrect right trials
+          7 = all remaining trials
+        """
 
-        if TEbis.Modality(nt)==1 && TEbis.ChosenDirection(nt)==1 && TEbis.CompletedTrial(nt)==1
-            TEbis.ModReward(nt)=1
-        elseif TEbis.Modality(nt)==2 && TEbis.ChosenDirection(nt)==1 && TEbis.CompletedTrial(nt)==1
-            TEbis.ModReward(nt)=2
-        elseif TEbis.Modality(nt)==1 && TEbis.ChosenDirection(nt)==2 && TEbis.CompletedTrial(nt)==1
-            TEbis.ModReward(nt)=3
-        elseif TEbis.Modality(nt)==2 && TEbis.ChosenDirection(nt)==2 && TEbis.CompletedTrial(nt)==1
-            TEbis.ModReward(nt)=4
-        else
-            TEbis.ModReward(nt)=NaN
-        end
-        
-    end
+        if nt_mod and nt_chosen_dir==1 and nt_complete:
+            code2 = 1
+        elif nt_mod==2 and nt_chosen_dir==1 and nt_complete:
+            code2 = 2
+        elif nt_mod and nt_chosen_dir==2 and nt_complete:
+            code2 = 3
+        elif nt_mod==2 and nt_chosen_dir==2 and nt_complete:
+            code2 = 4
+        else:
+            code2 = np.nan
+        _sd['ModReward'][nt] = code2
+
     
-    #waiting time split
-    TEbis.WaitingTimeSplit=NaN(size(TEbis.ChosenDirection))
+    # #waiting time split
+    # _sd['WaitingTimeSplit=NaN(size(_sd['ChosenDirection))
     
-    Long=TEbis.CompletedTrial==1 & TEbis.Rewarded==0 & TEbis.WaitingTime>=6.5
-    MidLong=TEbis.CompletedTrial==1 & TEbis.Rewarded==0 & TEbis.WaitingTime<6.5 & TEbis.WaitingTime>=5.5 
-    MidShort=TEbis.CompletedTrial==1 & TEbis.Rewarded==0 & TEbis.WaitingTime<5.5 & TEbis.WaitingTime>=4
-    Short=TEbis.CompletedTrial==1 & TEbis.Rewarded==0 & TEbis.WaitingTime<4 & TEbis.WaitingTime>=2.5
+    # Long=_sd['CompletedTrial==1 & _sd['Rewarded==0 & _sd['WaitingTime>=6.5
+    # MidLong=_sd['CompletedTrial==1 & _sd['Rewarded==0 & _sd['WaitingTime<6.5 & _sd['WaitingTime>=5.5 
+    # MidShort=_sd['CompletedTrial==1 & _sd['Rewarded==0 & _sd['WaitingTime<5.5 & _sd['WaitingTime>=4
+    # Short=_sd['CompletedTrial==1 & _sd['Rewarded==0 & _sd['WaitingTime<4 & _sd['WaitingTime>=2.5
     
-    TEbis.WaitingTimeSplit(Short)=1
-    TEbis.WaitingTimeSplit(MidShort)=2
-    TEbis.WaitingTimeSplit(MidLong)=3
-    TEbis.WaitingTimeSplit(Long)=4
-    
-    
-    ## Saving conditioned trials
-    save(fullfile(Directory,'TEbis.mat'),'TEbis')
-    save(fullfile(Directory,  'TrialEvents.mat'),'-struct','TEbis')
+    # _sd['WaitingTimeSplit(Short)=1
+    # _sd['WaitingTimeSplit(MidShort)=2
+    # _sd['WaitingTimeSplit(MidLong)=3
+    # _sd['WaitingTimeSplit(Long)=4
     
     
-    ## Defining ResponseOnset, ResponseStart and ResponseEnd
-    TEbis.ResponseStart=zeros(1,TEbis.nTrials)
-    TEbis.ResponseEnd=zeros(1,TEbis.nTrials)
-    TEbis.PokeCenterStart=zeros(1,TEbis.nTrials)
-    TEbis.StimulusOnset=zeros(1,TEbis.nTrials)
-    TEbis.LaserTrialTrainLength=zeros(1,TEbis.nTrials)
-    
-    for nt=1:TEbis.nTrials
-        TEbis.StimulusOnset(nt)=TE.RawEvents.Trial{nt}.States.stimulus_delivery_min(1)
-        TEbis.PokeCenterStart(nt)=TE.RawEvents.Trial{nt}.States.stay_Cin(1)
-        if ~isnan(TE.RawEvents.Trial{nt}.States.start_Rin(1))
-            TEbis.ResponseStart(nt)=TE.RawEvents.Trial{nt}.States.start_Rin(1)
-            TEbis.ResponseEnd(nt)=TE.RawEvents.Trial{nt}.States.start_Rin(1) + TE.Custom.FeedbackTime(nt)
-        elseif ~isnan(TE.RawEvents.Trial{nt}.States.start_Lin(1))
-            TEbis.ResponseStart(nt)=TE.RawEvents.Trial{nt}.States.start_Lin(1)
-            TEbis.ResponseEnd(nt)=TE.RawEvents.Trial{nt}.States.start_Lin(1) + TE.Custom.FeedbackTime(nt)
-        else
-            TEbis.ResponseStart(nt)=NaN
-            TEbis.ResponseEnd(nt)=NaN
-        end
-        if isfield(TE.TrialSettings(nt).GUI,'LaserTrials')
-        if TE.TrialSettings(nt).GUI.LaserTrials>0
-            if isfield(TE.TrialSettings(nt).GUI,'LaserTrainDuration_ms')
-                TEbis.LaserTrialTrainLength(nt) = TE.TrialSettings(nt).GUI.LaserTrainDuration_ms
-            else #old version
-                TEbis.LaserTrialTrainLength(nt)=NaN 
-            end
-        end
-        else #not even Laser Trials settings, very old version
-            TEbis.LaserTrialTrainLength(nt)=NaN
-        end
-    end
-    TEbis.SamplingDuration = TE.Custom.ST(1:nTrials)
-    TEbis.StimulusOffset=TEbis.StimulusOnset+TEbis.SamplingDuration
-    
-    TEbis.ChosenDirectionBis=TEbis.ChosenDirection
-    TEbis.ChosenDirectionBis(TEbis.ChosenDirectionBis==3)=NaN
-    
-    #correct length of TrialStartAligned
-    TEbis.TrialStartAligned = TEbis.TrialStartAligned(1:TEbis.nTrials)
-    TEbis.TrialStartTimestamp = TEbis.TrialStartTimestamp(1:TEbis.nTrials)
-    TEbis.TrialSettings = TEbis.TrialSettings(1:TEbis.nTrials)
-    
-    #laser trials
-    if  isfield(TE.Custom,'LaserTrial') && sum(TE.Custom.LaserTrial)>0
-    if isfield (TE.Custom,'LaserTrialTrainStart')
-    TEbis.LaserTrialTrainStart = TE.Custom.LaserTrialTrainStart(1:TEbis.nTrials)
-    TEbis.LaserTrialTrainStartAbs = TEbis.LaserTrialTrainStart+TEbis.ResponseStart
-    TEbis.LaserTrial =double( TE.Custom.LaserTrial(1:TEbis.nTrials))
-    TEbis.LaserTrial (TEbis.CompletedTrial==0)=0
-    TEbis.LaserTrial (TEbis.LaserTrialTrainStartAbs>TEbis.ResponseEnd)=0
-    TEbis.LaserTrialTrainStartAbs(TEbis.LaserTrial~=1)=NaN
-    TEbis.LaserTrialTrainStart (TEbis.LaserTrial~=1)=NaN
-    
-    TEbis.CompletedWTLaserTrial = TEbis.LaserTrial
-    TEbis.CompletedWTLaserTrial(TEbis.CompletedWTTrial~=1)=NaN
-    else #old version, laser during entire time investment
-    TEbis.LaserTrialTrainStart=zeros(1,TEbis.nTrials)
-    TEbis.LaserTrialTrainStartAbs=TEbis.ResponseStart
-    TEbis.LaserTrial =double( TE.Custom.LaserTrial(1:TEbis.nTrials))
-    TEbis.LaserTrial (TEbis.CompletedTrial==0)=0
-    TEbis.LaserTrialTrainStartAbs(TEbis.LaserTrial~=1)=NaN
-    TEbis.LaserTrialTrainStart (TEbis.LaserTrial~=1)=NaN
-    end
-    
-    else
-    TEbis.LaserTrialTrainStart = nan(1,TEbis.nTrials)
-    TEbis.LaserTrialTrainStartAbs = nan(1,TEbis.nTrials)
-    TEbis.LaserTrial = zeros(1,TEbis.nTrials)
-    TEbis.CompletedWTLaserTrial = nan(1,TEbis.nTrials)
-    TEbis.CompletedWTLaserTrial(TEbis.CompletedWTTrial==1) = 0
-    end
+    # ## Saving conditioned trials
+    # save(fullfile(Directory,'TrialEvents.mat'),'_sd')
     
     
-    save(fullfile(Directory,'TEbis.mat'),'TEbis')
-    save(fullfile(Directory,  'TrialEvents.mat'),'-struct','TEbis')
+    # ## Defining ResponseOnset, ResponseStart and ResponseEnd
+    # _sd['ResponseStart=zeros(1, n_trials)
+    # _sd['ResponseEnd=zeros(1, n_trials)
+    # _sd['PokeCenterStart=zeros(1,n_trials)
+    # _sd['StimulusOnset=zeros(1,n_trials)
+    # _sd['LaserTrialTrainLength=zeros(1,n_trials)
     
-    disp('Additional events created and Trial Event saved')
+    # for nt=1:n_trials
+    #     _sd['StimulusOnset[nt]=TE.RawEvents.Trial{nt}.States.stimulus_delivery_min(1)
+    #     _sd['PokeCenterStart[nt]=TE.RawEvents.Trial{nt}.States.stay_Cin(1)
+    #     if ~isnan(TE.RawEvents.Trial{nt}.States.start_Rin(1))
+    #         _sd['ResponseStart[nt]=TE.RawEvents.Trial{nt}.States.start_Rin(1)
+    #         _sd['ResponseEnd[nt]=TE.RawEvents.Trial{nt}.States.start_Rin(1) + _sd['Custom'].FeedbackTime[nt]
+    #     elif ~isnan(TE.RawEvents.Trial{nt}.States.start_Lin(1))
+    #         _sd['ResponseStart[nt]=TE.RawEvents.Trial{nt}.States.start_Lin(1)
+    #         _sd['ResponseEnd[nt]=TE.RawEvents.Trial{nt}.States.start_Lin(1) + _sd['Custom'].FeedbackTime[nt]
+    #     else
+    #         _sd['ResponseStart[nt]=NaN
+    #         _sd['ResponseEnd[nt]=NaN
+    #     end
+    #     if isfield(TE.TrialSettings[nt].GUI,'LaserTrials')
+    #     if TE.TrialSettings[nt].GUI.LaserTrials>0
+    #         if isfield(TE.TrialSettings[nt].GUI,'LaserTrainDuration_ms')
+    #             _sd['LaserTrialTrainLength[nt] = TE.TrialSettings[nt].GUI.LaserTrainDuration_ms
+    #         else #old version
+    #             _sd['LaserTrialTrainLength[nt]=NaN 
+    #         end
+    #     end
+    #     else #not even Laser Trials settings, very old version
+    #         _sd['LaserTrialTrainLength[nt]=NaN
+    #     end
+    # end
+    # _sd['SamplingDuration = _sd['Custom'].ST(1:nTrials)
+    # _sd['StimulusOffset=_sd['StimulusOnset+_sd['SamplingDuration
+    
+    # _sd['ChosenDirectionBis=_sd['ChosenDirection
+    # _sd['ChosenDirectionBis(_sd['ChosenDirectionBis==3)=NaN
+    
+    # #correct length of TrialStartAligned
+    # _sd['TrialStartAligned = _sd['TrialStartAligned[:n_trials]
+    # _sd['TrialStartTimestamp = _sd['TrialStartTimestamp[:n_trials]
+    # _sd['TrialSettings = _sd['TrialSettings[:n_trials]
+    
+    # #laser trials
+    # if  isfield(_sd['Custom'],'LaserTrial') && sum(_sd['Custom'].LaserTrial)>0
+    # if isfield (_sd['Custom'],'LaserTrialTrainStart')
+    # _sd['LaserTrialTrainStart = _sd['Custom'].LaserTrialTrainStart[:n_trials]
+    # _sd['LaserTrialTrainStartAbs = _sd['LaserTrialTrainStart+_sd['ResponseStart
+    # _sd['LaserTrial =double( _sd['Custom'].LaserTrial[:n_trials])
+    # _sd['LaserTrial (_sd['CompletedTrial==0)=0
+    # _sd['LaserTrial (_sd['LaserTrialTrainStartAbs>_sd['ResponseEnd)=0
+    # _sd['LaserTrialTrainStartAbs(_sd['LaserTrial~=1)=NaN
+    # _sd['LaserTrialTrainStart (_sd['LaserTrial~=1)=NaN
+    
+    # _sd['CompletedWTLaserTrial = _sd['LaserTrial
+    # _sd['CompletedWTLaserTrial(_sd['CompletedWTTrial~=1)=NaN
+    # else #old version, laser during entire time investment
+    # _sd['LaserTrialTrainStart=zeros(1,n_trials)
+    # _sd['LaserTrialTrainStartAbs=_sd['ResponseStart
+    # _sd['LaserTrial =double( _sd['Custom'].LaserTrial[:n_trials])
+    # _sd['LaserTrial (_sd['CompletedTrial==0)=0
+    # _sd['LaserTrialTrainStartAbs(_sd['LaserTrial~=1)=NaN
+    # _sd['LaserTrialTrainStart (_sd['LaserTrial~=1)=NaN
+    # end
+    
+    # else
+    # _sd['LaserTrialTrainStart = nan(1,n_trials)
+    # _sd['LaserTrialTrainStartAbs = nan(1,n_trials)
+    # _sd['LaserTrial = zeros(1,n_trials)
+    # _sd['CompletedWTLaserTrial = nan(1,n_trials)
+    # _sd['CompletedWTLaserTrial(_sd['CompletedWTTrial==1) = 0
+    # end
+    
+    
+    # save(fullfile(Directory,'TrialEvents.mat'),'_sd')
+    
+    # disp('Additional events created and Trial Event saved')
