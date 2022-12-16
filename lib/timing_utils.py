@@ -509,26 +509,6 @@ def clear_ttls_with_isi_violation(ttl_signal, min_ISI=0.5):
     return np.array([t for i,t in enumerate(ttl_signal) if i not in isi_violations])
 
 
-# def tryinterp(ts, son2, change_point):
-    
-#     # Interpolate missing TTL's or delete superfluous TTL's up to 10 erroneous TTl's
-#     for k = 1:10
-#         if ~ismatch(ts,son2)
-#             son3 = son2 - son2(1) + ts(1)
-#             adt = diff(ts(1:min(length(ts),length(son2)))-son2(1:min(length(ts),length(son2))))
-#             badinx = find(abs(adt)>0.1,1,'first') + 1# find problematic index
-            
-#             if badinx == change_point
-#                     fprintf('problem is from concatenated sessions')
-#             end
-#             if adt(badinx-1) < 0    # interploate
-#                 ins = ts(badinx) - linterp([ts(badinx-1) ts(badinx+1)],[ts(badinx-1)-son3(badinx-1) ts(badinx+1)-son3(badinx)],ts(badinx))
-#                 son2 = [son2(1:badinx-1) ins+son2(1)-ts(1) son2(badinx:end)]
-#             else
-#                 son2(badinx) = []   # delete
-#     return son2
-    
-
 def reconcile_with_shift(s1, s2, compare_window=15):
     """
     Find the shift which minimizes the difference between two time series
@@ -549,8 +529,46 @@ def reconcile_with_shift(s1, s2, compare_window=15):
     return s2[smallest_discrepancy_idx:adjusted_end]
     
     
+def try_interpolation(s1, s2, first_trial_of_next_session, attempts=10):
+    """
+    Interpolate missing TTLs or 
+    delete superfluous TTLs (up to 10 errors)
+    """
+    for k in range(attempts):
+        if not is_match(s1,s2):
+            
+            # make both series the same length and check if the difference
+            # in the two series remains constant or varies
+            min_end = min(len(s1), len(s2))
+            d_diff_dt = np.diff(s1[:min_end]-s2[:min_end])
+            
+            # find the first problematic index, where the difference
+            # between the two series changes drastically (>0.1)
+            bad_idx = np.where(np.abs(d_diff_dt) > 0.1)[0] + 1
+            
+            if bad_idx == first_trial_of_next_session:
+                print('Problem is from concatenated sessions!')
 
-
+            if d_diff_dt[bad_idx - 1] < 0:  
+                # interpolate only if the recorded timestamp came after the
+                # controlled timestamp
+                s3 = s2 - s2[0] + s1[0]  # shift s2 times in ref. to s1
+                
+                # average the difference in the two signals at the two indices
+                # around bad_idx, and subtract that amount from s1 at bad_idx
+                ave_diff = 0.5 * ((s1[bad_idx+1] - s3[bad_idx+1]) + 
+                                  (s1[bad_idx-1] - s3[bad_idx-1]))
+                correction = s1[bad_idx] - ave_diff
+                
+                # return to s2 reference timeframe and save the interpolated
+                # value in the bad index
+                s2[bad_idx] = correction + s2[0] - s1[0] 
+            else: 
+                # if the recorded timestamp somehow came after the control
+                # (which is not possible), there was some unreconcilable error,
+                # in which case the data point should be deleted
+                del s2[bad_idx]
+    return s2
 
 
 # def shortenTE(TE2,shinx):
