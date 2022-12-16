@@ -11,7 +11,7 @@ import numpy as np
 import pandas as pd
 import h5py
 from joblib import load, dump
-from scipy.io import loadmat
+from scipy.io.matlab import loadmat
 
 from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 \
     import get_Trodes_timestamps, readTrodesExtractedDataFile
@@ -374,7 +374,7 @@ def remove_laser_trials(trialwise_TTLs, start_times, laser_TTL=526):
     return trialwise_TTLs, start_times
 
 
-def make_trial_events(cellbase_dir, behavior_mat_file):
+def add_TTL_trial_start_times_to_behav_data(cellbase_dir, behavior_mat_file):
     """
     Synchronize trial events to recording times.
     
@@ -399,6 +399,7 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
     # Trial start time recorded by the recording system (Neuralynx)
     # --------------------------------------------------------------------- #
     # Load converted TRODES event file 
+    print('Grouping TTL events by trial and getting recorded trial start times...')
     try:
         TTL_results = load(cellbase_dir + 'TTL_events.npy')
     except:
@@ -413,23 +414,24 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
     
     assert aligned_trialwise_TTLs[0]['start_time'] == recorded_start_ts[0]
     recorded_start_ts = np.array(recorded_start_ts)
+    print('Done.')
     # --------------------------------------------------------------------- #
     
     # --------------------------------------------------------------------- #
     # Trial start in absolute time from the behavior control system
     # --------------------------------------------------------------------- #
     # Load trial events structure
-    session_data = loadmat(cellbase_dir + behavior_mat_file)['SessionData']
+    session_data = loadmat(cellbase_dir + behavior_mat_file, simplify_cells=True)['SessionData']
     
-    n_trials = session_data[0,0]['nTrials'][0][0] + 1
-    behav_start_ts = session_data[0,0]['TrialStartTimestamp'][0]
+    n_trials = session_data['nTrials'] + 1
+    behav_start_ts = session_data['TrialStartTimestamp']
     # --------------------------------------------------------------------- #
     
 
     # --------------------------------------------------------------------- #
     # Reconcile the recorded and behavioral timestamps
     # --------------------------------------------------------------------- #
-    
+    print('Reconciling recorded and behavioral timestamps...')
     # First check the number of trials
     assert n_trials == len(aligned_trialwise_TTLs)
     
@@ -454,28 +456,27 @@ def make_trial_events(cellbase_dir, behavior_mat_file):
     print('Timestamp matching resolved.')
 
     
-    # # Eliminate last TTL's recorded in only one system
-    # sto = TE2.TrialStartTimestamp
-    # if length(son2) > length(ts):   # time not saved in behavior file (likely reason: autosave was used)
-    #     son2 = son2(1:length(ts))
-    # elif length(son2) < length(ts):  # time not recorded on Neuralynx (likely reason: recording stopped)
-    #     shinx = 1:length(son2)
-    #     ts = ts(shinx)
-    #     sto = sto(shinx)
-    #     TE2 = shortenTE(TE2,shinx)
-    #     warning('Trial Event File shortened to match TTL!')
+    # If the timestamp arrays have different lengths, eliminate timestamps
+    # from the longer series to make them the same length
+    if len(recorded_start_ts) > len(behav_start_ts):
+        # missing timestamp in behavior file (likely reason: autosave was used)
+        recorded_start_ts = recorded_start_ts[:len(behav_start_ts)]
+    elif len(recorded_start_ts) < len(behav_start_ts):  
+        # missing timestamp from recording sys (likely reason: recording stopped)
+        session_data = shorten_session_data(session_data, len(recorded_start_ts))
+        print('Trial Event File shortened to match TTL!')
+    print('Done.')
 
+    # --------------------------------------------------------------------- #
+    # Finally, save the trial-start timestamps of the aligned, recorded TTLs
+    # These will be used to align the trialwise spiking data
+    # --------------------------------------------------------------------- #
     
-    # TE2.TrialStartAligned = son2
+    session_data['TrialStartAligned'] = recorded_start_ts
     
-    
-    # # Save synchronized 'TrialEvents' file
-    # save([sessionpath filesep 'TrialEvents.mat'],'-struct','TE2')
-    
-    # if ~isempty(TE2.TrialStartTimestamp),
-    #     save([sessionpath filesep 'TrialEvents.mat'],'-struct','TE2')
-    # else
-    #     error('MakeTrialEvents:noOutput','Synchronization process failed.')
+    dump(session_data, cellbase_dir + 'TrialEvents.npy', compress=3)
+    print('Results saved to ' + cellbase_dir + 'TrialEvents.npy.')
+
 
 
 def is_match(s1, s2):
@@ -572,24 +573,27 @@ def try_interpolation(s1, s2, first_trial_of_next_session, attempts=10):
     return s2
 
 
-# def shortenTE(TE2,shinx):
-#     ###HACK TO WORK FOR DUAL2AFC 
-#     #TO 2019
-#     # Eliminate behavioral trials
-#     fnm = fieldnames(TE2)
-#     for k = 1:length(fnm)
-#         if length(TE2.(fnm{k}))>=shinx(end)
-#         TE2.(fnm{k}) = TE2.(fnm{k})(shinx)
+def shorten_session_data(session_data, n_trials):
+    """
+    Eliminate behavioral trials that do not have corresponding TTL recordings
+    (HACK TO WORK FOR DUAL2AFC).
+    The only two fields really affected by this (the way it's written)
+    are TrialStartTimestamp and arrays in the Custom field.
+    author: Torben Ott (2019)
+    """
+    for obj_key in session_data.keys():
+        if type(session_data[obj_key]) == np.ndarray:
+            if len(session_data[obj_key]) >= n_trials:
+                session_data[obj_key] = session_data[obj_key][:n_trials]
 
+    for obj_key in session_data['Custom'].keys():
+        if  type(session_data['Custom'][obj_key]) == np.ndarray:
+            if len(session_data['Custom'][obj_key]) >= n_trials:
+                session_data['Custom'][obj_key] = session_data['Custom'][obj_key][:n_trials]
     
-#     fnm = fieldnames(TE2.Custom)
-#     for k = 1:length(fnm):
-#         if length(TE2.Custom.(fnm{k}))>=shinx(end)
-#         TE2.Custom.(fnm{k}) = TE2.Custom.(fnm{k})(shinx)
-    
-#     TE2.nTrials=length(shinx)+1
+    session_data['nTrials'] = n_trials
 
-#     return TE2
+    return session_data
 
 
 
