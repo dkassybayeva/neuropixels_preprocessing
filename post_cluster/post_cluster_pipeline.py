@@ -29,6 +29,8 @@ timestamp_file = kilosort_dir.format(1) + date + '.timestamps.dat'
 
 cellbase_dir = session_path + 'cellbase/'
 ou.make_dir_if_nonexistent(cellbase_dir)
+
+behavior_mat_file = "Nina2_Dual2AFC_Jun23_2021_Session1.mat"
 #----------------------------------------------------------------------#
 
 tu.create_spike_mat(session_path, timestamp_file, date, probe_num, fs, 
@@ -37,3 +39,7 @@ tu.create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
 gap_filename = tu.find_recording_gaps(timestamp_file, fs, max_ISI, cellbase_dir)
 
 tu.extract_TTL_events(session_path, gap_filename, save_dir=cellbase_dir)
+
+tu.add_TTL_trial_start_times_to_behav_data(cellbase_dir, behavior_mat_file)
+
+tu.create_behavioral_dataframe(cellbase_dir + behavior_mat_file)
