@@ -8,7 +8,7 @@ Created on Thu Dec  8 10:33:50 2022
 import neuropixels_preprocessing.lib.timing_utils as tu
 import neuropixels_preprocessing.lib.obj_utils as ou
 
-fs = 30000.  # sampling frequency of Trodes
+fs = 30000.      # sampling frequency of Trodes
 max_ISI = 0.001  # max intersample interval (ISI), above which the period
                  # was considered a "gap" in the recording
 
@@ -33,7 +33,7 @@ ou.make_dir_if_nonexistent(cellbase_dir)
 behavior_mat_file = "Nina2_Dual2AFC_Jun23_2021_Session1.mat"
 #----------------------------------------------------------------------#
 
-tu.create_spike_mat(session_path, timestamp_file, date, probe_num, fs, 
+tu.create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
                     save_individual_spiketrains=False)
 
 gap_filename = tu.find_recording_gaps(timestamp_file, fs, max_ISI, cellbase_dir)
@@ -42,4 +42,6 @@ tu.extract_TTL_events(session_path, gap_filename, save_dir=cellbase_dir)
 
 tu.add_TTL_trial_start_times_to_behav_data(cellbase_dir, behavior_mat_file)
 
-tu.create_behavioral_dataframe(cellbase_dir + behavior_mat_file)
+tu.calc_event_outcomes(cellbase_dir)
+
+tu.create_behavioral_dataframe(cellbase_dir)

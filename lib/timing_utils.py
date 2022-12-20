@@ -892,6 +892,7 @@ def create_behavioral_dataframe(cellbase_dir):
     # Load the session data in TrialEvents.npy
     _sd = load(cellbase_dir + 'TrialEvents.npy')
 
+    # Remove keys no longer needed for spiking data alignment
     n_keys_start = len(_sd.keys())
 
     _sd.pop('Custom')
@@ -905,8 +906,6 @@ def create_behavioral_dataframe(cellbase_dir):
 
     if 'RewardMagnitude' in _sd.keys():
         _sd.pop('RewardMagnitude')
-
-    _sd['RelativeReward'] = _sd['RelativeReward'].T  # nTrialsx1 -> 1xnTrials
 
     try:
         _sd.pop('CompletedChosenDirection')
@@ -925,4 +924,16 @@ def create_behavioral_dataframe(cellbase_dir):
 
     print(f"{n_keys_start - len(_sd.keys())} fields removed.")
 
-    # @TODO: turn into dataframe here.
+    # Convert to dataframe and save
+    behav_dict = {key: np.array(_sd[key]).squeeze() for key in _sd if '__' not in key and key!='Settings'}
+    behav_df = pd.DataFrame.from_dict(behav_dict)
+
+    # so that we can use this code for session data that doesnt have catch trials!
+    if 'CatchTrial' in behav_df.keys():
+        behav_df.CatchTrial = behav_df.CatchTrial.astype('bool')
+    if 'CompletedTrial' in behav_df.keys():
+        behav_df.CompletedTrial = behav_df.CompletedTrial.astype('bool')
+
+    dump(behav_df, cellbase_dir + "behav_df", compress=3)
+
+    print('Bahvaioral dataframe saved to: ' + cellbase_dir + "behav_df")
