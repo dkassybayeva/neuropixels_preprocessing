@@ -666,7 +666,6 @@ def create_behavioral_dataframe(cellbase_dir):
     # Threshold for waiting time
     _sd['WaitingTime'][_sd['WaitingTime'] < WT_low_threshold] = np.nan
     
- 
     # Modality
     _sd['Modality'] = 2 * np.ones(n_trials)
     
@@ -727,18 +726,21 @@ def create_behavioral_dataframe(cellbase_dir):
         _sd['ModReward'][nt] = code2
 
     
-    # #waiting time split
-    # _sd['WaitingTimeSplit=NaN(size(_sd['ChosenDirection))
+    #waiting time split
+    # _sd['WaitingTimeSplit'] = np.full(_sd['ChosenDirection'].shape, np.nan)
     
-    # Long=_sd['CompletedTrial==1 & _sd['Rewarded==0 & _sd['WaitingTime>=6.5
-    # MidLong=_sd['CompletedTrial==1 & _sd['Rewarded==0 & _sd['WaitingTime<6.5 & _sd['WaitingTime>=5.5 
-    # MidShort=_sd['CompletedTrial==1 & _sd['Rewarded==0 & _sd['WaitingTime<5.5 & _sd['WaitingTime>=4
-    # Short=_sd['CompletedTrial==1 & _sd['Rewarded==0 & _sd['WaitingTime<4 & _sd['WaitingTime>=2.5
+    # complete_reward = np.logical_and(_sd['CompletedTrial'], ~_sd['Rewarded'])
     
-    # _sd['WaitingTimeSplit(Short)=1
-    # _sd['WaitingTimeSplit(MidShort)=2
-    # _sd['WaitingTimeSplit(MidLong)=3
-    # _sd['WaitingTimeSplit(Long)=4
+    # Long = np.logical_and(complete_reward, _sd['WaitingTime'] >= 6.5)
+    # MidLong = np.logical_and(complete_reward, _sd['WaitingTime']<6.5, _sd['WaitingTime']>=5.5)
+    # MidShort = np.logical_and(complete_reward, _sd['WaitingTime']<5.5, _sd['WaitingTime']>=4)
+    # Short = np.logical_and(complete_reward, _sd['WaitingTime']<4, _sd['WaitingTime']>=2.5)
+    
+    
+    # _sd['WaitingTimeSplit'][Short] = 1
+    # _sd['WaitingTimeSplit'][MidShort] = 2
+    # _sd['WaitingTimeSplit'][MidLong] = 3
+    # _sd['WaitingTimeSplit'][Long] = 4
     
     
     # ## Saving conditioned trials
@@ -821,4 +823,4 @@ def create_behavioral_dataframe(cellbase_dir):
     
     # save(fullfile(Directory,'TrialEvents.mat'),'_sd')
     
-    # disp('Additional events created and Trial Event saved')
+    # print('Additional events created and Trial Event saved')
