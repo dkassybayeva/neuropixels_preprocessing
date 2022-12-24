@@ -598,7 +598,7 @@ def shorten_session_data(session_data, n_trials):
 
 
     
-def create_behavioral_dataframe(cellbase_dir):
+def calc_event_outcomes(cellbase_dir):
     """
     Creates additional useful fields in the session data (trial events).
 
@@ -607,7 +607,6 @@ def create_behavioral_dataframe(cellbase_dir):
     """
     # Load the session data in TrialEvents.npy
     _sd = load(cellbase_dir + 'TrialEvents.npy')
-    # TE = _sd
 
     WT_low_threshold = 0.  # Lower cut-off for waiting time turning all to NaN
     
@@ -632,43 +631,48 @@ def create_behavioral_dataframe(cellbase_dir):
     _sd['CorrectChoice'], _sd['PunishedTrial'] = one_zero_idx(choice_correct)
 
     # Trial where rat gave a response
-    _sd['CompletedTrial'] = np.logical_and(choice_left > -1, _sd['TrialNumber'] > 30)
+    _sd['CompletedTrial'] = (choice_left > -1) & (_sd['TrialNumber'] > 30)
 
     # Rewarded Trials
-    _sd['Rewarded'], _ = one_zero_idx(_sd['Custom']['Rewarded'][:n_trials])
+    _sd['Rewarded'], no_reward = one_zero_idx(_sd['Custom']['Rewarded'][:n_trials])
 
     # Trials where rat sampled but did not respond
     complete, incomplete = one_zero_idx(_sd['CompletedTrial'])
-    early = _sd['Custom']['EarlyWithdrawal'][:n_trials] == 1
-    _sd['UnansweredTrials'] = np.logical_and(incomplete, early)
+    early_withdrawal = _sd['Custom']['EarlyWithdrawal'][:n_trials] == 1
+    _sd['UnansweredTrials'] = incomplete & early_withdrawal
+    assert _sd['UnansweredTrials'].sum() <= min(early_withdrawal.sum(), incomplete.sum())
 
     # CatchTrial
     _sd['CatchTrial'] = _sd['Custom']['CatchTrial'][:n_trials]
 
     # Correct catch trials
-    _sd['CompletedCatchTrial'] = np.logical_and(complete, _sd['CatchTrial']==1)
+    _sd['CompletedCatchTrial'] = complete & (_sd['CatchTrial']==1)
 
     # Correct trials, but rat was waiting too short
     wait_too_short = _sd['Custom']['FeedbackTime'][:n_trials] < 0.5
-    _sd['CorrectShortWTTrial'] = np.logical_and(_sd['CorrectChoice'], wait_too_short)
+    _sd['CorrectShortWTTrial'] = _sd['CorrectChoice'] & wait_too_short
 
     # These are all the waiting time trials (correct catch and incorrect trials)
-    catch_or_wrong = np.logical_or(_sd['CompletedCatchTrial'], _sd['PunishedTrial'])
-    _sd['CompletedWTTrial']= np.logical_and(catch_or_wrong, _sd['CompletedTrial'])
+    catch_or_wrong = _sd['CompletedCatchTrial'] & _sd['PunishedTrial']
+    _sd['CompletedWTTrial'] = catch_or_wrong & complete
+    assert _sd['CompletedWTTrial'].sum() <= min(catch_or_wrong.sum(), complete.sum())
     
-    # Trials were rat answered but did not receive reward
-    punish_or_catch = np.logical_or(_sd['PunishedTrial'], _sd['CatchTrial'])
-    _sd['WaitingTimeTrial'] = np.logical_and(_sd['CompletedTrial'], punish_or_catch)
+    # Trials where rat answered but did not receive reward
+    punish_or_catch = _sd['PunishedTrial'] | _sd['CatchTrial']
+    _sd['WaitingTimeTrial'] = punish_or_catch & complete
     
     # Waiting Time
     _sd['WaitingTime'] = _sd['Custom']['FeedbackTime']
     
-    # Threshold for waiting time
+    # Threshold for waiting time (e.g., negative waiting times are impossible)
     _sd['WaitingTime'][_sd['WaitingTime'] < WT_low_threshold] = np.nan
     
     # Modality
     _sd['Modality'] = 2 * np.ones(n_trials)
-    
+    _sd['SideReward'] = -1 * np.ones(n_trials)
+    _sd['CompletedChosenDirection'] = -1 * np.ones(n_trials)
+    _sd['ModReward'] = -1 * np.ones(n_trials)
+
     # Conditioning the trials
     for nt in range(n_trials):  
         """
@@ -686,11 +690,11 @@ def create_behavioral_dataframe(cellbase_dir):
         nt_mod = _sd['Modality'][nt]
         nt_complete = _sd['CompletedTrial'][nt]
         nt_chosen_dir = _sd['ChosenDirection'][nt]
-        if nt_reward and nt_mod:
+        if nt_reward and nt_mod==1:
             code = 1
         elif nt_reward and nt_mod==2:
             code = 2
-        elif ~nt_reward and nt_complete and nt_mod:
+        elif ~nt_reward and nt_complete and nt_mod==1:
             code = 3
         elif ~nt_reward and nt_complete and nt_mod==2:
             code = 4
@@ -713,11 +717,11 @@ def create_behavioral_dataframe(cellbase_dir):
           7 = all remaining trials
         """
 
-        if nt_mod and nt_chosen_dir==1 and nt_complete:
+        if nt_mod==1 and nt_chosen_dir==1 and nt_complete:
             code2 = 1
         elif nt_mod==2 and nt_chosen_dir==1 and nt_complete:
             code2 = 2
-        elif nt_mod and nt_chosen_dir==2 and nt_complete:
+        elif nt_mod==1 and nt_chosen_dir==2 and nt_complete:
             code2 = 3
         elif nt_mod==2 and nt_chosen_dir==2 and nt_complete:
             code2 = 4
@@ -726,101 +730,199 @@ def create_behavioral_dataframe(cellbase_dir):
         _sd['ModReward'][nt] = code2
 
     
-    #waiting time split
-    # _sd['WaitingTimeSplit'] = np.full(_sd['ChosenDirection'].shape, np.nan)
+    # Waiting time split
+    _sd['WaitingTimeSplit'] = np.full(_sd['ChosenDirection'].shape, np.nan)
     
-    # complete_reward = np.logical_and(_sd['CompletedTrial'], ~_sd['Rewarded'])
+    complete_no_reward = complete & no_reward
+
+    long_idx = _sd['WaitingTime'] >= 6.5
+    midlong_idx = (_sd['WaitingTime']<6.5) & (_sd['WaitingTime']>=5.5)
+    midshort_idx = (_sd['WaitingTime']<5.5) & (_sd['WaitingTime']>=4)
+    short_idx = (_sd['WaitingTime']<4) & (_sd['WaitingTime']>=2.5)
+    assert ~np.any(np.where(long_idx)[0] == np.where(midlong_idx)[0])
+    assert ~np.any(np.where(midlong_idx)[0] == np.where(midshort_idx)[0])
+    assert ~np.any(np.where(midshort_idx)[0] == np.where(short_idx)[0])
+
+    _sd['WaitingTimeSplit'][complete_no_reward & short_idx] = 1
+    _sd['WaitingTimeSplit'][complete_no_reward & midshort_idx] = 2
+    _sd['WaitingTimeSplit'][complete_no_reward & midlong_idx] = 3
+    _sd['WaitingTimeSplit'][complete_no_reward & long_idx] = 4
     
-    # Long = np.logical_and(complete_reward, _sd['WaitingTime'] >= 6.5)
-    # MidLong = np.logical_and(complete_reward, _sd['WaitingTime']<6.5, _sd['WaitingTime']>=5.5)
-    # MidShort = np.logical_and(complete_reward, _sd['WaitingTime']<5.5, _sd['WaitingTime']>=4)
-    # Short = np.logical_and(complete_reward, _sd['WaitingTime']<4, _sd['WaitingTime']>=2.5)
+
+    # Defining ResponseOnset, ResponseStart and ResponseEnd
+    _sd['StimulusOnset'] = np.zeros(n_trials)
+    _sd['PokeCenterStart'] = np.zeros(n_trials)
+
+    _sd['ResponseStart'] = np.zeros(n_trials)
+    _sd['ResponseEnd'] = np.zeros(n_trials)
+
+    _sd['LaserTrialTrainLength'] = np.zeros(n_trials)
     
+    for nt in range(n_trials):
+        nt_states = _sd['RawEvents']['Trial'][nt]['States']
+
+        _sd['StimulusOnset'][nt] = nt_states['stimulus_delivery_min'][0]
+        _sd['PokeCenterStart'][nt] = nt_states['stay_Cin'][0]
+
+        if ~np.isnan(nt_states['start_Rin'][0]):
+            _sd['ResponseStart'][nt] = nt_states['start_Rin'][0]
+            _sd['ResponseEnd'][nt] = nt_states['start_Rin'][0] + _sd['Custom']['FeedbackTime'][nt]
+        elif ~np.isnan(nt_states['start_Lin'][0]):
+            _sd['ResponseStart'][nt] = nt_states['start_Lin'][0]
+            _sd['ResponseEnd'][nt] = nt_states['start_Lin'][0] + _sd['Custom']['FeedbackTime'][nt]
+        else:
+            _sd['ResponseStart'][nt] = np.nan
+            _sd['ResponseEnd'][nt] = np.nan
+
+        nt_GUI = _sd['TrialSettings'][nt]['GUI']
+        if 'LaserTrials' in nt_GUI.keys():
+            if nt_GUI['LaserTrials'] > 0:
+                if 'LaserTrainDuration_ms' in nt_GUI.keys():
+                    _sd['LaserTrialTrainLength'][nt] = nt_GUI['LaserTrainDuration_ms']
+                else: #old version
+                    _sd['LaserTrialTrainLength'][nt] = np.nan
+            else:
+                _sd['LaserTrialTrainLength'][nt] = np.nan
+        else: # not even Laser Trials settings, very old version
+            _sd['LaserTrialTrainLength'][nt] = np.nan
+
+    _sd['SamplingDuration'] = _sd['Custom']['ST'][:n_trials]
+    _sd['StimulusOffset'] = _sd['StimulusOnset'] + _sd['SamplingDuration']
     
-    # _sd['WaitingTimeSplit'][Short] = 1
-    # _sd['WaitingTimeSplit'][MidShort] = 2
-    # _sd['WaitingTimeSplit'][MidLong] = 3
-    # _sd['WaitingTimeSplit'][Long] = 4
+    _sd['ChosenDirectionBis'] = _sd['ChosenDirection']
+    _sd['ChosenDirectionBis'][_sd['ChosenDirectionBis']==3] = np.nan
     
+    # Correct length of TrialStartAligned
+    _sd['TrialStartAligned'] = _sd['TrialStartAligned'][:n_trials]
+    _sd['TrialStartTimestamp'] = _sd['TrialStartTimestamp'][:n_trials]
+    _sd['TrialSettings'] = _sd['TrialSettings'][:n_trials]
     
-    # ## Saving conditioned trials
-    # save(fullfile(Directory,'TrialEvents.mat'),'_sd')
-    
-    
-    # ## Defining ResponseOnset, ResponseStart and ResponseEnd
-    # _sd['ResponseStart=zeros(1, n_trials)
-    # _sd['ResponseEnd=zeros(1, n_trials)
-    # _sd['PokeCenterStart=zeros(1,n_trials)
-    # _sd['StimulusOnset=zeros(1,n_trials)
-    # _sd['LaserTrialTrainLength=zeros(1,n_trials)
-    
-    # for nt=1:n_trials
-    #     _sd['StimulusOnset[nt]=TE.RawEvents.Trial{nt}.States.stimulus_delivery_min(1)
-    #     _sd['PokeCenterStart[nt]=TE.RawEvents.Trial{nt}.States.stay_Cin(1)
-    #     if ~isnan(TE.RawEvents.Trial{nt}.States.start_Rin(1))
-    #         _sd['ResponseStart[nt]=TE.RawEvents.Trial{nt}.States.start_Rin(1)
-    #         _sd['ResponseEnd[nt]=TE.RawEvents.Trial{nt}.States.start_Rin(1) + _sd['Custom'].FeedbackTime[nt]
-    #     elif ~isnan(TE.RawEvents.Trial{nt}.States.start_Lin(1))
-    #         _sd['ResponseStart[nt]=TE.RawEvents.Trial{nt}.States.start_Lin(1)
-    #         _sd['ResponseEnd[nt]=TE.RawEvents.Trial{nt}.States.start_Lin(1) + _sd['Custom'].FeedbackTime[nt]
-    #     else
-    #         _sd['ResponseStart[nt]=NaN
-    #         _sd['ResponseEnd[nt]=NaN
-    #     end
-    #     if isfield(TE.TrialSettings[nt].GUI,'LaserTrials')
-    #     if TE.TrialSettings[nt].GUI.LaserTrials>0
-    #         if isfield(TE.TrialSettings[nt].GUI,'LaserTrainDuration_ms')
-    #             _sd['LaserTrialTrainLength[nt] = TE.TrialSettings[nt].GUI.LaserTrainDuration_ms
-    #         else #old version
-    #             _sd['LaserTrialTrainLength[nt]=NaN 
-    #         end
-    #     end
-    #     else #not even Laser Trials settings, very old version
-    #         _sd['LaserTrialTrainLength[nt]=NaN
-    #     end
-    # end
-    # _sd['SamplingDuration = _sd['Custom'].ST(1:nTrials)
-    # _sd['StimulusOffset=_sd['StimulusOnset+_sd['SamplingDuration
-    
-    # _sd['ChosenDirectionBis=_sd['ChosenDirection
-    # _sd['ChosenDirectionBis(_sd['ChosenDirectionBis==3)=NaN
-    
-    # #correct length of TrialStartAligned
-    # _sd['TrialStartAligned = _sd['TrialStartAligned[:n_trials]
-    # _sd['TrialStartTimestamp = _sd['TrialStartTimestamp[:n_trials]
-    # _sd['TrialSettings = _sd['TrialSettings[:n_trials]
-    
-    # #laser trials
-    # if  isfield(_sd['Custom'],'LaserTrial') && sum(_sd['Custom'].LaserTrial)>0
-    # if isfield (_sd['Custom'],'LaserTrialTrainStart')
-    # _sd['LaserTrialTrainStart = _sd['Custom'].LaserTrialTrainStart[:n_trials]
-    # _sd['LaserTrialTrainStartAbs = _sd['LaserTrialTrainStart+_sd['ResponseStart
-    # _sd['LaserTrial =double( _sd['Custom'].LaserTrial[:n_trials])
-    # _sd['LaserTrial (_sd['CompletedTrial==0)=0
-    # _sd['LaserTrial (_sd['LaserTrialTrainStartAbs>_sd['ResponseEnd)=0
-    # _sd['LaserTrialTrainStartAbs(_sd['LaserTrial~=1)=NaN
-    # _sd['LaserTrialTrainStart (_sd['LaserTrial~=1)=NaN
-    
-    # _sd['CompletedWTLaserTrial = _sd['LaserTrial
-    # _sd['CompletedWTLaserTrial(_sd['CompletedWTTrial~=1)=NaN
-    # else #old version, laser during entire time investment
-    # _sd['LaserTrialTrainStart=zeros(1,n_trials)
-    # _sd['LaserTrialTrainStartAbs=_sd['ResponseStart
-    # _sd['LaserTrial =double( _sd['Custom'].LaserTrial[:n_trials])
-    # _sd['LaserTrial (_sd['CompletedTrial==0)=0
-    # _sd['LaserTrialTrainStartAbs(_sd['LaserTrial~=1)=NaN
-    # _sd['LaserTrialTrainStart (_sd['LaserTrial~=1)=NaN
-    # end
-    
-    # else
-    # _sd['LaserTrialTrainStart = nan(1,n_trials)
-    # _sd['LaserTrialTrainStartAbs = nan(1,n_trials)
-    # _sd['LaserTrial = zeros(1,n_trials)
-    # _sd['CompletedWTLaserTrial = nan(1,n_trials)
-    # _sd['CompletedWTLaserTrial(_sd['CompletedWTTrial==1) = 0
-    # end
-    
-    
-    # save(fullfile(Directory,'TrialEvents.mat'),'_sd')
-    
-    # print('Additional events created and Trial Event saved')
+    #laser trials
+    if 'LaserTrial' in _sd['Custom'].keys() and _sd['Custom']['LaserTrial'].sum() > 0:
+        if 'LaserTrialTrainStart' in _sd['Custom'].keys():
+            _sd['LaserTrialTrainStart'] = _sd['Custom']['LaserTrialTrainStart'][:n_trials]
+            _sd['LaserTrialTrainStartAbs'] = _sd['LaserTrialTrainStart'] + _sd['ResponseStart']
+            _sd['LaserTrial'] = _sd['Custom']['LaserTrial'][:n_trials]
+            _sd['LaserTrial'][_sd['CompletedTrial']==0] = 0
+            _sd['LaserTrial'][_sd['LaserTrialTrainStartAbs'] >_sd['ResponseEnd']] = 0
+            _sd['LaserTrialTrainStartAbs'][_sd['LaserTrial'] !=1 ] = np.nan
+            _sd['LaserTrialTrainStart'][_sd['LaserTrial'] !=1 ] = np.nan
+
+            _sd['CompletedWTLaserTrial'] = _sd['LaserTrial']
+            _sd['CompletedWTLaserTrial'][_sd['CompletedWTTrial'] !=1 ] = np.nan
+        else: #old version, laser during entire time investment
+            _sd['LaserTrialTrainStart'] = np.zeros(n_trials)
+            _sd['LaserTrialTrainStartAbs'] = _sd['ResponseStart']
+            _sd['LaserTrial'] = _sd['Custom']['LaserTrial'][:n_trials]
+            _sd['LaserTrial'][_sd['CompletedTrial']==0] = 0
+            _sd['LaserTrialTrainStartAbs'][_sd['LaserTrial'] !=1 ] = np.nan
+            _sd['LaserTrialTrainStart'][_sd['LaserTrial'] !=1 ] = np.nan
+    else:
+        _sd['LaserTrialTrainStart'] = np.full(n_trials, np.nan)
+        _sd['LaserTrialTrainStartAbs'] = np.full(n_trials, np.nan)
+        _sd['LaserTrial'] = np.zeros(n_trials)
+        _sd['CompletedWTLaserTrial'] = np.full(n_trials, np.nan)
+        _sd['CompletedWTLaserTrial'][_sd['CompletedWTTrial'] ==1 ] = 0
+
+    if 'BlockNumber' in _sd['Custom'].keys():
+        _sd['BlockNumber'] = _sd['Custom']['BlockNumber'][:n_trials]
+
+    if 'RewardMagnitude' in _sd['Custom'].keys():
+        _sd['RelativeReward'] = _sd['Custom']['RewardMagnitude'][:, 0] - _sd['Custom']['RewardMagnitude'][:, 1]
+        _sd['RelativeReward'] = _sd['RelativeReward'][:n_trials]
+
+    # discrimination measures
+    _sd['MostClickSide'] = -1 * np.ones(n_trials)
+    if 'AuditoryOmega' in _sd['Custom'].keys():
+        _sd['OmegaDiscri'] = 2 * np.abs(_sd['Custom']['AuditoryOmega'][:n_trials] - 0.5)
+        _sd['NRightClicks'] = np.zeros(n_trials)
+        _sd['NLeftClicks'] = np.zeros(n_trials)
+        for trial_i in range(n_trials):
+            rct = _sd['Custom']['RightClickTrain'][trial_i]
+            if type(rct) == np.ndarray:
+                _sd['NRightClicks'][trial_i] = len(rct)
+            else:
+                _sd['NRightClicks'][trial_i] = 1
+
+            lct = _sd['Custom']['LeftClickTrain'][trial_i]
+            if type(lct) == np.ndarray:
+                _sd['NLeftClicks'][trial_i] = len(lct)
+            else:
+                _sd['NLeftClicks'][trial_i] = 1
+        _sd['RatioDiscri'] = np.log10(_sd['NRightClicks'] / _sd['NLeftClicks'])
+        _sd['BetaDiscri'] = (_sd['NRightClicks'] - _sd['NLeftClicks']) / (_sd['NRightClicks'] + _sd['NLeftClicks'])
+        _sd['AbsBetaDiscri'] = np.abs(_sd['BetaDiscri'])
+        _sd['AbsRatioDiscri'] = np.abs(_sd['RatioDiscri'])
+
+        _sd['MostClickSide'][_sd['NRightClicks'] > _sd['NLeftClicks']] = 2
+        _sd['MostClickSide'][_sd['NRightClicks'] < _sd['NLeftClicks']] = 1
+        _sd['MostClickSide'][_sd['NRightClicks'] == _sd['NLeftClicks']] = 3
+        _sd['ChoiceGivenClick'] = _sd['MostClickSide'] == _sd['ChosenDirection']
+    else:
+        _sd['ChoiceGivenClick'] = _sd['CorrectChoice'][:n_trials]
+
+    _sd['DV'] = _sd['Custom']['DV'][:n_trials]
+
+
+    if 'RewardMagnitude' in _sd['Custom'].keys():
+        _sd['RewardMagnitude'] = _sd['Custom']['RewardMagnitude'][:n_trials, :]
+
+        # Conditioning the trials
+        _sd['RewardMagnitudeCorrect'] = -1 * np.ones(n_trials)
+        for nt in range(n_trials):
+            rewMagTrial = _sd['RewardMagnitude'][nt, :]
+
+            # chosen direction
+            cd = int(_sd['ChosenDirection'][nt])
+
+            if cd == 3:
+                _sd['RewardMagnitudeCorrect'][nt] = np.nan
+            else:
+                _sd['RewardMagnitudeCorrect'][nt] = rewMagTrial[cd - 1]
+
+    dump(_sd, cellbase_dir + 'TrialEvents.npy', compress=3)
+
+    print('Trial event conditions/outcomes calculated and added to TrialEvents.npy.')
+
+
+def create_behavioral_dataframe(cellbase_dir):
+    """
+    Create simpler copy of Trial Events to turn into pandas dataframe
+    """
+    # Load the session data in TrialEvents.npy
+    _sd = load(cellbase_dir + 'TrialEvents.npy')
+
+    n_keys_start = len(_sd.keys())
+
+    _sd.pop('Custom')
+    _sd.pop('RawEvents')
+    _sd.pop('nTrials')
+    _sd.pop('TrialSettings')
+    _sd.pop('Settings')
+
+    if 'RawData' in _sd.keys():
+        _sd.pop('RawData')
+
+    if 'RewardMagnitude' in _sd.keys():
+        _sd.pop('RewardMagnitude')
+
+    _sd['RelativeReward'] = _sd['RelativeReward'].T  # nTrialsx1 -> 1xnTrials
+
+    try:
+        _sd.pop('CompletedChosenDirection')
+        _sd.pop('CompletedCatchTrial')
+
+        _sd.pop('ModReward')
+        _sd.pop('SideReward')
+        _sd.pop('ChosenDirectionBis')
+        _sd.pop('CorrectShortWTTrial')
+
+        _sd.pop('CompletedWTLaserTrial')
+        _sd.pop('CompletedWTTrial')
+        _sd.pop('PunishedTrial')
+    except:
+        print('Some fields were not removed')
+
+    print(f"{n_keys_start - len(_sd.keys())} fields removed.")
+
+    # @TODO: turn into dataframe here.
