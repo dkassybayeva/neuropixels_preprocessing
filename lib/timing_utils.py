@@ -87,7 +87,7 @@ def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
     # Create a matrix with a row for each good cluster and all rows same length
     last_spike_in_sec = trodes_timestamps[-1] / fs
     last_spike_ms = int(np.ceil(last_spike_in_sec * 1000))
-    spike_mat = np.zeros((len(good_clusters), last_spike_ms))
+    spike_mat = np.zeros((len(good_clusters), last_spike_ms), dtype='uint8')
     
     print('Creating spike mat...')
     for i, clust_i in enumerate(good_clusters):
