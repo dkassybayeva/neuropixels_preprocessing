@@ -14,8 +14,8 @@ from scipy.ndimage import gaussian_filter1d
 import os
 import glob
 
-from neuropixels_preprocessing.post_cluster.trace_utils import get_trace_feature_df
-from neuropixels_preprocessing.post_cluster.obj_utils import *
+from neuropixels_preprocessing.lib.trace_utils import get_trace_feature_df
+from neuropixels_preprocessing.lib.obj_utils import *
 
 class DataContainer:
     def __init__(self, dat_path, behav_df, traces_dict, 

@@ -9,12 +9,13 @@ import glob
 import matplotlib.pyplot as plt
 import seaborn as sns
 from mat73 import loadmat
+from joblib import load
 
 
 # ---------- Amy Functions ------------ #
-from behavior_utils import load_df, convert_df, trim_df
-from data_objs import TwoAFC
-from trace_utils import create_traces_np, trial_start_align
+import neuropixels_preprocessing.lib.behavior_utils as bu
+import neuropixels_preprocessing.lib.trace_utils as tu
+from neuropixels_preprocessing.lib.data_objs import TwoAFC
 
 #%% Define data path and session variables
 
@@ -69,17 +70,19 @@ def create_experiment_data_object(i, datapath):
     meta_d['behavior_phase'] = session_number[i]
     
     # load neural data: [number of neurons x time bins in ms]
-    spike_times = loadmat(cellbase + "traces_ms.mat")["spikes"]
-    
+    spike_times_old = loadmat(cellbase + "traces_ms.mat")["spikes"]
+    spike_times = load(cellbase + "spike_mat.npy")
+
     # make pandas behavior dataframe
-    behav_df = load_df(cellbase + "RecBehav.mat")
+    behav_df_old = bu.load_df(cellbase + "RecBehav.mat")
+    behav_df = load(cellbase + 'behav_df')
 
     # format entries of dataframe for analysis (e.g., int->bool)
-    cbehav_df = convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=True)
+    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=True)
     
     # align spike times to behavioral data timeframe
     # spike_times = array [n_neurons x n_trials x longest_trial period in ms]
-    spike_times, _ = trial_start_align(cbehav_df, spike_times, 1000)
+    spike_times, _ = tu.trial_start_align(cbehav_df, spike_times, 1000)
     
     # subsample (bin) data:
     # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
@@ -90,7 +93,7 @@ def create_experiment_data_object(i, datapath):
     spike_times_ds = spike_times_ds.sum(axis=-1)
     
     # create trace alignments
-    traces_dict = create_traces_np(cbehav_df, 
+    traces_dict = tu.create_traces_np(cbehav_df,
                                    spike_times_ds,
                                    sps=sps, 
                                    aligned_ind=0, 
@@ -98,7 +101,7 @@ def create_experiment_data_object(i, datapath):
                                    traces_aligned="TrialStart")
     
     cbehav_df['session'] = i
-    cbehav_df = trim_df(cbehav_df)
+    cbehav_df = bu.trim_df(cbehav_df)
     
     # create and save data object
     data_obj = TwoAFC(datapath, cbehav_df, traces_dict, name=ratname, 
