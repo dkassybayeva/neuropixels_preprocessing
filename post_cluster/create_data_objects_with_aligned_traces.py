@@ -8,6 +8,7 @@ import datetime
 import glob
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 from mat73 import loadmat
 from joblib import load
 
@@ -72,18 +73,36 @@ def create_experiment_data_object(i, datapath):
     # load neural data: [number of neurons x time bins in ms]
     spike_times_old = loadmat(cellbase + "traces_ms.mat")["spikes"]
     spike_times = load(cellbase + "spike_mat.npy")
+    assert spike_times.shape == spike_times_old.shape
 
     # make pandas behavior dataframe
     behav_df_old = bu.load_df(cellbase + "RecBehav.mat")
     behav_df = load(cellbase + 'behav_df')
 
+    assert len(behav_df.keys()) == len(behav_df_old.keys())
+    n_trials1 = behav_df['TrialNumber'].shape[-1]
+    n_trials2 = behav_df_old['TrialNumber'].shape[-1]
+    least_trials = min(n_trials1, n_trials2)
+    for _key in behav_df.keys():
+        assert _key in behav_df_old.keys()
+        if _key in ['ResponseStart', 'ResponseEnd', 'PokeCenterStart', 'TrialStartTimestamp', 'TrialStartAligned', 'DV', 'SamplingDuration', 'StimulusOffset', 'StimulusOnset']:
+            print(_key, flush=True)
+            _t1 = behav_df[_key][:least_trials]
+            _t2 = behav_df_old[_key][:least_trials]
+            _t1 = _t1[~np.isnan(_t1)]
+            _t2 = _t2[~np.isnan(_t2)]
+            try:
+                assert np.all(_t1 == _t2)
+            except:
+                assert np.all(np.abs(_t2 - _t1) < 0.0505)
+
     # format entries of dataframe for analysis (e.g., int->bool)
     cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=True)
-    
+
     # align spike times to behavioral data timeframe
     # spike_times = array [n_neurons x n_trials x longest_trial period in ms]
     spike_times, _ = tu.trial_start_align(cbehav_df, spike_times, 1000)
-    
+
     # subsample (bin) data:
     # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
     # then sum over the dt bins
@@ -91,25 +110,25 @@ def create_experiment_data_object(i, datapath):
     n_trials = spike_times.shape[1]
     spike_times_ds = spike_times.reshape(n_neurons, n_trials, -1, timestep_ds)
     spike_times_ds = spike_times_ds.sum(axis=-1)
-    
+
     # create trace alignments
     traces_dict = tu.create_traces_np(cbehav_df,
                                    spike_times_ds,
-                                   sps=sps, 
-                                   aligned_ind=0, 
+                                   sps=sps,
+                                   aligned_ind=0,
                                    filter_by_trial_num=False,
                                    traces_aligned="TrialStart")
-    
+
     cbehav_df['session'] = i
     cbehav_df = bu.trim_df(cbehav_df)
-    
+
     # create and save data object
-    data_obj = TwoAFC(datapath, cbehav_df, traces_dict, name=ratname, 
-                      cluster_labels=[], metadata=meta_d, sps=sps, 
+    data_obj = TwoAFC(datapath, cbehav_df, traces_dict, name=ratname,
+                      cluster_labels=[], metadata=meta_d, sps=sps,
                       record=False, feature_df_cache=[], feature_df_keys=[])
-    
+
     data_obj.to_pickle(remove_old=False)
-    
+
     return data_obj
 
 
