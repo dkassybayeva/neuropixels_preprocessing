@@ -61,7 +61,7 @@ def trial_start_align(behav_df, traces, sps):
     spikes = np.zeros([n_trials, n_neurons, longest_trial]).astype('uint8')
 
     for i in range(n_trials):
-        print(i, t_starts[i],  trial_len[i], traces.shape)
+        # print(i, t_starts[i],  trial_len[i], traces.shape)
         spikes[i, :, 0:trial_len[i]] = traces[:, t_starts[i]:(t_starts[i] + trial_len[i])]
 
     # rearrange spiking data from
@@ -100,9 +100,6 @@ def create_traces_np(behav_df, traces, sps,
     '''
     n_neurons, n_trials, n_time_bins  = traces.shape
 
-    #behav_df.loc[behav_df['TrialNumber'] == max(behav_df['TrialNumber']), 'next_trial_start'] = behav_df.loc[behav_df['TrialNumber'] == max(behav_df['TrialNumber']), 'TrialStartAligned']  + 60
-
-
     #only sending in completed trials now
     if filter_by_trial_num:
         trial_number = behav_df['TrialNumber'].to_numpy() -1
@@ -110,43 +107,49 @@ def create_traces_np(behav_df, traces, sps,
         trial_number = behav_df.index.to_numpy()
 
     assert trial_number.size == n_trials
-    print(max(trial_number) + 1, n_trials)
+    print(f'Check: the trial number in the spike and behavioral data match: {trial_number.size}, {n_trials}')
 
-
-    resp_on = behav_df['ResponseStart'].to_numpy()
-    resp_off = behav_df['ResponseEnd'].to_numpy()
-    center_poke = behav_df['PokeCenterStart'].to_numpy()
-    
-    stim_on = behav_df['StimulusOnset'].to_numpy()
-    stim_off = behav_df['StimulusOffset'].to_numpy()
     trial_len_arr = behav_df['trial_len'].to_numpy()
 
-    if traces_aligned == "TrialStart":
-        response_ind = np.round(resp_on * sps).astype('int')
-        reward_ind = np.round(resp_off * sps).astype('int')
-        poke_ind = np.round(center_poke * sps).astype('int')
-        
-        stim_ind = np.round(stim_on * sps).astype('int')
-        move_ind = np.round(stim_off * sps).astype('int')
-        iti_ind = (trial_len_arr * sps).astype('int')
+    # -------------------------------------------------------------------- #
+    #                     Trial events of interest                         #
+    # -------------------------------------------------------------------- #
+    center_poke = behav_df['PokeCenterStart'].to_numpy()  # trial start from animal's (not BPod's) perspective
+    # between center poke and stimulus presentation is a prestim delay (drawn from uniform distr.)
+    stim_on = behav_df['StimulusOnset'].to_numpy()
+    stim_off = behav_df['StimulusOffset'].to_numpy()
 
-    if traces_aligned == 'ResponseStart':
-        response_ind = np.array([int(aligned_ind)] * len(trial_number))
+    choice_port_entry = behav_df['ResponseStart'].to_numpy()
+    resp_end = behav_df['ResponseEnd'].to_numpy()  # either leaves choice port or reward delivered
+
+
+    if traces_aligned == "TrialStart":
+        trial_len_in_bins = (trial_len_arr * sps).astype('int')
+
+        center_poke_idx = np.round(center_poke * sps).astype('int')
         
-        # reward is waiting time after choice, which starts at aligned_ind
-        # things are already response aligned
-        reward_ind = (sps * (resp_off - resp_on) + aligned_ind).astype('int')
+        stim_on_idx = np.round(stim_on * sps).astype('int')
+        stim_off_idx = np.round(stim_off * sps).astype('int')
+
+        response_start_idx = np.round(choice_port_entry * sps).astype('int')
+        resp_end_idx = np.round(resp_end * sps).astype('int')
+    elif traces_aligned == 'ResponseStart':
+        # next trial start is trial_len_arr - choice_port_entry
+        trial_len_in_bins = (sps*(trial_len_arr - choice_port_entry) + aligned_ind).astype('int')
 
         # trial start (enters center poke) from animal's perspective but negative
         # because it's relative to the response start
-        poke_ind = (aligned_ind - sps*(resp_on - center_poke)).astype('int')
+        center_poke_idx = (aligned_ind - sps*(choice_port_entry - center_poke)).astype('int')
         
         # stimulus is response time before choice, which starts at aligned ind
-        stim_ind = (aligned_ind - sps*(resp_on - stim_on)).astype('int')
-        move_ind = (aligned_ind - sps*(resp_on - stim_off)).astype('int')
-        
-        # next trial start is trial_len_arr - resp_on
-        iti_ind = (sps*(trial_len_arr - resp_on) + aligned_ind).astype('int')
+        stim_on_idx = (aligned_ind - sps*(choice_port_entry - stim_on)).astype('int')
+        stim_off_idx = (aligned_ind - sps*(choice_port_entry - stim_off)).astype('int')
+
+        response_start_idx = np.array([int(aligned_ind)] * len(trial_number))
+
+        # reward is waiting time after choice, which starts at aligned_ind
+        # things are already response aligned
+        resp_end_idx = (sps * (resp_end - choice_port_entry) + aligned_ind).astype('int')
 
 
     # ---------------------------------------------------------------------- #
@@ -155,27 +158,27 @@ def create_traces_np(behav_df, traces, sps,
     # ---------------------------------------------------------------------- #
     
     # Calculate padding size at beginning and end of trace
-    smin = np.min(poke_ind) - int(sps * preITI)
+    earliest_start = np.min(center_poke_idx) - int(sps * preITI)
 
-    if smin < 0:
-        prepad = int(np.ceil(abs(smin)))
+    if earliest_start < 0:
+        prepad = int(np.ceil(abs(earliest_start)))
     else:
         prepad = 0
 
-    imax = np.max([int(np.max(iti_ind)), np.max(reward_ind) + int(2*sps)])
+    longest_trial = np.max([trial_len_in_bins.max(), resp_end_idx.max() + int(2*sps)])
 
-    if imax > n_time_bins:
-        postpad = int(np.ceil(imax - n_time_bins))
+    if longest_trial > n_time_bins:
+        postpad = int(np.ceil(longest_trial - n_time_bins))
     else:
         postpad = 0
 
     # Update the indices with the appropriate offset
-    response_ind += prepad
-    reward_ind += prepad
-    stim_ind += prepad
-    poke_ind += prepad
-    move_ind += prepad
-    iti_ind += prepad
+    response_start_idx += prepad
+    resp_end_idx += prepad
+    stim_on_idx += prepad
+    center_poke_idx += prepad
+    stim_off_idx += prepad
+    trial_len_in_bins += prepad
 
     # Add padding to the time axis of the traces
     padded_traces = np.pad(traces[:, trial_number, :], 
@@ -227,47 +230,47 @@ def create_traces_np(behav_df, traces, sps,
     
     
     # -----------------------Stimulus aligned------------------------------- #
-    stims = range(len(stim_ind))
-    stim_begin = np.array([poke_ind[i] - int(.5*sps) for i in stims])
+    stims = range(len(stim_on_idx))
+    stim_begin = np.array([center_poke_idx[i] - int(.5*sps) for i in stims])
     
-    move_plus = move_ind + int(.15*sps)
-    stim_ind_plus =  stim_ind + int(.6*sps)
+    move_plus = stim_off_idx + int(.15*sps)
+    stim_ind_plus =  stim_on_idx + int(.6*sps)
     stim_end = np.array([min(move_plus[i], stim_ind_plus[i]) for i in stims])
     
-    stim_aligned, stim_point = align_helper(stim_begin, stim_end, stim_ind, int(2.5*sps))
+    stim_aligned, stim_point = align_helper(stim_begin, stim_end, stim_on_idx, int(2.5*sps))
     
     
     # -----------------------Response aligned------------------------------- #
-    response_begin = np.array([max(stim_end[i], response_ind[i] - int(sps)) for i in range(len(stim_end))])
-    response_end = np.array([min(response_ind[i]+ int(10*sps), reward_ind[i] +int(2*sps)) for i in range(len(response_ind))])
+    response_begin = np.array([max(stim_end[i], response_start_idx[i] - int(sps)) for i in range(len(stim_end))])
+    response_end = np.array([min(response_start_idx[i]+ int(10*sps), resp_end_idx[i] +int(2*sps)) for i in range(len(response_start_idx))])
 
-    response_aligned, choice_point = align_helper(response_begin, response_end, response_ind, int(13.5*sps))
+    response_aligned, choice_point = align_helper(response_begin, response_end, response_start_idx, int(13.5*sps))
 
 
     # -----------------------Reward aligned--------------------------------- #
-    reward_begin = np.array([max(response_ind[i], reward_ind[i] - int(8*sps)) for i in range(len(response_end))])
-    reward_end = np.array([min(reward_ind[i] + int(2*sps), iti_ind[i]) for i in range(len(iti_ind))])
+    reward_begin = np.array([max(response_start_idx[i], resp_end_idx[i] - int(8*sps)) for i in range(len(response_end))])
+    reward_end = np.array([min(resp_end_idx[i] + int(2*sps), trial_len_in_bins[i]) for i in range(len(trial_len_in_bins))])
     
-    reward_aligned, reward_point = align_helper(reward_begin, reward_end, reward_ind, int(10.1*sps))    
+    reward_aligned, reward_point = align_helper(reward_begin, reward_end, resp_end_idx, int(10.1*sps))
 
 
     # -----------------------Interpolated----------------------------------- #
     # AKA time warping (see Williams et al. (2020)
     # will have the biggest effect in the response delay period
     interp_traces = []
-    for i in range(len(stim_ind)):
-        if (stim_ind[i] - poke_ind[i]) < 1:
-            stim_ind[i] += 1
-        if (move_ind[i]) - stim_ind[i] <1:
-            move_ind[i] +=1
+    for i in range(len(stim_on_idx)):
+        if (stim_on_idx[i] - center_poke_idx[i]) < 1:
+            stim_on_idx[i] += 1
+        if (stim_off_idx[i]) - stim_on_idx[i] <1:
+            stim_off_idx[i] +=1
 
-        interp_frames = [np.arange(poke_ind[i] - int(preITI*sps), poke_ind[i]).astype('int'),
-                         np.arange(poke_ind[i], stim_ind[i]).astype('int'),
-                         np.arange(stim_ind[i], move_ind[i]).astype('int'),
-                         np.arange(move_ind[i], response_ind[i]).astype('int'),
-                         np.arange(response_ind[i], response_ind[i] + .75*sps).astype('int'),
-                         np.arange(response_ind[i] + .75*sps, reward_ind[i]).astype('int'),
-                         np.arange(reward_ind[i], iti_ind[i]).astype('int')]
+        interp_frames = [np.arange(center_poke_idx[i] - int(preITI*sps), center_poke_idx[i]).astype('int'),
+                         np.arange(center_poke_idx[i], stim_on_idx[i]).astype('int'),
+                         np.arange(stim_on_idx[i], stim_off_idx[i]).astype('int'),
+                         np.arange(stim_off_idx[i], response_start_idx[i]).astype('int'),
+                         np.arange(response_start_idx[i], response_start_idx[i] + .75*sps).astype('int'),
+                         np.arange(response_start_idx[i] + .75*sps, resp_end_idx[i]).astype('int'),
+                         np.arange(resp_end_idx[i], trial_len_in_bins[i]).astype('int')]
 
         # print(poke_ind[i], stim_ind[i], move_ind[i], response_ind[i])
         # print(reward_ind[i], iti_ind[i])
