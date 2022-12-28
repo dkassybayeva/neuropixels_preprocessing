@@ -71,30 +71,10 @@ def create_experiment_data_object(i, datapath):
     meta_d['behavior_phase'] = session_number[i]
     
     # load neural data: [number of neurons x time bins in ms]
-    spike_times_old = loadmat(cellbase + "traces_ms.mat")["spikes"]
     spike_times = load(cellbase + "spike_mat.npy")
-    assert spike_times.shape == spike_times_old.shape
 
     # make pandas behavior dataframe
-    behav_df_old = bu.load_df(cellbase + "RecBehav.mat")
     behav_df = load(cellbase + 'behav_df')
-
-    assert len(behav_df.keys()) == len(behav_df_old.keys())
-    n_trials1 = behav_df['TrialNumber'].shape[-1]
-    n_trials2 = behav_df_old['TrialNumber'].shape[-1]
-    least_trials = min(n_trials1, n_trials2)
-    for _key in behav_df.keys():
-        assert _key in behav_df_old.keys()
-        if _key in ['ResponseStart', 'ResponseEnd', 'PokeCenterStart', 'TrialStartTimestamp', 'TrialStartAligned', 'DV', 'SamplingDuration', 'StimulusOffset', 'StimulusOnset']:
-            print(_key, flush=True)
-            _t1 = behav_df[_key][:least_trials]
-            _t2 = behav_df_old[_key][:least_trials]
-            _t1 = _t1[~np.isnan(_t1)]
-            _t2 = _t2[~np.isnan(_t2)]
-            try:
-                assert np.all(_t1 == _t2)
-            except:
-                assert np.all(np.abs(_t2 - _t1) < 0.0505)
 
     # format entries of dataframe for analysis (e.g., int->bool)
     cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=True)
