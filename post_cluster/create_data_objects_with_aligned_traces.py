@@ -80,15 +80,15 @@ def create_experiment_data_object(i, datapath):
     cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=True)
 
     # align spike times to behavioral data timeframe
-    # spike_times = array [n_neurons x n_trials x longest_trial period in ms]
-    spike_times, _ = tu.trial_start_align(cbehav_df, spike_times, 1000)
+    # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
+    spike_times_start_aligned, _ = tu.trial_start_align(cbehav_df, spike_times, 1000)
 
     # subsample (bin) data:
     # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
     # then sum over the dt bins
-    n_neurons = spike_times.shape[0]
-    n_trials = spike_times.shape[1]
-    spike_times_ds = spike_times.reshape(n_neurons, n_trials, -1, timestep_ds)
+    n_neurons = spike_times_start_aligned.shape[0]
+    n_trials = spike_times_start_aligned.shape[1]
+    spike_times_ds = spike_times_start_aligned.reshape(n_neurons, n_trials, -1, timestep_ds)
     spike_times_ds = spike_times_ds.sum(axis=-1)
 
     # create trace alignments
