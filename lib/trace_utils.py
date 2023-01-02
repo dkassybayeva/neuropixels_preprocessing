@@ -153,10 +153,10 @@ def create_traces_np(behav_df, traces, sps,
 
 
     # ---------------------------------------------------------------------- #
-    # Padding the traces with zeros such that all aligned traces 
+    # Padding the traces with zeros such that all aligned traces
     # are the same length
     # ---------------------------------------------------------------------- #
-    
+
     # Calculate padding size at beginning and end of trace
     earliest_start = np.min(center_poke_idx) - int(sps * preITI)
 
@@ -181,8 +181,8 @@ def create_traces_np(behav_df, traces, sps,
     trial_len_in_bins += prepad
 
     # Add padding to the time axis of the traces
-    padded_traces = np.pad(traces[:, trial_number, :], 
-                           pad_width=[(0, 0), (0, 0), (prepad, postpad)], 
+    padded_traces = np.pad(traces[:, trial_number, :],
+                           pad_width=[(0, 0), (0, 0), (prepad, postpad)],
                            mode='empty'
                           ).astype('uint8')
     # --------------------------------------------------------------------- #
@@ -192,7 +192,7 @@ def create_traces_np(behav_df, traces, sps,
     # Calculate the aligned traces
     # ---------------------------------------------------------------------- #
     
-    def align_helper(begin_arr, end_arr, index_arr, n_bins):
+    def align_helper(begin_arr, end_arr, index_arr, trace_len_bins):
         """
         Given the beginning and end of a certain type of event,
         this function finds the point at which that event is indexed
@@ -206,8 +206,7 @@ def create_traces_np(behav_df, traces, sps,
         begin_arr : [ARRAY] start times.
         end_arr : [ARRAY] end times. :P
         index_arr : [ARRAY] times at which event was registered.
-        n_bins : TYPE
-            DESCRIPTION.
+        trace_len_bins : [int] common length of aligned traces
 
         Returns
         -------
@@ -221,7 +220,7 @@ def create_traces_np(behav_df, traces, sps,
         reference_point = max(delay_arr)
         offset = (reference_point - delay_arr)
         
-        _aligned_arr = np.zeros([n_trials, n_neurons, n_bins], dtype='uint16')
+        _aligned_arr = np.zeros([n_trials, n_neurons, trace_len_bins], dtype='uint16')
         for i in range(n_trials):
             _temp = padded_traces[:, i, begin_arr[i]:end_arr[i]]
             _aligned_arr[i, :, offset[i]:(offset[i]+len_arr[i])] = _temp
@@ -236,22 +235,22 @@ def create_traces_np(behav_df, traces, sps,
     move_plus = stim_off_idx + int(.15*sps)
     stim_ind_plus =  stim_on_idx + int(.6*sps)
     stim_end = np.array([min(move_plus[i], stim_ind_plus[i]) for i in stims])
-    
-    stim_aligned, stim_point = align_helper(stim_begin, stim_end, stim_on_idx, int(2.5*sps))
+
+    stim_aligned, stim_point = align_helper(stim_begin, stim_end, stim_on_idx, trace_len_bins=int(2.5*sps))
     
     
     # -----------------------Response aligned------------------------------- #
     response_begin = np.array([max(stim_end[i], response_start_idx[i] - int(sps)) for i in range(len(stim_end))])
     response_end = np.array([min(response_start_idx[i]+ int(10*sps), resp_end_idx[i] +int(2*sps)) for i in range(len(response_start_idx))])
 
-    response_aligned, choice_point = align_helper(response_begin, response_end, response_start_idx, int(13.5*sps))
+    response_aligned, choice_point = align_helper(response_begin, response_end, response_start_idx, trace_len_bins=int(13.5*sps))
 
 
     # -----------------------Reward aligned--------------------------------- #
     reward_begin = np.array([max(response_start_idx[i], resp_end_idx[i] - int(8*sps)) for i in range(len(response_end))])
     reward_end = np.array([min(resp_end_idx[i] + int(2*sps), trial_len_in_bins[i]) for i in range(len(trial_len_in_bins))])
     
-    reward_aligned, reward_point = align_helper(reward_begin, reward_end, resp_end_idx, int(10.1*sps))
+    reward_aligned, reward_point = align_helper(reward_begin, reward_end, resp_end_idx, trace_len_bins=int(10.1*sps))
 
 
     # -----------------------Interpolated----------------------------------- #
