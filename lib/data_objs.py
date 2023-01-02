@@ -13,8 +13,10 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 import os
 import glob
+from joblib import load
 
 import neuropixels_preprocessing.lib.trace_utils as tu
+import neuropixels_preprocessing.lib.behavior_utils as bu
 from neuropixels_preprocessing.lib.obj_utils import *
 
 class DataContainer:
@@ -391,7 +393,7 @@ def create_experiment_data_object(datapath, metadata, session_number, sps):
     behav_df = load(datapath + 'behav_df')
 
     # format entries of dataframe for analysis (e.g., int->bool)
-    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=True)
+    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=False)
 
     # align spike times to behavioral data timeframe
     # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
@@ -402,13 +404,14 @@ def create_experiment_data_object(datapath, metadata, session_number, sps):
     # then sum over the dt bins
     n_neurons = spike_times_start_aligned.shape[0]
     n_trials = spike_times_start_aligned.shape[1]
+    timestep_ds = int(1000 / sps)
     spike_times_ds = spike_times_start_aligned.reshape(n_neurons, n_trials, -1, timestep_ds)
-    spike_times_ds = spike_times_ds.sum(axis=-1)
+    spike_times_ds = spike_times_ds.sum(axis=-1)  # sum over bins
 
     # create trace alignments
     traces_dict = tu.create_traces_np(cbehav_df,
                                       spike_times_ds,
-                                      sps=metadata['sps'],
+                                      sps=sps,
                                       aligned_ind=0,
                                       filter_by_trial_num=False,
                                       traces_aligned="TrialStart")
@@ -418,7 +421,7 @@ def create_experiment_data_object(datapath, metadata, session_number, sps):
 
     # create and save data object
     data_obj = TwoAFC(datapath, cbehav_df, traces_dict, name=metadata['rat_name'],
-                      cluster_labels=[], metadata=metadata, sps=metadata['sps'],
+                      cluster_labels=[], metadata=metadata, sps=sps,
                       record=False, feature_df_cache=[], feature_df_keys=[])
 
     data_obj.to_pickle(remove_old=False)
