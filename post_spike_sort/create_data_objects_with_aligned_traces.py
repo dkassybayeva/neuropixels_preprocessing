@@ -12,11 +12,8 @@ import numpy as np
 from mat73 import loadmat
 from joblib import load
 
+import neuropixels_preprocessing.lib.data_objs as data_objs
 
-# ---------- Amy Functions ------------ #
-import neuropixels_preprocessing.lib.behavior_utils as bu
-import neuropixels_preprocessing.lib.trace_utils as tu
-from neuropixels_preprocessing.lib.data_objs import TwoAFC
 
 #%% Define data path and session variables
 
@@ -59,65 +56,10 @@ metadata = {'time_investment': True,
             'experiment_id': 'learning_uncertainty',
             'linking_group': 'Nina2'}
 
-#%% Define data function
-
-
-def create_experiment_data_object(i, datapath):
-    cellbase = datapath + '/cellbase/'
-    
-    meta_d = metadata.copy()
-    meta_d['date'] = dates[i]
-    meta_d['stimulus'] = stimulus[i]
-    meta_d['behavior_phase'] = session_number[i]
-    
-    # load neural data: [number of neurons x time bins in ms]
-    spike_times = load(cellbase + "spike_mat.npy")
-
-    # make pandas behavior dataframe
-    behav_df = load(cellbase + 'behav_df')
-
-    # format entries of dataframe for analysis (e.g., int->bool)
-    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=True)
-
-    # align spike times to behavioral data timeframe
-    # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
-    spike_times_start_aligned, _ = tu.trial_start_align(cbehav_df, spike_times, 1000)
-
-    # subsample (bin) data:
-    # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
-    # then sum over the dt bins
-    n_neurons = spike_times_start_aligned.shape[0]
-    n_trials = spike_times_start_aligned.shape[1]
-    spike_times_ds = spike_times_start_aligned.reshape(n_neurons, n_trials, -1, timestep_ds)
-    spike_times_ds = spike_times_ds.sum(axis=-1)
-
-    # create trace alignments
-    traces_dict = tu.create_traces_np(cbehav_df,
-                                   spike_times_ds,
-                                   sps=sps,
-                                   aligned_ind=0,
-                                   filter_by_trial_num=False,
-                                   traces_aligned="TrialStart")
-
-    cbehav_df['session'] = i
-    cbehav_df = bu.trim_df(cbehav_df)
-
-    # create and save data object
-    data_obj = TwoAFC(datapath, cbehav_df, traces_dict, name=ratname,
-                      cluster_labels=[], metadata=meta_d, sps=sps,
-                      record=False, feature_df_cache=[], feature_df_keys=[])
-
-    data_obj.to_pickle(remove_old=False)
-
-    return data_obj
-
 
 #%% Create data object for each experiment in the path_list
-
-data_list = []
 for i, dp in enumerate(path_list):
-    data_obj_i = create_experiment_data_object(i, dp)
-    data_list.append(data_obj_i)
+    data_objs.create_experiment_data_object(cellbase_dir, metadata, session_number=recording_session_id, sps=sps)
 
 #%%
 

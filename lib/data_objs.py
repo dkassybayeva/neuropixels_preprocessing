@@ -422,5 +422,3 @@ def create_experiment_data_object(datapath, metadata, session_number, sps):
                       record=False, feature_df_cache=[], feature_df_keys=[])
 
     data_obj.to_pickle(remove_old=False)
-
-    return data_obj
