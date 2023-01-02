@@ -115,7 +115,7 @@ def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
         spike_mat[i, spiktime_ms_inds] = 1
     
         
-    dump(spike_mat, cellbase_dir + 'spike_mat.npy', compress=3)
+    dump(spike_mat, cellbase_dir + 'spike_mat_in_ms.npy', compress=3)
     print('\nSaved to ' + cellbase_dir)
 
 
