@@ -23,9 +23,9 @@ from neuropixels_preprocessing.lib.data_objs import TwoAFC
 ratname = 'Nina2'
 date = '20210623_121426'
 probe_num = '2'
-full_data_dir = f"X:\\Neurodata\\{ratname}\\"
-full_data_dir += f"{date}.rec\\{date}.kilosort_probe{probe_num}"
-path_list = glob.glob(full_data_dir)
+DATA_DIR = f"X:\\Neurodata\\{ratname}\\"
+DATA_DIR += f"{date}.rec\\{date}.kilosort_probe{probe_num}"
+path_list = glob.glob(DATA_DIR)
 dates = [datetime.datetime(2021, 6, 23), ]
 
 """

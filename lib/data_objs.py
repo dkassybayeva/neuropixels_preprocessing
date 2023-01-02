@@ -14,7 +14,7 @@ from scipy.ndimage import gaussian_filter1d
 import os
 import glob
 
-from neuropixels_preprocessing.lib.trace_utils import get_trace_feature_df
+import neuropixels_preprocessing.lib.trace_utils as tu
 from neuropixels_preprocessing.lib.obj_utils import *
 
 class DataContainer:
@@ -271,7 +271,7 @@ class DataContainer:
             elif not len(selected_neurons):
                 selected_neurons = np.arange(self.n_neurons)
 
-            feature_df = get_trace_feature_df(self.behav_df, selected_neurons,
+            feature_df = tu.get_trace_feature_df(self.behav_df, selected_neurons,
                                               traces=traces, behavior_variables=variables, rat_name=self.name)
 
             print("Created new feature df.")
@@ -381,3 +381,46 @@ def from_pickle(dat_path, objID, obj_class):
         kwargs = pickle.load(f)
 
     return obj_class(dat_path, behav_df=behav_df, traces_dict=traces_dict, objID=objID, record=False, **kwargs)
+
+
+def create_experiment_data_object(datapath, metadata, session_number, sps):
+    # load neural data: [number of neurons x time bins in ms]
+    spike_times = load(datapath + "spike_mat.npy")
+
+    # make pandas behavior dataframe
+    behav_df = load(datapath + 'behav_df')
+
+    # format entries of dataframe for analysis (e.g., int->bool)
+    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=True)
+
+    # align spike times to behavioral data timeframe
+    # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
+    spike_times_start_aligned, _ = tu.trial_start_align(cbehav_df, spike_times, sps=1000)
+
+    # subsample (bin) data:
+    # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
+    # then sum over the dt bins
+    n_neurons = spike_times_start_aligned.shape[0]
+    n_trials = spike_times_start_aligned.shape[1]
+    spike_times_ds = spike_times_start_aligned.reshape(n_neurons, n_trials, -1, timestep_ds)
+    spike_times_ds = spike_times_ds.sum(axis=-1)
+
+    # create trace alignments
+    traces_dict = tu.create_traces_np(cbehav_df,
+                                      spike_times_ds,
+                                      sps=metadata['sps'],
+                                      aligned_ind=0,
+                                      filter_by_trial_num=False,
+                                      traces_aligned="TrialStart")
+
+    cbehav_df['session'] = session_number
+    cbehav_df = bu.trim_df(cbehav_df)
+
+    # create and save data object
+    data_obj = TwoAFC(datapath, cbehav_df, traces_dict, name=metadata['rat_name'],
+                      cluster_labels=[], metadata=metadata, sps=metadata['sps'],
+                      record=False, feature_df_cache=[], feature_df_keys=[])
+
+    data_obj.to_pickle(remove_old=False)
+
+    return data_obj
