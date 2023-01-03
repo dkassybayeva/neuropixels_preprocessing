@@ -100,7 +100,7 @@ def create_traces_np(behav_df, traces, sps,
     '''
     n_neurons, n_trials, n_time_bins  = traces.shape
 
-    #only sending in completed trials now
+    # only sending in completed trials now
     if filter_by_trial_num:
         trial_number = behav_df['TrialNumber'].to_numpy() -1
     else:
@@ -216,60 +216,59 @@ def create_traces_np(behav_df, traces, sps,
         """
         len_arr = end_arr - begin_arr
         
-        delay_arr = index_arr - begin_arr
+        delay_arr = index_arr - begin_arr  # bin number of event relative to beginning of frame
         reference_point = max(delay_arr)
+
+        # number of bins at beginning of each trace such that the event lines up in all traces
         offset = (reference_point - delay_arr)
-        
+
         _aligned_arr = np.zeros([n_trials, n_neurons, trace_len_bins], dtype='uint16')
         for i in range(n_trials):
-            _temp = padded_traces[:, i, begin_arr[i]:end_arr[i]]
-            _aligned_arr[i, :, offset[i]:(offset[i]+len_arr[i])] = _temp
+            _aligned_arr[i, :, offset[i]:(offset[i]+len_arr[i])] = padded_traces[:, i, begin_arr[i]:end_arr[i]]
             
         return _aligned_arr, reference_point
     
     
-    # -----------------------Stimulus aligned------------------------------- #
-    stims = range(len(stim_on_idx))
-    stim_begin = np.array([center_poke_idx[i] - int(.5*sps) for i in stims])
-    
-    move_plus = stim_off_idx + int(.15*sps)
-    stim_ind_plus =  stim_on_idx + int(.6*sps)
-    stim_end = np.array([min(move_plus[i], stim_ind_plus[i]) for i in stims])
+    # -----------------------Stimulus-aligned frame------------------------------- #
+    stim_frame_begin = center_poke_idx - int(.5*sps)  # extend the beginning of the frame 0.5s before center poke
+    # the end of the frame extends to 0.6s after the stimulus is on OR .15s after the stimulus ends
+    stim_frame_end = np.minimum(stim_off_idx + int(.15*sps), stim_on_idx + int(.6*sps))
 
-    stim_aligned, stim_point = align_helper(stim_begin, stim_end, stim_on_idx, trace_len_bins=int(2.5*sps))
+    stim_aligned, stim_point = align_helper(stim_frame_begin, stim_frame_end, stim_on_idx, trace_len_bins=int(2.5*sps))
     
     
-    # -----------------------Response aligned------------------------------- #
-    response_begin = np.array([max(stim_end[i], response_start_idx[i] - int(sps)) for i in range(len(stim_end))])
-    response_end = np.array([min(response_start_idx[i]+ int(10*sps), resp_end_idx[i] +int(2*sps)) for i in range(len(response_start_idx))])
+    # -----------------------Response-aligned frame------------------------------- #
+    resp_frame_begin = np.maximum(stim_frame_end, response_start_idx - int(sps))
+    resp_frame_end = np.minimum(response_start_idx + int(10*sps), resp_end_idx + int(2*sps))
 
-    response_aligned, choice_point = align_helper(response_begin, response_end, response_start_idx, trace_len_bins=int(13.5*sps))
+    response_aligned, response_point = align_helper(resp_frame_begin, resp_frame_end, response_start_idx, trace_len_bins=int(13.5*sps))
 
 
-    # -----------------------Reward aligned--------------------------------- #
-    reward_begin = np.array([max(response_start_idx[i], resp_end_idx[i] - int(8*sps)) for i in range(len(response_end))])
-    reward_end = np.array([min(resp_end_idx[i] + int(2*sps), trial_len_in_bins[i]) for i in range(len(trial_len_in_bins))])
+    # -----------------------Reward-aligned frame--------------------------------- #
+    reward_frame_begin = np.maximum(response_start_idx, resp_end_idx - int(8*sps))
+    reward_frame_end = np.minimum(resp_end_idx + int(2*sps), trial_len_in_bins)
     
-    reward_aligned, reward_point = align_helper(reward_begin, reward_end, resp_end_idx, trace_len_bins=int(10.1*sps))
+    reward_aligned, reward_point = align_helper(reward_frame_begin, reward_frame_end, resp_end_idx, trace_len_bins=int(10.1*sps))
 
 
     # -----------------------Interpolated----------------------------------- #
-    # AKA time warping (see Williams et al. (2020)
-    # will have the biggest effect in the response delay period
+    # AKA time warping [see Williams et al.(2020)]
+    # will have the biggest effect on the response delay period
     interp_traces = []
-    for i in range(len(stim_on_idx)):
+    for i in range(n_trials):
         if (stim_on_idx[i] - center_poke_idx[i]) < 1:
             stim_on_idx[i] += 1
         if (stim_off_idx[i]) - stim_on_idx[i] <1:
             stim_off_idx[i] +=1
 
-        interp_frames = [np.arange(center_poke_idx[i] - int(preITI*sps), center_poke_idx[i]).astype('int'),
-                         np.arange(center_poke_idx[i], stim_on_idx[i]).astype('int'),
-                         np.arange(stim_on_idx[i], stim_off_idx[i]).astype('int'),
-                         np.arange(stim_off_idx[i], response_start_idx[i]).astype('int'),
-                         np.arange(response_start_idx[i], response_start_idx[i] + .75*sps).astype('int'),
-                         np.arange(response_start_idx[i] + .75*sps, resp_end_idx[i]).astype('int'),
-                         np.arange(resp_end_idx[i], trial_len_in_bins[i]).astype('int')]
+        # the interpolation frames are delineated by the different events and compose the entire trial
+        interp_frames = [np.arange(center_poke_idx[i] - int(preITI*sps), center_poke_idx[i], dtype='int'),
+                         np.arange(center_poke_idx[i], stim_on_idx[i], dtype='int'),
+                         np.arange(stim_on_idx[i], stim_off_idx[i], dtype='int'),
+                         np.arange(stim_off_idx[i], response_start_idx[i], dtype='int'),
+                         np.arange(response_start_idx[i], response_start_idx[i] + .75*sps, dtype='int'),
+                         np.arange(response_start_idx[i] + .75*sps, resp_end_idx[i], dtype='int'),
+                         np.arange(resp_end_idx[i], trial_len_in_bins[i], dtype='int')]
 
         # print(poke_ind[i], stim_ind[i], move_ind[i], response_ind[i])
         # print(reward_ind[i], iti_ind[i])
@@ -285,10 +284,7 @@ def create_traces_np(behav_df, traces, sps,
                        int(.5*sps)]   # arbitrary buffer?
 
         trace_i = padded_traces[:, i, :].reshape([n_neurons, -1])
-        interp_trace = create_trial_interp(trace_i, 
-                                           interp_frames=interp_frames, 
-                                           interp_lens=interp_lens)
-        interp_traces.append(interp_trace)
+        interp_traces.append(create_trial_interp(trace_i, interp_frames=interp_frames, interp_lens=interp_lens))
 
     interp_traces = np.array(interp_traces)
     
@@ -299,7 +295,7 @@ def create_traces_np(behav_df, traces, sps,
     traces_dict = {'stim_aligned': stim_aligned,
                    'stim_ind': stim_point,
                    'response_aligned': response_aligned,
-                   'response_ind': choice_point,
+                   'response_ind': response_point,
                    'reward_aligned': reward_aligned,
                    'reward_ind': reward_point,
                    'interp_traces': interp_traces,
