@@ -180,7 +180,7 @@ def create_traces_np(behav_df, traces, sps,
     stim_off_idx += prepad
     trial_len_in_bins += prepad
 
-    # Add padding to the time axis of the traces
+    # Add padding to the time axis of the traces [n_nrn, n_trials, time in bins]
     padded_traces = np.pad(traces[:, trial_number, :],
                            pad_width=[(0, 0), (0, 0), (prepad, postpad)],
                            mode='empty'
@@ -252,7 +252,7 @@ def create_traces_np(behav_df, traces, sps,
 
 
     # -----------------------Interpolated----------------------------------- #
-    # AKA time warping [see Williams et al.(2020)]
+    # AKA time warping [see Williams et al., (2020), Neuron 105, 246–259 for a description of the problem]
     # will have the biggest effect on the response delay period
     interp_traces = []
     for i in range(n_trials):
@@ -283,10 +283,12 @@ def create_traces_np(behav_df, traces, sps,
                        int(3*sps),    # time investment (feedback delay)
                        int(.5*sps)]   # arbitrary buffer?
 
+        # trace is matrix with [n_nrns x time in bins]
         trace_i = padded_traces[:, i, :].reshape([n_neurons, -1])
         interp_traces.append(create_trial_interp(trace_i, interp_frames=interp_frames, interp_lens=interp_lens))
 
     interp_traces = np.array(interp_traces)
+    assert interp_traces.shape == (n_trials, n_neurons, sum(interp_lens))
     
 
     # ---------------------------------------------------------------------- #
@@ -304,16 +306,25 @@ def create_traces_np(behav_df, traces, sps,
     return traces_dict
 
 
-def custom_interp(x, yp):
-    out = []
-    for yp_ in [t_ for t_ in yp]:
-        out.append(np.interp(x, np.arange(len(yp_)), yp_))
-    return np.array(out).T
+def custom_interp(interp_axis, data_mat):
+    """The data in each row of a data matrix is interpolated along a new axis that is common for all rows."""
+    out = np.zeros((data_mat.shape[0], len(interp_axis)))
+    dat_idx = np.arange(data_mat.shape[1])
+    for i, dat_arr in enumerate(data_mat):
+        out[i] = np.interp(interp_axis, dat_idx, dat_arr)
+    return out
 
 
 def create_trial_interp(traces, interp_frames, interp_lens):
-    ts = [custom_interp(np.linspace(0,int_f.shape[0],il), traces[:, int_f]) for (int_f, il) in zip(interp_frames, interp_lens)]
-    return np.concatenate(ts).T
+    """The data within each frame is given a custom time axis."""
+    ts = []
+    for frame_idx, interp_period in zip(interp_frames, interp_lens):
+        warped_frame = np.linspace(0, frame_idx.shape[0], interp_period)
+        # take the traces over the original frame and project them onto the warped axis
+        ts.append(custom_interp(warped_frame, traces[:, frame_idx]))
+    ts_mat = np.concatenate(ts, axis=1)
+    assert ts_mat.shape == (traces.shape[0], sum(interp_lens))
+    return ts_mat
 
 
 def get_trace_feature_df(behav_df, selected_neurons, traces,
