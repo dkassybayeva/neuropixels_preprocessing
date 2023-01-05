@@ -417,7 +417,7 @@ def create_experiment_data_object(datapath, metadata, session_number, sps):
                                       traces_aligned="TrialStart")
 
     cbehav_df['session'] = session_number
-    cbehav_df = bu.trim_df(cbehav_df)
+    # cbehav_df = bu.trim_df(cbehav_df)
 
     # create and save data object
     data_obj = TwoAFC(datapath, cbehav_df, traces_dict, name=metadata['rat_name'],
