@@ -114,8 +114,8 @@ def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
         spiktime_ms_inds = np.round(spike_train * 1000).astype('int')
         spike_mat[i, spiktime_ms_inds] = 1
     
-        
-    dump(spike_mat, cellbase_dir + 'spike_mat_in_ms.npy', compress=3)
+    results = {'spike_mat': spike_mat, 'row_cluster_id': good_clusters}
+    dump(results, cellbase_dir + 'spike_mat_in_ms.npy', compress=3)
     print('\nSaved to ' + cellbase_dir)
 
 

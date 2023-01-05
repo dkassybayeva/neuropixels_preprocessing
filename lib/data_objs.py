@@ -387,7 +387,7 @@ def from_pickle(dat_path, objID, obj_class):
 
 def create_experiment_data_object(datapath, metadata, session_number, sps):
     # load neural data: [number of neurons x time bins in ms]
-    spike_times = load(datapath + "spike_mat.npy")
+    spike_times = load(datapath + "spike_mat_in_ms.npy")['spike_mat']
 
     # make pandas behavior dataframe
     behav_df = load(datapath + 'behav_df')
