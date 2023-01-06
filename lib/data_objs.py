@@ -48,7 +48,7 @@ class DataContainer:
         if objID is not None:
             self.objID = objID
         else:
-            self.objID = str(np.datetime64('now').astype('uint32'))
+            self.objID = str(np.datetime64('now')).split('T')[0]
         self.behavior_phase = metadata['behavior_phase']
 
         if traces_dict is not None:
@@ -393,7 +393,7 @@ def create_experiment_data_object(datapath, metadata, session_number, sps):
     behav_df = load(datapath + 'behav_df')
 
     # format entries of dataframe for analysis (e.g., int->bool)
-    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim=False)
+    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim_last_trial=True)
 
     # align spike times to behavioral data timeframe
     # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
