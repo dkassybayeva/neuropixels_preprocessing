@@ -15,28 +15,26 @@ import os
 import glob
 from joblib import load
 
-import neuropixels_preprocessing.lib.trace_utils as tu
+import neuropixels_preprocessing.lib.trace_utils as trace_utils
 import neuropixels_preprocessing.lib.behavior_utils as bu
 from neuropixels_preprocessing.lib.obj_utils import *
 
 class DataContainer:
-    def __init__(self, dat_path, behav_df, traces_dict, 
+    def __init__(self, dat_path, behav_df, traces_dict,
                  neuron_mask_df=None,
                  objID=None,
-                 sps=None,
-                 name=None,
                  cluster_labels=None,
                  metadata=None,
                  linking_group=None,
                  active_neurons=None,
                  record=False,
                  feature_df_cache=[],
-                 feature_df_keys=[], 
+                 feature_df_keys=[],
                  behavior_phase=None):
 
-        self.name = name
         self.metadata = metadata
-        self.sps = sps
+        self.name = metadata['rat_name']
+        self.sps = metadata['sps']
         self.dat_path = dat_path
         self.feature_df_cache = feature_df_cache
         self.feature_df_keys = feature_df_keys
@@ -273,8 +271,8 @@ class DataContainer:
             elif not len(selected_neurons):
                 selected_neurons = np.arange(self.n_neurons)
 
-            feature_df = tu.get_trace_feature_df(self.behav_df, selected_neurons,
-                                              traces=traces, behavior_variables=variables, rat_name=self.name)
+            feature_df = trace_utils.get_trace_feature_df(self.behav_df, selected_neurons,
+                                                          traces=traces, behavior_variables=variables, rat_name=self.name)
 
             print("Created new feature df.")
             if save:
@@ -293,8 +291,6 @@ class TwoAFC(DataContainer):
     def __init__(self, dat_path, behav_df, traces_dict, 
                  neuron_mask_df=None, 
                  objID=None, 
-                 sps=None, 
-                 name=None,
                  cluster_labels=None,
                  metadata=None,
                  linking_group=None, 
@@ -306,7 +302,7 @@ class TwoAFC(DataContainer):
                  behavior_phase=None):
 
         super().__init__(dat_path, behav_df, traces_dict, neuron_mask_df, 
-                         objID, sps, name, cluster_labels, metadata, 
+                         objID, cluster_labels, metadata,
                          linking_group, active_neurons, record, 
                          feature_df_cache, feature_df_keys, behavior_phase)
 
@@ -385,43 +381,13 @@ def from_pickle(dat_path, objID, obj_class):
     return obj_class(dat_path, behav_df=behav_df, traces_dict=traces_dict, objID=objID, record=False, **kwargs)
 
 
-def create_experiment_data_object(datapath, metadata, session_number, sps):
-    # load neural data: [number of neurons x time bins in ms]
-    spike_times = load(datapath + "spike_mat_in_ms.npy")['spike_mat']
-
-    # make pandas behavior dataframe
-    behav_df = load(datapath + 'behav_df')
-
-    # format entries of dataframe for analysis (e.g., int->bool)
-    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim_last_trial=True)
-
-    # align spike times to behavioral data timeframe
-    # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
-    spike_times_start_aligned, _ = tu.trial_start_align(cbehav_df, spike_times, sps=1000)
-
-    # subsample (bin) data:
-    # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
-    # then sum over the dt bins
-    n_neurons = spike_times_start_aligned.shape[0]
-    n_trials = spike_times_start_aligned.shape[1]
-    timestep_ds = int(1000 / sps)
-    spike_times_ds = spike_times_start_aligned.reshape(n_neurons, n_trials, -1, timestep_ds)
-    spike_times_ds = spike_times_ds.sum(axis=-1)  # sum over bins
-
-    # create trace alignments
-    traces_dict = tu.create_traces_np(cbehav_df,
-                                      spike_times_ds,
-                                      sps=sps,
-                                      aligned_ind=0,
-                                      filter_by_trial_num=False,
-                                      traces_aligned="TrialStart")
-
-    cbehav_df['session'] = session_number
-    # cbehav_df = bu.trim_df(cbehav_df)
+def create_experiment_data_object(datapath, metadata, trialwise_binned_mat, cbehav_df):
+    traces_dict = trace_utils.create_traces_np(cbehav_df,
+                                               trialwise_binned_mat,
+                                               sps=metadata['sps'],
+                                               aligned_ind=0,
+                                               filter_by_trial_num=False,
+                                               traces_aligned="TrialStart")
 
     # create and save data object
-    data_obj = TwoAFC(datapath, cbehav_df, traces_dict, name=metadata['rat_name'],
-                      cluster_labels=[], metadata=metadata, sps=sps,
-                      record=False, feature_df_cache=[], feature_df_keys=[])
-
-    data_obj.to_pickle(remove_old=False)
+    TwoAFC(datapath, cbehav_df, traces_dict, metadata=metadata, cluster_labels=[]).to_pickle(remove_old=False)

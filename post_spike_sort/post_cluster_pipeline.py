@@ -60,6 +60,7 @@ metadata = {'time_investment': True,
             'linking_group': 'Nina2',
             'rat_name': rat_name,
             'date': date,
+            'sps': sps,
             }
 
 #-----------------------------------#
@@ -97,4 +98,8 @@ tu.calc_event_outcomes(cellbase_dir)
 
 tu.create_behavioral_dataframe(cellbase_dir)
 
-data_objs.create_experiment_data_object(cellbase_dir, metadata, session_number=recording_session_id, sps=sps)
+trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(cellbase_dir, trace_subsample_bin_size_ms)
+
+cbehav_df['session'] = recording_session_id
+
+data_objs.create_experiment_data_object(cellbase_dir, metadata, trialwise_binned_mat, cbehav_df)

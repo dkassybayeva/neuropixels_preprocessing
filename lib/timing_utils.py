@@ -16,6 +16,8 @@ from scipy.io.matlab import loadmat
 from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 \
     import get_Trodes_timestamps, readTrodesExtractedDataFile
 
+import neuropixels_preprocessing.lib.trace_utils as trace_utils
+import neuropixels_preprocessing.lib.behavior_utils as bu
 
 def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
                      save_individual_spiketrains):
@@ -937,3 +939,31 @@ def create_behavioral_dataframe(cellbase_dir):
     dump(behav_df, cellbase_dir + "behav_df", compress=3)
 
     print('Bahvaioral dataframe saved to: ' + cellbase_dir + "behav_df")
+
+
+def align_trialwise_spike_times_to_start(datapath, downsample_dt):
+    # load neural data: [number of neurons x time bins in ms]
+    spike_mat = load(datapath + "spike_mat_in_ms.npy")['spike_mat']
+
+    # make pandas behavior dataframe
+    behav_df = load(datapath + 'behav_df')
+
+    # format entries of dataframe for analysis (e.g., int->bool)
+    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim_last_trial=True)
+
+    # align spike times to behavioral data timeframe
+    # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
+    trialwise_spike_mat_start_aligned, _ = trace_utils.trial_start_align(cbehav_df, spike_mat, sps=1000)
+
+    # subsample (bin) data:
+    # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
+    # then sum over the dt bins
+    n_neurons = trialwise_spike_mat_start_aligned.shape[0]
+    n_trials = trialwise_spike_mat_start_aligned.shape[1]
+    trial_binned_mat_start_align = trialwise_spike_mat_start_aligned.reshape(n_neurons, n_trials, -1, downsample_dt)
+    trial_binned_mat_start_align = trial_binned_mat_start_align.sum(axis=-1)  # sum over bins
+
+    results = {'binned_mat': trial_binned_mat_start_align, 'downsample_dt': downsample_dt}
+    dump(results, datapath + 'trial_binned_mat_start_align.npy', compress=3)
+
+    return trial_binned_mat_start_align, cbehav_df
