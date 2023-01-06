@@ -30,7 +30,7 @@ def trim_df(behav_df):
     'evidence', 'prior', 'probe',  'prev_completed_1', 'prev_evidence_1', 'prev_stim_dir_1', 'prev_rewarded_1', ''
                      'prev_resp_dir_1', 'prev_correct_1', 'WT_qs', 'prev_WT_qs_1']]
 
-def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim=True):
+def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim_last_trial=True):
     '''
     TODO: Map confidence for waiting time rats
 
@@ -113,9 +113,9 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim=True):
     if WTThresh:
         behav_df = behav_df[behav_df.WaitingTime > WTThresh]
 
-    if trim:
+    if trim_last_trial:
         print("warning triming the last trial")
-        behav_df = behav_df[(behav_df.trial < (max(behav_df.trial) - 1))]
+        behav_df = behav_df[behav_df.trial < max(behav_df.trial)]
 
     bins = np.quantile(behav_df.WT, [.33, .66])
     behav_df['WT_qs'] = np.digitize(behav_df.WT, bins)
