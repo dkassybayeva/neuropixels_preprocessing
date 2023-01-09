@@ -35,7 +35,8 @@ class DataContainer:
         self.metadata = metadata
         self.name = metadata['rat_name']
         self.sps = metadata['sps']
-        self.dat_path = dat_path
+        save_folder = '_'.join([self.name, self.metadata['date'], f"probe{self.metadata['probe_num']}_preprocessing_output"])
+        self.dat_path = dat_path + save_folder + '/'
         self.feature_df_cache = feature_df_cache
         self.feature_df_keys = feature_df_keys
         self.behavior_phase = behavior_phase
@@ -210,18 +211,16 @@ class DataContainer:
             feature_files = glob.glob(self.dat_path + "*feature_df*.pkl")
             [os.remove(f) for f in feature_files]
 
-        save_folder = '_'.join([self.name, self.metadata['date'], f"probe{self.metadata['probe_num']}_preprocessing_output"])
-        save_dir = self.dat_path + save_folder + '/'
-        
-        if not os.path.isdir(save_dir):
-            os.mkdir(save_dir)
-        with open(save_dir + 'traces_dict.pkl', 'wb') as f:
+
+        if not os.path.isdir(self.dat_path):
+            os.mkdir(self.dat_path)
+        with open(self.dat_path + 'traces_dict.pkl', 'wb') as f:
             pickle.dump(self.traces_dict, f)
 
-        with open(save_dir + "behav_df.pkl", 'wb') as f:
+        with open(self.dat_path + "behav_df.pkl", 'wb') as f:
             pickle.dump(self.behav_df, f)
 
-        with open(save_dir + "persistent_info.pkl", 'wb') as f:
+        with open(self.dat_path + "persistent_info.pkl", 'wb') as f:
 
             persistent_info = {'cluster_labels':self.cluster_labels,
                                'active_neurons':self.active_neurons,
@@ -378,7 +377,9 @@ def from_pickle(dat_path, objID, obj_class):
     with open(dat_path + objID + "persistent_info.pkl", 'rb') as f:
         kwargs = pickle.load(f)
 
-    return obj_class(dat_path, behav_df=behav_df, traces_dict=traces_dict, objID=objID, record=False, **kwargs)
+    base_path = '/'.join(dat_path.split('/')[:-2]) + '/'
+
+    return obj_class(base_path, behav_df=behav_df, traces_dict=traces_dict, objID=objID, record=False, **kwargs)
 
 
 def create_experiment_data_object(datapath, metadata, trialwise_binned_mat, cbehav_df):
