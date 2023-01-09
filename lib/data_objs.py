@@ -59,7 +59,7 @@ class DataContainer:
             if type(self.interp_inds) ==  list:
                 self.interp_inds = [np.sum(self.interp_inds[0:i]) for i in np.arange(1, len(self.interp_inds) + 1)]
 
-            self.choice_ind = traces_dict['response_ind']
+            self.resp_ind = traces_dict['response_ind']
             self.reward_ind = traces_dict['reward_ind']
             self.stim_ind = traces_dict['stim_ind']
             self.n_trials, self.n_neurons, _ = self.sa_traces.shape
@@ -211,12 +211,10 @@ class DataContainer:
             [os.remove(f) for f in feature_files]
 
         save_folder = '_'.join([self.name, self.metadata['date'], f"probe{self.metadata['probe_num']}_preprocessing_output"])
-        save_path = self.dat_path + save_folder + '/'
+        save_dir = self.dat_path + save_folder + '/'
         
-        if not os.path.isdir(save_path):
-            os.mkdir(save_path)
-        save_dir = save_path + self.objID + '/'
-        os.mkdir(save_dir)
+        if not os.path.isdir(save_dir):
+            os.mkdir(save_dir)
         with open(save_dir + 'traces_dict.pkl', 'wb') as f:
             pickle.dump(self.traces_dict, f)
 
@@ -230,10 +228,9 @@ class DataContainer:
                                'feature_df_cache': self.feature_df_cache,
                                'feature_df_keys':self.feature_df_keys,
                                'neuron_mask_df':self.neuron_mask_df,
-                               'name': self.name,
                                'metadata': self.metadata,
                                'behavior_phase': self.behavior_phase,
-                               'sps': self.sps}
+                               }
 
             pickle.dump(persistent_info, f)
 
