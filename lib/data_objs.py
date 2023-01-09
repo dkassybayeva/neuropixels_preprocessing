@@ -210,10 +210,13 @@ class DataContainer:
             feature_files = glob.glob(self.dat_path + "*feature_df*.pkl")
             [os.remove(f) for f in feature_files]
 
-        save_dir = self.dat_path + '/' + self.objID + '/'
+        save_folder = '_'.join([self.name, self.metadata['date'], f"probe{self.metadata['probe_num']}_preprocessing_output"])
+        save_path = self.dat_path + save_folder + '/'
         
-        if not os.path.isdir(save_dir):
-            os.mkdir(save_dir)
+        if not os.path.isdir(save_path):
+            os.mkdir(save_path)
+        save_dir = save_path + self.objID + '/'
+        os.mkdir(save_dir)
         with open(save_dir + 'traces_dict.pkl', 'wb') as f:
             pickle.dump(self.traces_dict, f)
 

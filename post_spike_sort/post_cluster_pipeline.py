@@ -61,6 +61,7 @@ metadata = {'time_investment': True,
             'rat_name': rat_name,
             'date': date,
             'sps': sps,
+            'probe_num': probe_num,
             }
 
 #-----------------------------------#
@@ -102,4 +103,4 @@ trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(cellba
 
 cbehav_df['session'] = recording_session_id
 
-data_objs.create_experiment_data_object(cellbase_dir, metadata, trialwise_binned_mat, cbehav_df)
+data_objs.create_experiment_data_object(session_path, metadata, trialwise_binned_mat, cbehav_df)
