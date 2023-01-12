@@ -376,7 +376,7 @@ def remove_laser_trials(trialwise_TTLs, start_times, laser_TTL=526):
     return trialwise_TTLs, start_times
 
 
-def add_TTL_trial_start_times_to_behav_data(cellbase_dir, behavior_mat_file):
+def add_TTL_trial_start_times_to_behav_data(session_dir, behavior_mat_file):
     """
     Synchronize trial events to recording times.
     
@@ -396,7 +396,8 @@ def add_TTL_trial_start_times_to_behav_data(cellbase_dir, behavior_mat_file):
     MakeTrialEvents2_TorbenNP(SESSIONPATH,'StimNttl',TTL) specifies the TTL
     channel which serves as the basis for synchronization.
     """
-    
+
+    cellbase_dir = session_dir + 'cellbase/'
     # --------------------------------------------------------------------- #
     # Trial start time recorded by the recording system (Neuralynx)
     # --------------------------------------------------------------------- #
