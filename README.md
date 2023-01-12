@@ -38,7 +38,14 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 	If it’s a badly aligned day, many cells won't look consistent, especially in the upper part of the probe. 
 
 
-## After Clustering (scripts in post\_cluster/ directory):
+## After Clustering (scripts in post\_spike\_sort/ directory):
+
+### FOSS (Python):
+
+- Copy relevant behavior file (BPod session file, e.g., [subject]\_[protocol]\_[monthDay]\_[year]\_Session[#].mat) to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
+- open post\_cluster\_pipeline.py, change the relevant variables and paths up to the PIPELINE heading, and run it. 
+
+### Proprietary (Matlab\_pipline/):
 
 - Copy convert_spikes_pkl_to_mat_file.py from this repository to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
 and run it (e.g., cmd: python convert_spikes.py) **-> spikes_per_cluster.mat**
