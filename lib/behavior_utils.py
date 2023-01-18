@@ -62,12 +62,17 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim_last_tr
     if session_type == 'SessionData':
         #behav_df = behav_df.rename(columns=column_dict)
         behav_df['rewarded'] = behav_df['Rewarded'].astype('bool')
+        behav_df['success'] = 'Correct'
+        behav_df.loc[behav_df['Rewarded'] == 0, 'success'] = 'Error'
+
         behav_df['correct'] = behav_df['CorrectChoice'].astype('bool')
         behav_df['completed'] = behav_df['CompletedTrial'].astype('bool')
         if "ChosenDirection" in behav_df.keys():
             behav_df["resp_dir"] = behav_df["ChosenDirection"] - 1
         else:
             behav_df['resp_dir'] = behav_df['ChosenDirectionBis'] - 1
+        behav_df['response direction'] = 'Right'
+        behav_df.loc[behav_df['resp_dir'] == 0, 'response direction'] = 'Left'
         behav_df['trial'] = behav_df['TrialNumber']
         behav_df['WT'] = behav_df['WaitingTime']
 
@@ -87,6 +92,8 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim_last_tr
 
     behav_df['stim_dir'] = np.sign(behav_df['DV'])  # sessiondata matlab records have 1= left, 2 = right
     behav_df.loc[:, 'stim_dir'] = behav_df['stim_dir'].replace({-1:0}).to_numpy()
+    behav_df['stimulus direction'] = 'Right'
+    behav_df.loc[behav_df['stim_dir'] == 0, 'stimulus direction'] = 'Left'
 
     behav_df['evidence'] = (behav_df['DV'] * 2).round(0) / 2
 
