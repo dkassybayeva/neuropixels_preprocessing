@@ -60,7 +60,7 @@ class DataContainer:
             if type(self.interp_inds) ==  list:
                 self.interp_inds = [np.sum(self.interp_inds[0:i]) for i in np.arange(1, len(self.interp_inds) + 1)]
 
-            self.resp_ind = traces_dict['response_ind']
+            self.response_ind = traces_dict['response_ind']
             self.reward_ind = traces_dict['reward_ind']
             self.stim_ind = traces_dict['stim_ind']
             self.n_trials, self.n_neurons, _ = self.sa_traces.shape
@@ -131,11 +131,19 @@ class DataContainer:
             tracking_df.to_sql('2AFC_tracking', con=con, if_exists='append')
 
     def __getitem__(self, item):
+        """
+        :param item:
+            - the first item is the trial "property", e.g., trial outcome
+            - the second item can be a list of neurons, any valid neuron indexing
+            - selects to what the traces are aligned.  Possible values are:
+                'stimulus', 'response', 'reward', 'interp'
+        :return:
+        """
         # --------indexing arguments------------- #
         assert(len(item) == 3)
-        trial_property_column = item[0]  # e.g., trial outcome
-        neuron_indexer = item[1]  # can be a list of neurons, any valid neuron indexing
-        phase_indexer = item[2]  # selects to what the traces are aligned
+        trial_property_column = item[0]
+        neuron_indexer = item[1]
+        phase_indexer = item[2]
         # --------------------------------------- #
 
         # ---------- first get rows (trials) that match value of column of interest ------------ #
