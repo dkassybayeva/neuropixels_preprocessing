@@ -942,15 +942,20 @@ def create_behavioral_dataframe(cellbase_dir):
     print('Bahvaioral dataframe saved to: ' + cellbase_dir + "behav_df")
 
 
-def align_trialwise_spike_times_to_start(datapath, downsample_dt):
-    # load neural data: [number of neurons x time bins in ms]
-    spike_mat = load(datapath + "spike_mat_in_ms.npy")['spike_mat']
+def align_trialwise_spike_times_to_start(datapath, downsample_dt, TOY_DATA):
+    if TOY_DATA:
+        spike_mat = load(datapath + "toy_spikes.npy")
+        behav_df = load(datapath + 'toy_behav_df')
+    else:
+        # load neural data: [number of neurons x time bins in ms]
+        spike_mat = load(datapath + "spike_mat_in_ms.npy")['spike_mat']
 
-    # make pandas behavior dataframe
-    behav_df = load(datapath + 'behav_df')
+        # make pandas behavior dataframe
+        behav_df = load(datapath + 'behav_df')
 
     # format entries of dataframe for analysis (e.g., int->bool)
-    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim_last_trial=True)
+    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim_last_trial=~TOY_DATA)
+
 
     # align spike times to behavioral data timeframe
     # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]

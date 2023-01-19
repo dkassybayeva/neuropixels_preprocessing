@@ -9,7 +9,7 @@ import neuropixels_preprocessing.lib.timing_utils as tu
 import neuropixels_preprocessing.lib.obj_utils as ou
 import neuropixels_preprocessing.lib.data_objs as data_objs
 
-TOY_DATA = True
+TOY_DATA = 0
 
 #----------------------------------------------------------------------#
 # The following information needs to be filled out and updated for each
@@ -91,20 +91,21 @@ metadata['behavior_phase'] = -1
 #----------------------------------------------------------------------#
 #                           PIPELINE                                   #
 #----------------------------------------------------------------------#
-tu.create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
-                    save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
+if not TOY_DATA:
+    tu.create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
+                        save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
 
-gap_filename = tu.find_recording_gaps(timestamp_file, fs, max_ISI, cellbase_dir)
+    gap_filename = tu.find_recording_gaps(timestamp_file, fs, max_ISI, cellbase_dir)
 
-tu.extract_TTL_events(session_path, gap_filename, save_dir=cellbase_dir)
+    tu.extract_TTL_events(session_path, gap_filename, save_dir=cellbase_dir)
 
-tu.add_TTL_trial_start_times_to_behav_data(session_path, behavior_mat_file)
+    tu.add_TTL_trial_start_times_to_behav_data(session_path, behavior_mat_file)
 
-tu.calc_event_outcomes(cellbase_dir)
+    tu.calc_event_outcomes(cellbase_dir)
 
-tu.create_behavioral_dataframe(cellbase_dir)
+    tu.create_behavioral_dataframe(cellbase_dir)
 
-trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(cellbase_dir, trace_subsample_bin_size_ms)
+trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(cellbase_dir, trace_subsample_bin_size_ms, TOY_DATA=TOY_DATA)
 
 cbehav_df['session'] = recording_session_id
 
