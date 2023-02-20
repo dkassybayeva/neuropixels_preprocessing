@@ -2,44 +2,49 @@
 This file is the main preprocessing step to isolate
 single unit recordings from Neuropixels using the output from Trodes
 
-It runs the four main spike-sorting/clustering steps of Kilosort 2.5
+It runs the four main spike-sorting/clustering steps of Kilosort 2.5 or 3
 1) Data preprocessing and channel selection
 2) Drift calculation and batch reordering
 3) The main optimization: clustering and template matching
 4) Final merges and splits, then threshold detection
 
-author: TO Jan-Dec 2021
-Updated by GK: Okt 6, 2022
+GK: Feb 20, 2023
 %}
 
 
 % ---------------------------------------------------------------------- %
-%       Change most of the paths in this block prior to execution
+%           Session paths: change prior to execution
 % ---------------------------------------------------------------------- %
 %WARNING deletes all files in data folder except for Trodes-specific files
 delete_previous_KS_run = false;
 remove_duplicates = false;
 
-probenum = 2;
+% the raw data binary file is in this folder CANT HAVE TRAILING SLASH
+rootZ = 'X:\NeuroData\Nina2\20210623_121426.rec'; 
+% path to temporary binary file (same size as data, should be on fast SSD)
+rootH = 'X:\NeuroData\Nina2\20210623_121426.rec'; 
+probenum = '1';
+% ---------------------------------------------------------------------- %
+
+
+% ---------------------------------------------------------------------- %
+%            Program paths: change upon new installation
+% ---------------------------------------------------------------------- %
+KS_version = '3.0';  % 2.5 or 3.0 (4 coming soon hopefully!)
 
 docs_path = 'C:\Users\science person\Documents\';
-preprocessing_path = strcat(docs_path,'MATLAB\neuropixels_preprocessing\');
-sortingQuality_path = strcat(preprocessing_path, 'sortingQuality');
+preprocessing_path = strcat(docs_path,'MATLAB\neuropixels_preprocessing\Kilosort\');
+sortingQuality_path = strcat(preprocessing_path, 'sorting_quality');
 
 addpath(sortingQuality_path)
 addpath(strcat(sortingQuality_path, '\core'))
 addpath(strcat(sortingQuality_path, '\helpers'))
 
 % path to kilosort folder
-addpath(genpath(strcat(docs_path, 'MATLAB\Kilosort-2.5'))) 
+addpath(genpath(strcat(docs_path, 'MATLAB\Kilosort-', KS_version))) 
 
 % for converting to Phy, https://github.com/kwikteam/npy-matlab
 addpath(strcat(docs_path, 'npy-matlab-master')) 
-
-% the raw data binary file is in this folder CANT HAVE TRAILING SLASH
-rootZ = 'X:\NeuroData\Nina2\20210623_121426.rec'; 
-% path to temporary binary file (same size as data, should be on fast SSD)
-rootH = 'X:\NeuroData\Nina2\20210623_121426.rec'; 
 % ---------------------------------------------------------------------- %
 
 
@@ -55,7 +60,7 @@ getChanMap(rootZ); %spikegadgets tool
 
 % kilosort subfolder for KS output
 [~,ss] = fileparts(rootZ);
-kfolder = strcat(ss,'.kilosort_probe',num2str(probenum));
+kfolder = strcat(ss,'.kilosort', KS_version, '_probe', probenum);
 if ~isfolder(fullfile(rootH,kfolder)),mkdir(fullfile(rootH,kfolder)), end
 if ~isfolder(fullfile(rootZ,kfolder)),mkdir(fullfile(rootZ,kfolder)), end
 
@@ -64,7 +69,7 @@ if ~isfolder(fullfile(rootZ,kfolder)),mkdir(fullfile(rootZ,kfolder)), end
 ksdatafolder = strcat(ss,'.kilosort');
 
 % binary dat file
-kfile = strcat(ss,'.probe',num2str(probenum),'.dat');
+kfile = strcat(ss,'.probe', probenum,'.dat');
 
 % make config struct
 if delete_previous_KS_run
@@ -101,7 +106,10 @@ ops.fshigh     = 300; % high-pass more aggresively
 %   0 turns it off
 %   1 does rigid registration
 %   5 is default set by KS
-ops.nblocks    = 1; 
+ops.nblocks    = 5; 
+
+% main parameter changes from Kilosort2.5 to v3.0 - []
+ops.Th       = [9 9];
 
 ops.fbinary = fullfile(rootZ, ksdatafolder, kfile);
 % ---------------------------------------------------------------------- %
@@ -117,34 +125,43 @@ rez = preprocessDataSub(ops);
 % last input is for shifting data
 rez = datashift2(rez, 1);
 
-% ORDER OF BATCHES IS NOW RANDOM, controlled by random number generator
-iseed = 1;
-                 
-% 2) and 3) main tracking and template matching algorithm
-rez = learnAndSolve8b(rez, iseed);
-% check_rez(rez);
-
-% OPTIONAL: remove double-counted spikes - solves issue in which 
-% individual spikes are assigned to multiple templates.
-% See issue 29: https://github.com/MouseLand/Kilosort/issues/29
-if remove_duplicates
-    rez = remove_ks2_duplicate_spikes(rez);
+if strcmp(KS_version, '2.5')
+    % ORDER OF BATCHES IS NOW RANDOM, controlled by random number generator
+    iseed = 1;
+                     
+    % 2) and 3) main tracking and template matching algorithm
+    rez = learnAndSolve8b(rez, iseed);
+    % check_rez(rez);
+    
+    % OPTIONAL: remove double-counted spikes - solves issue in which 
+    % individual spikes are assigned to multiple templates.
+    % See issue 29: https://github.com/MouseLand/Kilosort/issues/29
+    if remove_duplicates
+        rez = remove_ks2_duplicate_spikes(rez);
+    end
+    
+    % 4a) final merges
+    rez = find_merges(rez, 1);
+    % check_rez(rez);
+    
+    % 4b) final splits by SVD
+    rez = splitAllClusters(rez, 1);
+    % check_rez(rez);
+    
+    % 4c) decide on cutoff
+    rez = set_cutoff(rez);
+    % check_rez(rez);
+    
+    % 4d) eliminate widely spread waveforms (likely noise)
+    rez.good = get_good_units(rez);
+    
+elseif strcmp(KS_version, '3.0')
+    [rez, st3, tF]     = extract_spikes(rez);
+    rez                = template_learning(rez, tF, st3);
+    [rez, st3, tF]     = trackAndSort(rez);
+    rez                = final_clustering(rez, tF, st3);
+    rez                = find_merges(rez, 1);
 end
-
-% 4a) final merges
-rez = find_merges(rez, 1);
-% check_rez(rez);
-
-% 4b) final splits by SVD
-rez = splitAllClusters(rez, 1);
-% check_rez(rez);
-
-% 4c) decide on cutoff
-rez = set_cutoff(rez);
-% check_rez(rez);
-
-% 4d) eliminate widely spread waveforms (likely noise)
-rez.good = get_good_units(rez);
 % ---------------------------------------------------------------------- %
 
 
