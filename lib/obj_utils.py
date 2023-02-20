@@ -7,10 +7,13 @@ import numpy as np
 import os
 import glob
 
-def make_dir_if_not_exist(path):
+def make_dir_if_nonexistent(path):
     """create a directory if it doesn't exist"""
     if not os.path.exists(path):
         os.makedirs(path)
+        print(f"{path} created.")
+    else:
+        print(f"{path} already exists.")
 
 def clear_obj_files(path):
     files = glob.glob(path + ".pkl")
@@ -68,7 +71,7 @@ def map_traces(behav_df, obj_list, matches):
 
     return interp_dict
 
-def get_cluster_traces(obj_list, phase_indexer, filter_active=True, require_all_clusters=False, cluster_list=None):
+def get_cluster_traces(obj_list, alignment, filter_active=True, require_all_clusters=False, cluster_list=None):
     """
     Returns an iterable group of lists containing the cluster labels, behavioral dataframes, neural traces, rat names.
     """
@@ -103,7 +106,7 @@ def get_cluster_traces(obj_list, phase_indexer, filter_active=True, require_all_
 
             if len(clust) > 0:
                 behavior_df_list.append(obj.behav_df)
-                traces.append(obj[:, clust, phase_indexer])
+                traces.append(obj[:, clust, alignment])
                 rat_names.append(obj.name)
             else:
                 print("uhoh the cluster was too small")

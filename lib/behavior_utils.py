@@ -30,7 +30,7 @@ def trim_df(behav_df):
     'evidence', 'prior', 'probe',  'prev_completed_1', 'prev_evidence_1', 'prev_stim_dir_1', 'prev_rewarded_1', ''
                      'prev_resp_dir_1', 'prev_correct_1', 'WT_qs', 'prev_WT_qs_1']]
 
-def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim=True):
+def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim_last_trial=True):
     '''
     TODO: Map confidence for waiting time rats
 
@@ -62,12 +62,17 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim=True):
     if session_type == 'SessionData':
         #behav_df = behav_df.rename(columns=column_dict)
         behav_df['rewarded'] = behav_df['Rewarded'].astype('bool')
+        behav_df['success'] = 'Correct'
+        behav_df.loc[behav_df['Rewarded'] == 0, 'success'] = 'Error'
+
         behav_df['correct'] = behav_df['CorrectChoice'].astype('bool')
         behav_df['completed'] = behav_df['CompletedTrial'].astype('bool')
         if "ChosenDirection" in behav_df.keys():
             behav_df["resp_dir"] = behav_df["ChosenDirection"] - 1
         else:
             behav_df['resp_dir'] = behav_df['ChosenDirectionBis'] - 1
+        behav_df['response direction'] = 'Right'
+        behav_df.loc[behav_df['resp_dir'] == 0, 'response direction'] = 'Left'
         behav_df['trial'] = behav_df['TrialNumber']
         behav_df['WT'] = behav_df['WaitingTime']
 
@@ -87,6 +92,8 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim=True):
 
     behav_df['stim_dir'] = np.sign(behav_df['DV'])  # sessiondata matlab records have 1= left, 2 = right
     behav_df.loc[:, 'stim_dir'] = behav_df['stim_dir'].replace({-1:0}).to_numpy()
+    behav_df['stimulus direction'] = 'Right'
+    behav_df.loc[behav_df['stim_dir'] == 0, 'stimulus direction'] = 'Left'
 
     behav_df['evidence'] = (behav_df['DV'] * 2).round(0) / 2
 
@@ -113,9 +120,9 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim=True):
     if WTThresh:
         behav_df = behav_df[behav_df.WaitingTime > WTThresh]
 
-    if trim:
+    if trim_last_trial:
         print("warning triming the last trial")
-        behav_df = behav_df[(behav_df.trial < (max(behav_df.trial) - 1))]
+        behav_df = behav_df[behav_df.trial < max(behav_df.trial)]
 
     bins = np.quantile(behav_df.WT, [.33, .66])
     behav_df['WT_qs'] = np.digitize(behav_df.WT, bins)

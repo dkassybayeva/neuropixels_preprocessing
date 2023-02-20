@@ -71,7 +71,7 @@ KSspiketimes = KSspiketimes.spikeTimes;
 %              Load Trodes Times for Relative Timekeeping
 %----------------------------------------------------------------------%
 % load Trodes timestamps - in the general kilosort folder
-kilosort_path = fullfile(rec_file_path,[session,'.kilosort']);
+kilosort_path = fullfile(rec_file_path,[session,'.kilosort_probe1']);
 time_file = fullfile(kilosort_path, [session, '.timestamps.dat']);
 Ttime = readTrodesExtractedDataFile(time_file); % >1GB var (3h recording)
 Trodestimestamps = Ttime.fields.data;  % >1GB variable for a 3h recording

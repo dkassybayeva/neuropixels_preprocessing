@@ -13,29 +13,30 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 import os
 import glob
+from joblib import load
 
-from neuropixels_preprocessing.post_cluster.trace_utils import get_trace_feature_df
-from neuropixels_preprocessing.post_cluster.obj_utils import *
+import neuropixels_preprocessing.lib.trace_utils as trace_utils
+import neuropixels_preprocessing.lib.behavior_utils as bu
+from neuropixels_preprocessing.lib.obj_utils import *
 
 class DataContainer:
-    def __init__(self, dat_path, behav_df, traces_dict, 
+    def __init__(self, dat_path, behav_df, traces_dict,
                  neuron_mask_df=None,
                  objID=None,
-                 sps=None,
-                 name=None,
                  cluster_labels=None,
                  metadata=None,
                  linking_group=None,
                  active_neurons=None,
                  record=False,
                  feature_df_cache=[],
-                 feature_df_keys=[], 
+                 feature_df_keys=[],
                  behavior_phase=None):
 
-        self.name = name
         self.metadata = metadata
-        self.sps = sps
-        self.dat_path = dat_path
+        self.name = metadata['rat_name']
+        self.sps = metadata['sps']
+        save_folder = '_'.join([self.name, self.metadata['date'], f"probe{self.metadata['probe_num']}_preprocessing_output"])
+        self.dat_path = dat_path + save_folder + '/'
         self.feature_df_cache = feature_df_cache
         self.feature_df_keys = feature_df_keys
         self.behavior_phase = behavior_phase
@@ -46,7 +47,7 @@ class DataContainer:
         if objID is not None:
             self.objID = objID
         else:
-            self.objID = str(np.datetime64('now').astype('uint32'))
+            self.objID = str(np.datetime64('now')).split('T')[0]
         self.behavior_phase = metadata['behavior_phase']
 
         if traces_dict is not None:
@@ -59,7 +60,7 @@ class DataContainer:
             if type(self.interp_inds) ==  list:
                 self.interp_inds = [np.sum(self.interp_inds[0:i]) for i in np.arange(1, len(self.interp_inds) + 1)]
 
-            self.choice_ind = traces_dict['response_ind']
+            self.response_ind = traces_dict['response_ind']
             self.reward_ind = traces_dict['reward_ind']
             self.stim_ind = traces_dict['stim_ind']
             self.n_trials, self.n_neurons, _ = self.sa_traces.shape
@@ -130,11 +131,19 @@ class DataContainer:
             tracking_df.to_sql('2AFC_tracking', con=con, if_exists='append')
 
     def __getitem__(self, item):
+        """
+        :param item:
+            - the first item is the trial "property", e.g., trial outcome
+            - the second item can be a list of neurons, any valid neuron indexing
+            - selects to what the traces are aligned.  Possible values are:
+                'stimulus', 'response', 'reward', 'interp'
+        :return:
+        """
         # --------indexing arguments------------- #
         assert(len(item) == 3)
-        trial_property_column = item[0]  # e.g., trial outcome
-        neuron_indexer = item[1]  # can be a list of neurons, any valid neuron indexing
-        phase_indexer = item[2]  # selects to what the traces are aligned
+        trial_property_column = item[0]
+        neuron_indexer = item[1]
+        phase_indexer = item[2]
         # --------------------------------------- #
 
         # ---------- first get rows (trials) that match value of column of interest ------------ #
@@ -210,27 +219,25 @@ class DataContainer:
             feature_files = glob.glob(self.dat_path + "*feature_df*.pkl")
             [os.remove(f) for f in feature_files]
 
-        save_dir = self.dat_path + '/' + self.objID + '/'
-        
-        if not os.path.isdir(save_dir):
-            os.mkdir(save_dir)
-        with open(save_dir + 'traces_dict.pkl', 'wb') as f:
+
+        if not os.path.isdir(self.dat_path):
+            os.mkdir(self.dat_path)
+        with open(self.dat_path + 'traces_dict.pkl', 'wb') as f:
             pickle.dump(self.traces_dict, f)
 
-        with open(save_dir + "behav_df.pkl", 'wb') as f:
+        with open(self.dat_path + "behav_df.pkl", 'wb') as f:
             pickle.dump(self.behav_df, f)
 
-        with open(save_dir + "persistent_info.pkl", 'wb') as f:
+        with open(self.dat_path + "persistent_info.pkl", 'wb') as f:
 
             persistent_info = {'cluster_labels':self.cluster_labels,
                                'active_neurons':self.active_neurons,
                                'feature_df_cache': self.feature_df_cache,
                                'feature_df_keys':self.feature_df_keys,
                                'neuron_mask_df':self.neuron_mask_df,
-                               'name': self.name,
                                'metadata': self.metadata,
                                'behavior_phase': self.behavior_phase,
-                               'sps': self.sps}
+                               }
 
             pickle.dump(persistent_info, f)
 
@@ -271,8 +278,8 @@ class DataContainer:
             elif not len(selected_neurons):
                 selected_neurons = np.arange(self.n_neurons)
 
-            feature_df = get_trace_feature_df(self.behav_df, selected_neurons,
-                                              traces=traces, behavior_variables=variables, rat_name=self.name)
+            feature_df = trace_utils.get_trace_feature_df(self.behav_df, selected_neurons,
+                                                          traces=traces, behavior_variables=variables, rat_name=self.name)
 
             print("Created new feature df.")
             if save:
@@ -291,8 +298,6 @@ class TwoAFC(DataContainer):
     def __init__(self, dat_path, behav_df, traces_dict, 
                  neuron_mask_df=None, 
                  objID=None, 
-                 sps=None, 
-                 name=None,
                  cluster_labels=None,
                  metadata=None,
                  linking_group=None, 
@@ -304,7 +309,7 @@ class TwoAFC(DataContainer):
                  behavior_phase=None):
 
         super().__init__(dat_path, behav_df, traces_dict, neuron_mask_df, 
-                         objID, sps, name, cluster_labels, metadata, 
+                         objID, cluster_labels, metadata,
                          linking_group, active_neurons, record, 
                          feature_df_cache, feature_df_keys, behavior_phase)
 
@@ -380,4 +385,18 @@ def from_pickle(dat_path, objID, obj_class):
     with open(dat_path + objID + "persistent_info.pkl", 'rb') as f:
         kwargs = pickle.load(f)
 
-    return obj_class(dat_path, behav_df=behav_df, traces_dict=traces_dict, objID=objID, record=False, **kwargs)
+    base_path = '/'.join(dat_path.split('/')[:-2]) + '/'
+
+    return obj_class(base_path, behav_df=behav_df, traces_dict=traces_dict, objID=objID, record=False, **kwargs)
+
+
+def create_experiment_data_object(datapath, metadata, trialwise_binned_mat, cbehav_df):
+    traces_dict = trace_utils.create_traces_np(cbehav_df,
+                                               trialwise_binned_mat,
+                                               sps=metadata['sps'],
+                                               aligned_ind=0,
+                                               filter_by_trial_num=False,
+                                               traces_aligned="TrialStart")
+
+    # create and save data object
+    TwoAFC(datapath, cbehav_df, traces_dict, metadata=metadata, cluster_labels=[]).to_pickle(remove_old=False)
