@@ -60,9 +60,9 @@ getChanMap(rootZ); %spikegadgets tool
 
 % kilosort subfolder for KS output
 [~,ss] = fileparts(rootZ);
-kfolder = strcat(ss,'.kilosort', KS_version, '_probe', probenum);
-if ~isfolder(fullfile(rootH,kfolder)),mkdir(fullfile(rootH,kfolder)), end
-if ~isfolder(fullfile(rootZ,kfolder)),mkdir(fullfile(rootZ,kfolder)), end
+ks_output_dir = strcat(ss,'.kilosort', KS_version, '_probe', probenum);
+if ~isfolder(fullfile(rootH,ks_output_dir)),mkdir(fullfile(rootH,ks_output_dir)), end
+if ~isfolder(fullfile(rootZ,ks_output_dir)),mkdir(fullfile(rootZ,ks_output_dir)), end
 
 % kilosort subfolder containing Trodes binary data file (Trodes will make a
 % subfolder when exporting binary data file for kilosort)
@@ -73,14 +73,14 @@ kfile = strcat(ss,'.probe', probenum,'.dat');
 
 % make config struct
 if delete_previous_KS_run
-   delete_KS_files(fullfile(rootZ,kfolder));
-   delete_KS_files(fullfile(rootH,kfolder));
+   delete_KS_files(fullfile(rootZ, ks_output_dir));
+   delete_KS_files(fullfile(rootH, ks_output_dir));
 end
 
 % make a copy of this script for reference
 scriptpath = mfilename('fullpath'); scriptpath= [scriptpath,'.m'];
 [~,scriptname]=fileparts(scriptpath); scriptname= [scriptname,'.m'];
-ff = fullfile(rootZ,kfolder,scriptname);
+ff = fullfile(rootZ,ks_output_dir,scriptname);
 ops.main_kilosort_script = ff;
 copyfile(scriptpath,ff);
 % ---------------------------------------------------------------------- %
@@ -95,7 +95,7 @@ ops.trange    = [0 Inf]; % time range to sort
 ops.NchanTOT  = 384; % total number of channels in your recording
 
 % proc file on a fast SSD
-ops.fproc   = fullfile(rootH, kfolder, 'temp_wh.dat'); 
+ops.fproc   = fullfile(rootH, ks_output_dir, 'temp_wh.dat'); 
 ops.chanMap = fullfile(rootZ, chanMapFile);
 
 % main parameter changes from Kilosort2 to v2.5
@@ -154,7 +154,7 @@ if strcmp(KS_version, '2.5')
     
     % 4d) eliminate widely spread waveforms (likely noise)
     rez.good = get_good_units(rez);
-    
+
 elseif strcmp(KS_version, '3.0')
     [rez, st3, tF]     = extract_spikes(rez);
     rez                = template_learning(rez, tF, st3);
@@ -171,17 +171,17 @@ end
 fprintf('found %d good units \n', sum(rez.good>0))
 
 fprintf('Saving results to Phy \n')
-rezToPhy(rez, fullfile(rootH,kfolder));
+rezToPhy(rez, fullfile(rootH,ks_output_dir));
 % ---------------------------------------------------------------------- %
 
 
 % ---------------------------------------------------------------------- %
 %                       Compute Quality Metrics
 % ---------------------------------------------------------------------- %
-[cids, uQ, cR, isiV, histC] = sqKilosort.computeAllMeasures(fullfile(rootH, kfolder));
+[cids, uQ, cR, isiV, histC] = sqKilosort.computeAllMeasures(fullfile(rootH, ks_output_dir));
 
 %save them for phy
-sqKilosort.metricsToPhy(fullfile(rootH, kfolder), cids, uQ, isiV, cR, histC);
+sqKilosort.metricsToPhy(fullfile(rootH, ks_output_dir), cids, uQ, isiV, cR, histC);
 % ---------------------------------------------------------------------- %
 
 
@@ -209,15 +209,15 @@ end
 % save index times for spike number in extra mat file (since rez2.mat is
 % superlarge & slow)
 spikeTimes = uint64(rez.st3(:,1));
-fname = fullfile(rootH,kfolder, 'spike_times.mat');
+fname = fullfile(rootH,ks_output_dir, 'spike_times.mat');
 save(fname, 'spikeTimes', '-v7.3');
 
 % save final results as rez2
 fprintf('Saving final results in rez2  \n')
-fname = fullfile(rootH,kfolder, 'rez2.mat');
+fname = fullfile(rootH,ks_output_dir, 'rez2.mat');
 save(fname, 'rez', '-v7.3');
 
 %save KS figures
-fname = fullfile(rootH,kfolder);
+fname = fullfile(rootH,ks_output_dir);
 figHandles = get(0, 'Children');  
 saveFigPNG(fname,figHandles(end-2:end));

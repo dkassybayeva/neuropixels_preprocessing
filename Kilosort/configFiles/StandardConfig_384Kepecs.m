@@ -1,5 +1,5 @@
-%ops.chanMap = 'C:\Users\science person\Documents\MATLAB\neuropixels_preprocessing\Kilosort\configFiles\channelMap.mat';
-ops.chanMap = 1:ops.Nchan; % treated as linear probe if no chanMap file
+ops.chanMap = 'C:\Users\science person\Documents\MATLAB\neuropixels_preprocessing\Kilosort\configFiles\channelMap.mat';
+%ops.chanMap = 1:ops.Nchan; % treated as linear probe if no chanMap file
 
 % sample rate
 ops.fs = 30000;  
