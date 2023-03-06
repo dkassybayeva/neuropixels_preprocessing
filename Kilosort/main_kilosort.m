@@ -11,18 +11,22 @@ It runs the four main spike-sorting/clustering steps of Kilosort 2.5 or 3
 GK: Feb 20, 2023
 %}
 
+clear
+close all
+clc
 
 % ---------------------------------------------------------------------- %
 %           Session paths: change prior to execution
 % ---------------------------------------------------------------------- %
 %WARNING deletes all files in data folder except for Trodes-specific files
 delete_previous_KS_run = false;
-remove_duplicates = false;
+remove_duplicates = true;
 
 % the raw data binary file is in this folder CANT HAVE TRAILING SLASH
-rootZ = 'X:\NeuroData\Nina2\20210623_121426.rec'; 
+raw_data_dir = 'Y:\NeuroData\Nina2\20210625_114657.rec';
+
 % path to temporary binary file (same size as data, should be on fast SSD)
-rootH = 'X:\NeuroData\Nina2\20210623_121426.rec'; 
+output_base = 'Y:\NeuroData\Nina2\20210625_114657.rec';
 probenum = '1';
 % ---------------------------------------------------------------------- %
 
@@ -52,50 +56,55 @@ addpath(strcat(docs_path, 'npy-matlab-master'))
 %               Setup and Load Kilosort Config File
 % ---------------------------------------------------------------------- %
 % take from Github folder and put it somewhere else (with master_file)
-pathToYourConfigFile = strcat(preprocessing_path, 'configFiles'); 
+config_file = fullfile([preprocessing_path, 'configFiles'], 'StandardConfig_384Kepecs.m');
 
 % make chan map 
-getChanMap(rootZ);  % spikegadgets tool that creates channelMap.mat
-
-% kilosort subfolder for KS output
-[~,ss] = fileparts(rootZ);
-ks_output_dir = strcat(ss,'.kilosort', KS_version, '_probe', probenum);
-if ~isfolder(fullfile(rootH,ks_output_dir)),mkdir(fullfile(rootH,ks_output_dir)), end
-if ~isfolder(fullfile(rootZ,ks_output_dir)),mkdir(fullfile(rootZ,ks_output_dir)), end
+getChanMap(raw_data_dir);  % spikegadgets tool that creates channelMap.mat
 
 % kilosort subfolder containing Trodes binary data file (Trodes will make a
 % subfolder when exporting binary data file for kilosort)
-ksdatafolder = strcat(ss,'.kilosort');
+[~,ss] = fileparts(raw_data_dir);
+ks_data_folder = strcat(ss, '.kilosort');
+input_dir = fullfile(raw_data_dir, ks_data_folder);
+if ~isfolder(input_dir)
+    error('.kilosort directory not found. It should be exported from Trodes.')
+end
 
 % binary dat file
-kfile = strcat(ss,'.probe', probenum,'.dat');
+probe_binary_dat = strcat(ss, '.probe', probenum, '.dat');
+
+% subfolder for Kilosort output
+ks_output_folder = strcat(ss, '.kilosort', KS_version, '_probe', probenum);
+output_dir = fullfile(output_base, ks_output_folder);
+if ~isfolder(output_dir), mkdir(output_dir), end
 
 % make config struct
 if delete_previous_KS_run
-   delete_KS_files(fullfile(rootZ, ks_output_dir));
-   delete_KS_files(fullfile(rootH, ks_output_dir));
+   delete_KS_files(input_dir);
+   delete_KS_files(output_dir);
 end
 
 % make a copy of this script for reference
-scriptpath = mfilename('fullpath'); scriptpath= [scriptpath,'.m'];
-[~,scriptname]=fileparts(scriptpath); scriptname= [scriptname,'.m'];
-ff = fullfile(rootZ,ks_output_dir,scriptname);
-ops.main_kilosort_script = ff;
-copyfile(scriptpath,ff);
+curr_script_path = [mfilename('fullpath'),'.m'];
+[~, scriptname] = fileparts(curr_script_path);
+
+% point Kilosort to copied script
+ops.main_kilosort_script = fullfile(output_dir, [scriptname, '.m']);
+copyfile(curr_script_path, ops.main_kilosort_script);
 % ---------------------------------------------------------------------- %
 
 
 % ---------------------------------------------------------------------- %
 %                         Kilosort Parameters
 % ---------------------------------------------------------------------- %
-run(fullfile(pathToYourConfigFile, 'StandardConfig_384Kepecs.m'))
+run(config_file)
 
 ops.trange    = [0 Inf]; % time range to sort
 ops.NchanTOT  = 384; % total number of channels in your recording
 
 % proc file on a fast SSD
-ops.fproc   = fullfile(rootH, ks_output_dir, 'temp_wh.dat'); 
-ops.chanMap = fullfile(rootZ, 'channelMap.mat');
+ops.fproc   = fullfile(output_dir, 'temp_wh.dat'); 
+ops.chanMap = fullfile(raw_data_dir, 'channelMap.mat');
 
 % main parameter changes from Kilosort2 to v2.5
 ops.sig        = 20;  % spatial smoothness constant for registration
@@ -110,9 +119,9 @@ ops.nblocks    = 5;
 % main parameter changes from Kilosort2.5 to v3.0 - default is [10 4]
 ops.Th       = [10 4];
 
-ops.fbinary = fullfile(rootZ, ksdatafolder, kfile);
+ops.fbinary = fullfile(input_dir, probe_binary_dat);
 % ---------------------------------------------------------------------- %
-ops
+ops  % prints parameters
 
 
 % ---------------------------------------------------------------------- %
@@ -210,17 +219,17 @@ end
 fprintf('found %d good units \n', sum(rez.good>0))
 
 fprintf('Saving results to Phy \n')
-rezToPhy(rez, fullfile(rootH,ks_output_dir));
+rezToPhy(rez, output_dir);
 % ---------------------------------------------------------------------- %
 
 
 % ---------------------------------------------------------------------- %
 %                       Compute Quality Metrics
 % ---------------------------------------------------------------------- %
-[cids, uQ, cR, isiV, histC] = sqKilosort.computeAllMeasures(fullfile(rootH, ks_output_dir));
+[cids, uQ, cR, isiV, histC] = sqKilosort.computeAllMeasures(output_dir);
 
 %save them for phy
-sqKilosort.metricsToPhy(fullfile(rootH, ks_output_dir), cids, uQ, isiV, cR, histC);
+sqKilosort.metricsToPhy(output_dir, cids, uQ, isiV, cR, histC);
 % ---------------------------------------------------------------------- %
 
 
@@ -248,15 +257,12 @@ end
 % save index times for spike number in extra mat file (since rez2.mat is
 % superlarge & slow)
 spikeTimes = uint64(rez.st3(:,1));
-fname = fullfile(rootH,ks_output_dir, 'spike_times.mat');
-save(fname, 'spikeTimes', '-v7.3');
+save(fullfile(output_dir, 'spike_times.mat'), 'spikeTimes', '-v7.3');
 
 % save final results as rez2
 fprintf('Saving final results in rez2  \n')
-fname = fullfile(rootH,ks_output_dir, 'rez2.mat');
-save(fname, 'rez', '-v7.3');
+save(fullfile(output_dir, 'rez2.mat'), 'rez', '-v7.3');
 
 %save KS figures
-fname = fullfile(rootH,ks_output_dir);
 figHandles = get(0, 'Children');  
-saveFigPNG(fname, figHandles(end-2:end));
+saveFigPNG(output_dir, figHandles(end-2:end));
