@@ -309,9 +309,10 @@ def create_traces_np(behav_df, traces, sps,
 def custom_interp(interp_axis, data_mat):
     """The data in each row of a data matrix is interpolated along a new axis that is common for all rows."""
     out = np.zeros((data_mat.shape[0], len(interp_axis)))
-    dat_idx = np.arange(data_mat.shape[1])
-    for i, dat_arr in enumerate(data_mat):
-        out[i] = np.interp(interp_axis, dat_idx, dat_arr)
+    data_idx = np.arange(data_mat.shape[1])
+    for i, data_arr in enumerate(data_mat):
+        if data_arr.sum():  # don't need to interpolate empty arrays
+            out[i] = np.interp(interp_axis, data_idx, data_arr)
     return out
 
 
