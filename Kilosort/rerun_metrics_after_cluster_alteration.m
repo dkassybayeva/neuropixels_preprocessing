@@ -8,22 +8,24 @@ email: gregory@bccn-berlin.de
 date: Okt 6, 2022
 %}   
 
+KS_version = '2.5';  % 2.5 or 3.0 (4 coming soon hopefully!)
+
 % the paths should be the same as in the main_kilosort*.m file run before using Phy
-probenum = 2;
+probenum = '1';
 
 % directory of binary file
-rootH = 'X:\NeuroData\Nina2\20210623_121426.rec';
+rootH = 'Y:\NeuroData\Nina2\20210625_114657.rec';
 
 %kilosort subfolder for KS output
 [~,ss] = fileparts(rootH);
-kfolder = strcat(ss,'.kilosort_probe',num2str(probenum));
+ks_output_dir = strcat(ss,'.kilosort', KS_version, '_probe', probenum);
 
-if isfolder(fullfile(rootH,kfolder)) % only run for existing data
+if isfolder(fullfile(rootH, ks_output_dir)) % only run for existing data
     
 % compute quality metrics
-[cids, uQ, cR, isiV, histC] = sqKilosort.computeAllMeasures(fullfile(rootH, kfolder));
+[cids, uQ, cR, isiV, histC] = sqKilosort.computeAllMeasures(fullfile(rootH, ks_output_dir));
 
 %save them for phy
-sqKilosort.metricsToPhy(fullfile(rootH, kfolder), cids, uQ, isiV, cR, histC);
+sqKilosort.metricsToPhy(fullfile(rootH, ks_output_dir), cids, uQ, isiV, cR, histC);
 
 end
