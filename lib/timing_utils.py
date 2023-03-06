@@ -84,7 +84,7 @@ def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
     #----------------------------------------------------------------------#
     #             Create Spike Time Vectors and Save in Matrix
     #----------------------------------------------------------------------#
-    cellbase_dir = session_path + 'cellbase/'
+    output_dir = session_path + 'preprocess_pipeline_output/'
     
     # Create a matrix with a row for each good cluster and all rows same length
     last_spike_in_sec = trodes_timestamps[-1] / fs
@@ -110,15 +110,15 @@ def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
         if save_individual_spiketrains:
             # save spike times
             spike_time_file = f'spike_times_in_sec_shank={probe_num}_clust={clust_i}.npy'
-            dump(spike_train, cellbase_dir + spike_time_file, compress=3)    
+            dump(spike_train, output_dir + spike_time_file, compress=3)    
         
         # register spikes in the spike matrix
         spiktime_ms_inds = np.round(spike_train * 1000).astype('int')
         spike_mat[i, spiktime_ms_inds] = 1
     
     results = {'spike_mat': spike_mat, 'row_cluster_id': good_clusters}
-    dump(results, cellbase_dir + 'spike_mat_in_ms.npy', compress=3)
-    print('\nSaved to ' + cellbase_dir)
+    dump(results, output_dir + 'spike_mat_in_ms.npy', compress=3)
+    print('\nSaved to ' + output_dir)
 
 
 def find_recording_gaps(timestamp_file, fs, max_ISI, save_dir):
@@ -150,7 +150,7 @@ def find_recording_gaps(timestamp_file, fs, max_ISI, save_dir):
     gaps = gaps[gaps > max_ISI]
     gaps_ts = gaps_ts[gaps > max_ISI]
     
-    # also save some info for later in cellbase folder
+    # also save some info for later in output folder
     results = {'gaps': gaps, 'gaps_ts': gaps_ts}
     gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
     dump(results, save_dir + gap_filename, compress=3)
@@ -178,7 +178,7 @@ def extract_TTL_events(session_path, gap_filename, save_dir):
     in the directory save_dir
     """
          
-    dio_path = '.'.join(session_path.split('.')[:-1]) + '.DIO/'
+    dio_path = '.'.join(session_path.split('.')[:-2]) + '.DIO/'
     
     # each analog MCU input pin will have its own .dat file
     dio_file_list = listdir(dio_path)
@@ -397,21 +397,21 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, behavior_mat_file):
     channel which serves as the basis for synchronization.
     """
 
-    cellbase_dir = session_dir + 'cellbase/'
+    output_dir = session_dir + 'preprocess_pipeline_output/'
     # --------------------------------------------------------------------- #
     # Trial start time recorded by the recording system (Neuralynx)
     # --------------------------------------------------------------------- #
     # Load converted TRODES event file 
     print('Grouping TTL events by trial and getting recorded trial start times...')
     try:
-        TTL_results = load(cellbase_dir + 'TTL_events.npy')
+        TTL_results = load(output_dir + 'TTL_events.npy')
     except:
         print('TTL_events.npy file not found.  Make sure the TTL events \n\
         have been extraced from the TRODES .DIO files.')
 
     trialwise_TTLs = group_codes_and_timestamps_by_trial(**TTL_results)
     
-    aligned_trialwise_TTLs, recorded_start_ts = align_TTL_events(trialwise_TTLs, save=(True, cellbase_dir))
+    aligned_trialwise_TTLs, recorded_start_ts = align_TTL_events(trialwise_TTLs, save=(True, output_dir))
     
     aligned_trialwise_TTLs, recorded_start_ts = remove_laser_trials(aligned_trialwise_TTLs, recorded_start_ts)
     
@@ -424,7 +424,7 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, behavior_mat_file):
     # Trial start in absolute time from the behavior control system
     # --------------------------------------------------------------------- #
     # Load trial events structure
-    session_data = loadmat(cellbase_dir + behavior_mat_file, simplify_cells=True)['SessionData']
+    session_data = loadmat(behavior_mat_file, simplify_cells=True)['SessionData']
     
     n_trials = session_data['nTrials']
     behav_start_ts = session_data['TrialStartTimestamp']
@@ -477,8 +477,8 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, behavior_mat_file):
     
     session_data['TrialStartAligned'] = recorded_start_ts
     
-    dump(session_data, cellbase_dir + 'TrialEvents.npy', compress=3)
-    print('Results saved to ' + cellbase_dir + 'TrialEvents.npy.')
+    dump(session_data, output_dir + 'TrialEvents.npy', compress=3)
+    print('Results saved to ' + output_dir + 'TrialEvents.npy.')
 
 
 
@@ -601,15 +601,15 @@ def shorten_session_data(session_data, n_trials):
 
 
     
-def calc_event_outcomes(cellbase_dir):
+def calc_event_outcomes(output_dir):
     """
     Creates additional useful fields in the session data (trial events).
 
-    :param cellbase_dir: [string] directory where TrialEvents.npy was saved.
+    :param output_dir: [string] directory where TrialEvents.npy was saved.
     :return: [None] Overwrites TrialEvents.npy
     """
     # Load the session data in TrialEvents.npy
-    _sd = load(cellbase_dir + 'TrialEvents.npy')
+    _sd = load(output_dir + 'TrialEvents.npy')
 
     WT_low_threshold = 0.  # Lower cut-off for waiting time turning all to NaN
     
@@ -883,17 +883,17 @@ def calc_event_outcomes(cellbase_dir):
             else:
                 _sd['RewardMagnitudeCorrect'][nt] = rewMagTrial[cd - 1]
 
-    dump(_sd, cellbase_dir + 'TrialEvents.npy', compress=3)
+    dump(_sd, output_dir + 'TrialEvents.npy', compress=3)
 
     print('Trial event conditions/outcomes calculated and added to TrialEvents.npy.')
 
 
-def create_behavioral_dataframe(cellbase_dir):
+def create_behavioral_dataframe(output_dir):
     """
     Create simpler copy of Trial Events to turn into pandas dataframe
     """
     # Load the session data in TrialEvents.npy
-    _sd = load(cellbase_dir + 'TrialEvents.npy')
+    _sd = load(output_dir + 'TrialEvents.npy')
 
     # Remove keys no longer needed for spiking data alignment
     n_keys_start = len(_sd.keys())
@@ -937,12 +937,12 @@ def create_behavioral_dataframe(cellbase_dir):
     if 'CompletedTrial' in behav_df.keys():
         behav_df.CompletedTrial = behav_df.CompletedTrial.astype('bool')
 
-    dump(behav_df, cellbase_dir + "behav_df", compress=3)
+    dump(behav_df, output_dir + "behav_df", compress=3)
 
-    print('Bahvaioral dataframe saved to: ' + cellbase_dir + "behav_df")
+    print('Bahvaioral dataframe saved to: ' + output_dir + "behav_df")
 
 
-def align_trialwise_spike_times_to_start(datapath, downsample_dt, TOY_DATA):
+def align_trialwise_spike_times_to_start(metadata, datapath, downsample_dt, TOY_DATA):
     if TOY_DATA:
         spike_mat = load(datapath + "toy_spikes.npy")
         behav_df = load(datapath + 'toy_behav_df')
@@ -954,7 +954,10 @@ def align_trialwise_spike_times_to_start(datapath, downsample_dt, TOY_DATA):
         behav_df = load(datapath + 'behav_df')
 
     # format entries of dataframe for analysis (e.g., int->bool)
-    cbehav_df = bu.convert_df(behav_df, session_type="SessionData", WTThresh=1, trim_last_trial=~TOY_DATA)
+    cbehav_df = bu.convert_df(behav_df,
+                              session_type="SessionData",
+                              WTThresh=metadata['time_investment'],
+                              trim_last_trial=~TOY_DATA)
 
 
     # align spike times to behavioral data timeframe
