@@ -30,7 +30,7 @@ probenum = '1';
 % ---------------------------------------------------------------------- %
 %            Program paths: change upon new installation
 % ---------------------------------------------------------------------- %
-KS_version = '3.0';  % 2.5 or 3.0 (4 coming soon hopefully!)
+KS_version = '2.5';  % 2.5 or 3.0 (4 coming soon hopefully!)
 
 docs_path = 'C:\Users\science person\Documents\';
 preprocessing_path = strcat(docs_path,'MATLAB\neuropixels_preprocessing\Kilosort\');
@@ -55,8 +55,7 @@ addpath(strcat(docs_path, 'npy-matlab-master'))
 pathToYourConfigFile = strcat(preprocessing_path, 'configFiles'); 
 
 % make chan map 
-chanMapFile = 'channelMap.mat';
-getChanMap(rootZ); %spikegadgets tool
+getChanMap(rootZ);  % spikegadgets tool that creates channelMap.mat
 
 % kilosort subfolder for KS output
 [~,ss] = fileparts(rootZ);
@@ -96,7 +95,7 @@ ops.NchanTOT  = 384; % total number of channels in your recording
 
 % proc file on a fast SSD
 ops.fproc   = fullfile(rootH, ks_output_dir, 'temp_wh.dat'); 
-ops.chanMap = fullfile(rootZ, chanMapFile);
+ops.chanMap = fullfile(rootZ, 'channelMap.mat');
 
 % main parameter changes from Kilosort2 to v2.5
 ops.sig        = 20;  % spatial smoothness constant for registration
@@ -108,27 +107,37 @@ ops.fshigh     = 300; % high-pass more aggresively
 %   5 is default set by KS
 ops.nblocks    = 5; 
 
-% main parameter changes from Kilosort2.5 to v3.0 - []
-ops.Th       = [9 9];
+% main parameter changes from Kilosort2.5 to v3.0 - default is [10 4]
+ops.Th       = [10 4];
 
 ops.fbinary = fullfile(rootZ, ksdatafolder, kfile);
 % ---------------------------------------------------------------------- %
+ops
 
 
 % ---------------------------------------------------------------------- %
 %                      Run Kilosort Algorithm
 % ---------------------------------------------------------------------- %
 % 1) preprocess data to create temp_wh.dat
+disp('------------------------------------------------------');
+disp('preprocessDataSub');
+disp('------------------------------------------------------');
 rez = preprocessDataSub(ops);
 
 % NEW STEP TO DO DATA REGISTRATION
 % last input is for shifting data
+disp('------------------------------------------------------');
+disp('datashift2');
+disp('------------------------------------------------------');
 rez = datashift2(rez, 1);
 
 if strcmp(KS_version, '2.5')
     % ORDER OF BATCHES IS NOW RANDOM, controlled by random number generator
     iseed = 1;
                      
+    disp('------------------------------------------------------');
+    disp('learnAndSolve8b');
+    disp('------------------------------------------------------');
     % 2) and 3) main tracking and template matching algorithm
     rez = learnAndSolve8b(rez, iseed);
     % check_rez(rez);
@@ -136,30 +145,60 @@ if strcmp(KS_version, '2.5')
     % OPTIONAL: remove double-counted spikes - solves issue in which 
     % individual spikes are assigned to multiple templates.
     % See issue 29: https://github.com/MouseLand/Kilosort/issues/29
+    disp('------------------------------------------------------');
+    disp('remove_ks2_duplicate_spikes');
+    disp('------------------------------------------------------');
     if remove_duplicates
         rez = remove_ks2_duplicate_spikes(rez);
     end
     
     % 4a) final merges
+    disp('------------------------------------------------------');
+    disp('find_merges');
+    disp('------------------------------------------------------');
     rez = find_merges(rez, 1);
     % check_rez(rez);
     
     % 4b) final splits by SVD
+    disp('------------------------------------------------------');
+    disp('splitAllClusters');
+    disp('------------------------------------------------------');
     rez = splitAllClusters(rez, 1);
     % check_rez(rez);
     
     % 4c) decide on cutoff
+    disp('------------------------------------------------------');
+    disp('set_cutoff');
+    disp('------------------------------------------------------');
     rez = set_cutoff(rez);
     % check_rez(rez);
     
     % 4d) eliminate widely spread waveforms (likely noise)
+    disp('------------------------------------------------------');
+    disp('get_good_units');
+    disp('------------------------------------------------------');
     rez.good = get_good_units(rez);
 
 elseif strcmp(KS_version, '3.0')
+    disp('------------------------------------------------------');
+    disp('extract_spikes');
+    disp('------------------------------------------------------');
     [rez, st3, tF]     = extract_spikes(rez);
+    disp('------------------------------------------------------');
+    disp('template_learning');
+    disp('------------------------------------------------------');
     rez                = template_learning(rez, tF, st3);
+    disp('------------------------------------------------------');
+    disp('trackAndSort');
+    disp('------------------------------------------------------');
     [rez, st3, tF]     = trackAndSort(rez);
+    disp('------------------------------------------------------');
+    disp('final_clustering');
+    disp('------------------------------------------------------');
     rez                = final_clustering(rez, tF, st3);
+    disp('------------------------------------------------------');
+    disp('final_merges');
+    disp('------------------------------------------------------');
     rez                = find_merges(rez, 1);
 end
 % ---------------------------------------------------------------------- %
@@ -220,4 +259,4 @@ save(fname, 'rez', '-v7.3');
 %save KS figures
 fname = fullfile(rootH,ks_output_dir);
 figHandles = get(0, 'Children');  
-saveFigPNG(fname,figHandles(end-2:end));
+saveFigPNG(fname, figHandles(end-2:end));
