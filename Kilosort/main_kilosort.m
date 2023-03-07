@@ -22,11 +22,13 @@ clc
 delete_previous_KS_run = false;
 remove_duplicates = true;
 
+combined_session = true;
+
 % the raw data binary file is in this folder CANT HAVE TRAILING SLASH
-raw_data_dir = 'Y:\NeuroData\Nina2\20210625_114657.rec';
+raw_data_dir = 'X:\Neurodata\Nina2\20210623_20210625';
 
 % path to temporary binary file (same size as data, should be on fast SSD)
-output_base = 'Y:\NeuroData\Nina2\20210625_114657.rec';
+output_base = 'X:\Neurodata\Nina2\20210623_20210625';
 probenum = '1';
 % ---------------------------------------------------------------------- %
 
@@ -58,24 +60,33 @@ addpath(strcat(docs_path, 'npy-matlab-master'))
 % take from Github folder and put it somewhere else (with master_file)
 config_file = fullfile([preprocessing_path, 'configFiles'], 'StandardConfig_384Kepecs.m');
 
-% make chan map 
-getChanMap(raw_data_dir);  % spikegadgets tool that creates channelMap.mat
-
 % kilosort subfolder containing Trodes binary data file (Trodes will make a
 % subfolder when exporting binary data file for kilosort)
-[~,ss] = fileparts(raw_data_dir);
-ks_data_folder = strcat(ss, '.kilosort');
-input_dir = fullfile(raw_data_dir, ks_data_folder);
-if ~isfolder(input_dir)
-    error('.kilosort directory not found. It should be exported from Trodes.')
+if combined_session
+    input_dir = fullfile(raw_data_dir, strcat('probe', probenum));
+    probe_binary_dat = 'combined.mat';
+
+    output_dir = fullfile(input_dir, strcat('kilosort', KS_version));
+else
+    % make chan map 
+    getChanMap(raw_data_dir);  % spikegadgets tool that creates channelMap.mat
+
+    [~,ss] = fileparts(raw_data_dir);
+    ks_data_folder = strcat(ss, '.kilosort');
+    input_dir = fullfile(raw_data_dir, ks_data_folder);
+    if ~isfolder(input_dir)
+        error('.kilosort directory not found. It should be exported from Trodes.')
+    end
+    
+    % binary dat file
+    probe_binary_dat = strcat(ss, '.probe', probenum, '.dat');
+
+    % subfolder for Kilosort output
+    ks_output_folder = strcat(ss, '.kilosort', KS_version, '_probe', probenum);
+    output_dir = fullfile(output_base, ks_output_folder);
 end
 
-% binary dat file
-probe_binary_dat = strcat(ss, '.probe', probenum, '.dat');
 
-% subfolder for Kilosort output
-ks_output_folder = strcat(ss, '.kilosort', KS_version, '_probe', probenum);
-output_dir = fullfile(output_base, ks_output_folder);
 if ~isfolder(output_dir), mkdir(output_dir), end
 
 % make config struct
@@ -262,6 +273,9 @@ save(fullfile(output_dir, 'spike_times.mat'), 'spikeTimes', '-v7.3');
 % save final results as rez2
 fprintf('Saving final results in rez2  \n')
 save(fullfile(output_dir, 'rez2.mat'), 'rez', '-v7.3');
+
+%save ops
+save(fullfile(output_dir, 'ops.mat'), 'ops', '-v7.3');
 
 %save KS figures
 figHandles = get(0, 'Children');  
