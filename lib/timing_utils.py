@@ -170,7 +170,7 @@ def extract_TTL_events(session_path, gap_filename, save_dir):
     
     Parameters
     ----------
-    fname is a .rec file (full path)
+    session_path is the .rec directory (full path)
     
     Saves
     -------
