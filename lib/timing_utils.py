@@ -77,7 +77,7 @@ def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
     cluster_label_df = pd.read_csv(session_path + 'cluster_info.tsv', sep="\t")
     
     # Phy cluster_id labelled as 'good'
-    good_clusters = cluster_label_df.cluster_id[cluster_label_df['group'] =='good']
+    good_clusters = cluster_label_df.cluster_id[cluster_label_df['group'] =='good'].to_numpy()
     #----------------------------------------------------------------------#
     
     

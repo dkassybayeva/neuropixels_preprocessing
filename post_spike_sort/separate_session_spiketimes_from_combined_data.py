@@ -61,7 +61,7 @@ if SEPARATE_SESSION_SPIKETIMES:
     # Phy curation table - find those curated as good
     # cluster_id corresponds to the key in cluster_spikes_dict
     cluster_label_df = pd.read_csv(combined_dir + 'cluster_group.tsv', sep="\t")
-    good_clusters = cluster_label_df.cluster_id[cluster_label_df['group'] == 'good']
+    good_clusters = cluster_label_df.cluster_id[cluster_label_df['group'] == 'good'].to_numpy()
 
     # load KS timestamps (these are indices in reality!) for each spike index
     spike_times_arr = h5py.File(combined_dir + 'spike_times.mat')['spikeTimes'][()][0]
