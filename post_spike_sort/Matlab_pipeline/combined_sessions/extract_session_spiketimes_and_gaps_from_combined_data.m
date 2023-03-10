@@ -5,23 +5,27 @@
 
 % TO Jan 2021
 
-kdrive = 'D:\Neurodata\';
-indrive1 = 'F:\Neurodata\';%'G:\';
-indrive2 = 'F:\Neurodata\';
+probe = 'probe1';
+KS_ver = 'kilosort2.5';
 
-rat = 'TQ03';
-session = '20210616_20210618';
+kdrive = 'X:\Neurodata\';
+indrive1 = 'D:\Neurodata\';
+indrive2 = 'D:\Neurodata\';
 
-session1 = '20210616_115352';
-session2 = '20210618_121836';
+rat = 'Nina2';
+session = '20210623_20210625';
+combined_dir = fullfile(kdrive, rat, session, probe, KS_ver);
+
+session1 = '20210623_121426';
+session2 = '20210625_114657';
 cellbase = 'cellbase1618';
 
 % load Trodes timestamps
-time_file1 = fullfile(indrive1, rat, session1, [session1 '.kilosort'], [session1 '.timestamps.dat']);%F:\TQ02\20210526_154733\20210526_154733.kilosort\20210526_154733.timestamps.dat';
-time_file2 = fullfile(indrive2, rat, session2, [session2 '.kilosort'], [session2 '.timestamps.dat']);
+time_file1 = fullfile(indrive1, rat, [session1 '.rec'], [session1 '.kilosort'], [session1 '.timestamps.dat']);%F:\TQ02\20210526_154733\20210526_154733.kilosort\20210526_154733.timestamps.dat';
+time_file2 = fullfile(indrive2, rat, [session2 '.rec'], [session2 '.kilosort'], [session2 '.timestamps.dat']);
 %behavior files
-behav_file1 = fullfile(indrive1, rat, session1, [session1 '.DIO']);%'F:\TQ02\20210526_154733\20210526_154733.DIO';
-behav_file2 = fullfile(indrive2, rat, session2, [session2 '.DIO']);
+behav_file1 = fullfile(indrive1, rat, [session1 '.rec'], [session1 '.DIO']);%'F:\TQ02\20210526_154733\20210526_154733.DIO';
+behav_file2 = fullfile(indrive2, rat, [session2 '.rec'], [session2 '.DIO']);
 
 shank = 1; % for using multiple probe shanks (NOT FULLY IMPLEMENTED!)
 
@@ -32,13 +36,13 @@ threshold = .001;% %flag any sampling gaps larger than 1 ms
 
 % Phy's clustering results have to be converted to mat file before
 %(cf convert_spikes.py)
-PhySpikes = load(fullfile(kdrive,rat,session,'spikes_per_cluster.mat'));
+PhySpikes = load(fullfile(combined_dir, 'spikes_per_cluster.mat'));
 
 % Phy curing table
-PhyLabels = tdfread(fullfile(kdrive,rat,session,'cluster_info.tsv'));
+PhyLabels = tdfread(fullfile(combined_dir, 'cluster_group.tsv'));
 
 % load KS timestamps (these are indices in reality!) for each spike index
-KSspiketimes = load(fullfile(kdrive,rat,session,'spike_times.mat')); 
+KSspiketimes = load(fullfile(combined_dir, 'spike_times.mat')); 
 KSspiketimes = KSspiketimes.spikeTimes;
 
 
@@ -52,16 +56,21 @@ Trodestimestamps2 = Ttime.fields.data; %>1GB variable for a 3h rec
 
 Trodestimestamps = [Trodestimestamps1; Trodestimestamps2 + last_time];
 
-% get index of good units and save *time* of spies
+% get index of good units and save *time* of spikes
 good_idx = find(all((PhyLabels.group(:,1:4)=='good'),2));
-good = PhyLabels.id( good_idx ); %Phy cluster id labelled as 'good'
+good = PhyLabels.cluster_id( good_idx ); %Phy cluster id labelled as 'good'
+
 if ~isfolder(fullfile(indrive1,rat,session2,cellbase))
     mkdir(fullfile(indrive1,rat,session1,cellbase));
     mkdir(fullfile(indrive2, rat, session2, cellbase));
 end
-PhyLabels.cellbase_name = cell(length(PhyLabels.id),1);
+
+PhyLabels.cellbase_name = cell(length(PhyLabels.cluster_id),1);
+
 for k =1:length(good)
     Sind = PhySpikes.(['f',num2str(good(k))]); %spike index per cluster
+
+    % The +1's here convert from python 0 start index to Matlab 1 start idx
     KStime = KSspiketimes(Sind+1); %spike index to time index
     SpikeTimes = Trodestimestamps(KStime + 1); %time index to time in Trodes format (this accounts for potential lost packages/data in Trodes)
     
