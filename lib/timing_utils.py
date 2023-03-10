@@ -95,17 +95,22 @@ def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
     for i, clust_i in enumerate(good_clusters):
         print(f'{i+1} / {len(good_clusters)}\r', flush=True, end='')
         
-        # spike indices of cluster
-        clust_spike_idx = cluster_spikes_dict[clust_i]  
+        # cluster's spike indices in the full KS spike_times_arr
+        clust_spike_idx = cluster_spikes_dict[clust_i]
         
-        # spike index to KiloSort time index
-        clust_spike_times = spike_times_arr[clust_spike_idx]  
+        # use the indices to find the corresponding Trode samples
+        clust_spike_sample_idx = spike_times_arr[clust_spike_idx]
     
-        # KiloSort time index to sample index in Trodes
-        global_spike_times = trodes_timestamps[clust_spike_times] 
+        # Convert relative spike sample indices to global sample indices.
+        # Because Trodes timestamps are supposed to be just consecutive integers,
+        # the same could be achieved potentially by simply adding trodes_timestamps[0]
+        # to clust_spike_sample_idx, but there are sometimes missing samples, such that
+        # the sample numbers aren't always consecutive.
+        # To be safe, index the Trodes samples in this way.
+        global_clust_spike_sample_idx = trodes_timestamps[clust_spike_sample_idx]
         
         # Trodes saves timestamp as index in sampling frequency
-        spike_train = global_spike_times / fs  # actual spike times in seconds
+        spike_train = global_clust_spike_sample_idx / fs  # actual spike times in seconds
          
         if save_individual_spiketrains:
             # save spike times
