@@ -30,26 +30,17 @@ from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedData
 rat = 'Nina2'
 probe = 'probe1'
 KS_version = 'kilosort2.5'
+combined_session = '20210623_20210625'
 fs = 30e3  # sampling frequency in Hz
 # ----------------------------------------------------------------------- #
 
 
 # ----------------------------------------------------------------------- #
-combined_session = '20210623_20210625'
-
 combined_dir = f'X:NeuroData/{rat}/{combined_session}/{probe}/{KS_version}/'
 
-"""
-# Phy's clustering results have to be converted to mat file before
-# PhySpikes = load(fullfile(kdrive,rat,session,'spikes_per_cluster.mat'))
-"""
 # Phy's clustering results
 cluster_spikes_dict = load(combined_dir + '.phy/spikes_per_cluster.pkl')
 
-"""
-# Phy curing table
-PhyLabels = tdfread(fullfile(kdrive,rat,session, 'cluster_info.tsv'))
-"""
 # Phy curing table (cluster metadata)
 # index corresponds to the key in cluster_spikes_dict,
 # i.e., cluster_spikes_dict[n].size==cluster_label_df.iloc[n]['n_spikes']
@@ -57,11 +48,6 @@ cluster_label_df = pd.read_csv(combined_dir + 'cluster_group.tsv', sep="\t")
 # Phy cluster_id labelled as 'good'
 good_clusters = cluster_label_df.cluster_id[cluster_label_df['group'] == 'good']
 
-"""
-# # load KS timestamps (these are indices in reality!) for each spike index
-# KSspiketimes = load(fullfile(kdrive,rat,session,'spike_times.mat'))
-# KSspiketimes = KSspiketimes.spikeTimes
-"""
 # load KS timestamps (these are indices in reality!) for each spike index
 spike_times_arr = h5py.File(combined_dir + 'spike_times.mat')['spikeTimes'][()][0]
 
