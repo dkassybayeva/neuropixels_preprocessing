@@ -138,8 +138,80 @@ if FIND_COMMON_UNITS:
     DATA_DIR = f'/home/mud/Workspace/ott_neuropix_data/'
     SESSION_DIR = DATA_DIR + f'{rat}/' + '{}/{}' + f'.{KS_version}_{probe}'
     PREPROCESS_DIR = SESSION_DIR + '/preprocessing_output/'
-    spike_mat_str = f'spike_mat_in_ms_{rat}_' + '{}' + f'_{probe}_from_combined_data.npy'
+    spike_mat_str_indiv = f'spike_mat_in_ms.npy'
+    spike_mat_str_comb = f'spike_mat_in_ms_{rat}_' + '{}' + f'_{probe}_from_combined_data.npy'
 
-    spike_mat_sesh1 = load(PREPROCESS_DIR.format(session1, session1) + spike_mat_str.format(session1))['spike_mat']
+    def load_spike_mat_and_row_labels(session, filename):
+        session_data = load(PREPROCESS_DIR.format(session, session) + filename)
+        spike_mat = session_data['spike_mat']
+        unit_list = session_data['row_cluster_id']
+        assert spike_mat.shape[0] == len(unit_list)
+
+        return spike_mat, unit_list, len(unit_list)
+
+    spike_mat_sesh1_indiv, units_sesh1_indiv, n_indiv = load_spike_mat_and_row_labels(session1, spike_mat_str_indiv)
+    spike_mat_sesh1_common, units_sesh1_common, n_common = load_spike_mat_and_row_labels(session1, spike_mat_str_comb.format(session1))
+
+    """
+    Iterate through each row of the common data (which will, in practice, contain fewer 'good' units)
+    and look for a spike train that is 'similar' to the common unit spike train.  It is very unlikely, if not 
+    impossible, that Kilosort will come up with the same waveform template for the spikes of a unit in one session
+    as it does for a single session, meaning that different spike times may be matched, depending on the template.
+    
+    Therefore, some tolerance needs to be set here:
+        - what is the temporal precision?
+        - what percentage of matched spikes needs to be found in the individual session?
+        
+    It is likely that, if each session has a different template being applied to the same spikes of a given unit,
+    the spike times registered by one template would have a constant offset from the spike times registered by the other.
+    A good measure might be correlation for this, which would show a peak at or around tau=0.  If the correlation
+    at any lag is then greater than some threshold, the units are considered to be the same.
+    
+    First, filter out units which have very different firing rates (sum of spikes) to reduce the computational load.
+    Also, make sure to normalize the spike trains, otherwise the correlation peak will be too dependent on spike number.
+    """
+    raise NotImplementedError
+
+    # @TODO: TEST that this is the correct axis
+    n_common_spikes = spike_mat_sesh1_common.sum(axis=1)
+    n_indiv_spikes = spike_mat_sesh1_indiv.sum(axis=1)
+    assert n_common_spikes.size == n_common
+    assert n_indiv_spikes.size == n_indiv
+    n_spikes_tol = 1e3  # allow the number of spikes to be different by n_spikes_tol
+
+    # @TODO: convolve all trains with some Gaussian before the loop
+    spike_mat_sesh1_common_convolved = None
+    spike_mat_sesh1_indiv_convolved = None
+    assert spike_mat_sesh1_indiv_convolved and spike_mat_sesh1_indiv_convolved
+    temporal_precision = 10  # ms; window around tau=0 within which the correlation peak should exceed some threshold
+    half_temp = int(0.5 * temporal_precision)
+    fraction_threshold = 0.9  # the peak of the correlation should exceed 0.9 of the number of spikes in reference train
+
+    candidate_units_sesh1 = np.empty(n_common, dtype='numpy.nan')
+
+    # st = spiketrain
+    for st_i, common_spiketrain in enumerate(spike_mat_sesh1_common_convolved):
+        n_common_spikes[st_i]
+        correlation_arr = np.zeros(n_indiv)
+        for st_j, indiv_spiketrain in enumerate(spike_mat_sesh1_indiv_convolved):
+            if np.abs(n_indiv_spikes[st_j] - n_common_spikes[st_i]) > n_spikes_tol:
+                continue
+            _corr_st = np.correlate(common_spiketrain, indiv_spiketrain, mode='same')
+            # @TODO: test normalization
+            _corr_st /= (n_indiv_spikes[st_j] * n_common_spikes[st_i])
+
+            # take maximum around tau=0 lag @TODO: test that mid_lag is actually around tau=0
+            win_of_interest = _corr_st[mid_lag - half_temp:mid_lag + half_temp]
+            correlation_arr[st_j] = win_of_interest.max()
+
+        # the most similar unit is the
+        if correlation_arr.max() > fraction_threshold:
+            candidate_units_sesh1[st_i] = np.argmax(correlation_arr)
+
+
+    # @TODO: now do the same thing for the second session
+
+    # @TODO: then see if there are any units that have non-NaN values in both candidate_units_sesh1 and candidate_units_sesh2
+    # @TODO: if so, then save these mappings, which connect the unit # in session 1 with the unit # in session 2
 
 # ---------------------------------------------------------------------------------------------------------- #
