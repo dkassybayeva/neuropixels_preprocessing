@@ -170,14 +170,16 @@ if FIND_COMMON_UNITS:
     First, filter out units which have very different firing rates (sum of spikes) to reduce the computational load.
     Also, make sure to normalize the spike trains, otherwise the correlation peak will be too dependent on spike number.
     """
-    raise NotImplementedError
 
-    # @TODO: TEST that this is the correct axis
     n_common_spikes = spike_mat_sesh1_common.sum(axis=1)
-    n_indiv_spikes = spike_mat_sesh1_indiv.sum(axis=1)
     assert n_common_spikes.size == n_common
+
+    n_indiv_spikes = spike_mat_sesh1_indiv.sum(axis=1)
     assert n_indiv_spikes.size == n_indiv
+
     n_spikes_tol = 1e3  # allow the number of spikes to be different by n_spikes_tol
+
+    raise NotImplementedError
 
     # @TODO: convolve all trains with some Gaussian before the loop
     spike_mat_sesh1_common_convolved = None
