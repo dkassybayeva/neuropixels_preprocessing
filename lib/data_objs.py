@@ -205,6 +205,7 @@ class DataContainer:
                 yield tr
 
     def to_pickle(self, remove_old=False):
+        print('Saving...', end='')
         if remove_old:
             print("warning, deleting all old obj files")
             trace_files = glob.glob(self.dat_path+"*traces_dict.pkl")
@@ -240,6 +241,7 @@ class DataContainer:
                                }
 
             pickle.dump(persistent_info, f)
+        print('Done.')
 
     def get_feature_df(self, alignment='reward',
                              variables=['rewarded'],
@@ -398,5 +400,6 @@ def create_experiment_data_object(datapath, metadata, trialwise_binned_mat, cbeh
                                                filter_by_trial_num=False,
                                                traces_aligned="TrialStart")
 
+    print('Creating data object...', end='')
     # create and save data object
     TwoAFC(datapath, cbehav_df, traces_dict, metadata=metadata, cluster_labels=[]).to_pickle(remove_old=False)

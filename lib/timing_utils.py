@@ -944,7 +944,7 @@ def create_behavioral_dataframe(output_dir):
 
     dump(behav_df, output_dir + "behav_df", compress=3)
 
-    print('Bahvaioral dataframe saved to: ' + output_dir + "behav_df")
+    print('Behavioral dataframe saved to: ' + output_dir + "behav_df")
 
 
 def align_trialwise_spike_times_to_start(metadata, datapath, downsample_dt, TOY_DATA):
