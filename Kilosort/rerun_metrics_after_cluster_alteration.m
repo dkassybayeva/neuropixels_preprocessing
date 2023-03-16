@@ -28,4 +28,6 @@ if isfolder(fullfile(rootH, ks_output_dir)) % only run for existing data
 %save them for phy
 sqKilosort.metricsToPhy(fullfile(rootH, ks_output_dir), cids, uQ, isiV, cR, histC);
 
+disp('Done.')
+
 end

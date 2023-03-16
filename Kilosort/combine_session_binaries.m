@@ -13,7 +13,7 @@ clc
 %                           Input Paths
 % ------------------------------------------------------------------- %
 % raw binary dat files to combine (SSD or HHD)
-base_dir = {'D:\NeuroData\Nina2\', 'Y:\NeuroData\Nina2\'};
+base_dir = {'D:\NeuroData\Nina2\', 'D:\NeuroData\Nina2\'};
 sessions = {'20210623_121426', '20210625_114657'};
 probe_num = '1';
 

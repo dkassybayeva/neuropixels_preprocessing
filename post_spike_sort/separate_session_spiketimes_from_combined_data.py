@@ -57,6 +57,11 @@ spike_times_arr = h5py.File(combined_dir + 'spike_times.mat')['spikeTimes'][()][
 # ----------------------------------------------------------------------- #
 
 
+print('------------------------------------------------------------')
+print('      Separating Session Spiketimes from Combined Data      ')
+print('------------------------------------------------------------')
+
+
 # ----------------------------------------------------------------------- #
 def load_session_timestamps(session):
     session_base_dir = path.join(neurodata_dir, rat, session + '.rec')

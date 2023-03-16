@@ -110,25 +110,25 @@ copyfile(curr_script_path, ops.main_kilosort_script);
 % ---------------------------------------------------------------------- %
 run(config_file)
 
-ops.trange    = [0 Inf]; % time range to sort
-ops.NchanTOT  = 384; % total number of channels in your recording
+ops.trange = [0 Inf]; % time range to sort
+ops.NchanTOT = 384; % total number of channels in your recording
 
 % proc file on a fast SSD
-ops.fproc   = fullfile(output_dir, 'temp_wh.dat'); 
+ops.fproc = fullfile(output_dir, 'temp_wh.dat'); 
 ops.chanMap = fullfile(raw_data_dir, 'channelMap.mat');
 
 % main parameter changes from Kilosort2 to v2.5
-ops.sig        = 20;  % spatial smoothness constant for registration
-ops.fshigh     = 300; % high-pass more aggresively
+ops.sig = 20;  % spatial smoothness constant for registration
+ops.fshigh = 300; % high-pass more aggresively
 
 %   Blocks for registration (Replaces "datashift" option)
 %   0 turns it off
 %   1 does rigid registration
 %   5 is default set by KS
-ops.nblocks    = 5; 
+ops.nblocks = 1;
 
 % main parameter changes from Kilosort2.5 to v3.0 - default is [10 4]
-ops.Th       = [10 4];
+ops.Th = [9 9];
 
 ops.fbinary = fullfile(input_dir, probe_binary_dat);
 % ---------------------------------------------------------------------- %
@@ -280,3 +280,7 @@ save(fullfile(output_dir, 'ops.mat'), 'ops', '-v7.3');
 %save KS figures
 figHandles = get(0, 'Children');  
 saveFigPNG(output_dir, figHandles(end-2:end));
+
+fprintf('\n');
+disp('-----> End program.');
+disp('------------------------------------------------------');
