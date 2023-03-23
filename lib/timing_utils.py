@@ -84,7 +84,7 @@ def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
     #----------------------------------------------------------------------#
     #             Create Spike Time Vectors and Save in Matrix
     #----------------------------------------------------------------------#
-    output_dir = session_path + 'preprocess_pipeline_output/'
+    output_dir = session_path + 'preprocessing_output/'
     
     # Create a matrix with a row for each good cluster and all rows same length
     last_spike_in_sec = trodes_timestamps[-1] / fs
@@ -115,7 +115,7 @@ def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
         if save_individual_spiketrains:
             # save spike times
             spike_time_file = f'spike_times_in_sec_shank={probe_num}_clust={clust_i}.npy'
-            dump(spike_train, output_dir + spike_time_file, compress=3)    
+            dump(spike_train, output_dir + 'spike_times/' + spike_time_file, compress=3)
         
         # register spikes in the spike matrix
         spiktime_ms_inds = np.round(spike_train * 1000).astype('int')

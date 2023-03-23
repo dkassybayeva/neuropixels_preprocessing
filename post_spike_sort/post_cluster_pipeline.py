@@ -20,15 +20,15 @@ max_ISI = 0.001  # max intersample interval (ISI), above which the period
                  # was considered a "gap" in the recording
 trace_subsample_bin_size_ms = 25  # sample period in ms
 sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of aligned traces
-SAVE_INDIVIDUAL_SPIKETRAINS = False
+SAVE_INDIVIDUAL_SPIKETRAINS = True
 recording_session_id = 0
 
 #----------------------------------------------------------------------#
 #                           PATHS
 #----------------------------------------------------------------------#
-DATAPATH = 'Y:/Neurodata'
+DATAPATH = 'D:/Neurodata'
 rat_name = 'Nina2'
-date = '20210625_114657'
+date = '20210623_121426' # '20210625_114657'
 probe_num = 1
 
 # kilosort directory
@@ -48,8 +48,10 @@ if TOY_DATA:
     session_path = session_path + 'toybase/'
     output_dir = session_path
 else:
-    output_dir = session_path + 'preprocess_pipeline_output/'
+    output_dir = session_path + 'preprocessing_output/'
     ou.make_dir_if_nonexistent(output_dir)
+    if SAVE_INDIVIDUAL_SPIKETRAINS:
+        ou.make_dir_if_nonexistent(output_dir + 'spike_times/')
 #----------------------------------------------------------------------#
 
 
