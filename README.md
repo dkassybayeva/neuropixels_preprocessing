@@ -7,7 +7,7 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 
 2) Open Trodes. From the main menu select Open Playback File, and browse to your desired .rec file.
 
-3) File -> extract -> analgio, dio, kilosort, “start”. This takes a few hours to run on an SSD and overnight on an HDD.  This will result in new folders in the same directory as the .rec file, one for DIO, analog, and kilosort, each containing their respective .dat files.
+3) File -> extract -> analogio, dio, kilosort, “start”. This takes a few hours to run on an SSD and overnight on an HDD.  This will result in new folders in the same directory as the .rec file, one for DIO, analog, and kilosort, each containing their respective .dat files.
 
 4) After double checking the backup of the .rec file is still on the server (and correct size etc.), delete the local copy to save space. 
 
@@ -17,13 +17,13 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 
 6) Open anaconda powershell, and change directory to the Kilosort (KS) output directory
 
-7) Start the phy anaconda environment (conda activate phy2)
+7) Start the phy anaconda environment (e.g., conda activate phy)
 
 8) Start phy for clustering (phy template-gui params.py)
 
 9) Cluster manually
 
-	a) Keyboard shortcuts to remember: alt + g labels a spike as good, alt + m labels it as bad, and :merge merges together all the selected clusters. 
+	a) Keyboard shortcuts to remember: alt + g labels a spike as good, alt + m labels it as bad, and :merge merges together all the selected clusters. In FeatureView, CTRL+LeftClick to encircle points and then press K to split them.
 	
 	b) We prefilter with the following stats: fr > 0.5 & Amplitude > 700 & KSLabel == ‘good’ & ISIv < 3
 	
