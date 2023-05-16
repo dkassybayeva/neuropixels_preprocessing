@@ -47,14 +47,15 @@ You must edit the file paths in the script(s). It’s good for the temporary fil
 
 ## After Clustering (scripts in post\_spike\_sort/ directory):
 
-## Single Session:
+### Single Session:
 
-### Python-only:
+#### Python-only:
 
 - Copy relevant behavior file (BPod session file, e.g., [subject]\_[protocol]\_[monthDay]\_[year]\_Session[#].mat) to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
 - open post\_cluster\_pipeline.py, change the relevant variables and paths up to the PIPELINE heading, and run it. 
+- \[OPTIONAL\] Run post\_spike\_sort/extract\_waveforms.py. (This step is required to compare neurons when validating stitched sessions.)
 
-### With Matlab (Matlab\_pipline/):
+#### With Matlab (Matlab\_pipline/):
 
 - Copy convert_spikes_pkl_to_mat_file.py from this repository to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
 and run it (e.g., cmd: python convert_spikes.py) **-> spikes_per_cluster.mat**
@@ -84,7 +85,6 @@ and run it (e.g., cmd: python convert_spikes.py) **-> spikes_per_cluster.mat**
     - aligns the spiking and behavioral data to different events (e.g., trial start vs response start)
     - collects all data (including spiking and behavioral data [now pandas DataFrame]) into a DataContainer object specific to the experiment type (e.g., 2AFC) and saves the entire object using pickle
 
-## Stitching Sessions
+### Stitching Sessions
 
-- Run post\_spike\_sort/separate\_session\_spiketimes\_from\_combined\_data.py.
-- Run post\_spike\_sort/extract\_waveforms.py.
+- Run post\_spike\_sort/separate\_session\_spiketimes\_from\_combined\_data.py (requires curated Phy cluster\_group.tsv file in the combined data folder).
