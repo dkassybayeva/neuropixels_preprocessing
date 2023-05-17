@@ -21,10 +21,11 @@ waveform_len = length(waveform_win);
 %----------------------------------------------------------------------%
 %                           PATHS
 %----------------------------------------------------------------------%
-DATAPATH = 'D:\Neurodata';
-rat = 'Nina2';
-folder = '20210625_114657.rec';
-session = '20210625_114657';
+DATAPATH = 'Y:\Neurodata';
+rat = 'R1';
+session = '20230507_123146';
+folder = strcat(session, '.rec');
+
 kfolder = [char(".kilosort2.5_probe" + string(probenum))];
 
 rec_file_path = fullfile(DATAPATH, rat, folder);
@@ -86,7 +87,7 @@ KSspiketimes = KSspiketimes.spikeTimes;
 good_idx = find(all((PhyLabels.group(:,1:4)=='good'),2)); % row # of 'good'
 good = PhyLabels.cluster_id( good_idx ); %Phy cluster_id labelled as 'good'
 
-cellbase_dir = fullfile(session_path, 'waveforms');
+cellbase_dir = fullfile(session_path, 'preprocessing_output/waveforms');
 if ~isfolder(cellbase_dir)
     mkdir(cellbase_dir)
 end
