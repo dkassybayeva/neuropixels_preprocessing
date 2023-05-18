@@ -31,14 +31,14 @@ from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedData
 # ----------------------------------------------------------------------- #
 #                           Session Info
 # ----------------------------------------------------------------------- #
-rat = 'Nina2'
+rat = 'R1'
 probe = 'probe1'
 KS_version = 'kilosort2.5'
-session1 = '20210623_121426'
-session2 = '20210625_114657'
-combined_session = '20210623_20210625'
-neurodata_dir = 'D:/Neurodata'
-combined_dir = f'X:NeuroData/{rat}/{combined_session}/{probe}/{KS_version}/'
+session1 = '20230506_152707'
+session2 = '20230507_123146'
+combined_session = '20230506_20230507'
+neurodata_dir = ['D:Neurodata', 'Y:NeuroData']
+combined_dir = f'D:Neurodata/{rat}/{combined_session}/{probe}/{KS_version}/'
 fs = 30e3  # sampling frequency in Hz
 # ----------------------------------------------------------------------- #
 
@@ -63,8 +63,8 @@ print('------------------------------------------------------------')
 
 
 # ----------------------------------------------------------------------- #
-def load_session_timestamps(session):
-    session_base_dir = path.join(neurodata_dir, rat, session + '.rec')
+def load_session_timestamps(session, session_dir):
+    session_base_dir = path.join(session_dir, rat, session + '.rec')
     timestamps_dat = path.join(session_base_dir, session + '.kilosort', session + '.timestamps.dat')
     trodes_timestamps = get_Trodes_timestamps(timestamps_dat)
     last_sample_sesh = trodes_timestamps[-1]  # last_sample_sesh1/fs = time [sec] of the last recorded Trodes sample
@@ -73,8 +73,8 @@ def load_session_timestamps(session):
     return trodes_timestamps, last_sample_sesh, last_spike_sesh_ms
 
 
-trodes_timestamps_1, last_sample_sesh1, last_spike_sesh1_ms = load_session_timestamps(session1)
-trodes_timestamps_2, last_sample_sesh2, last_spike_sesh2_ms = load_session_timestamps(session2)
+trodes_timestamps_1, last_sample_sesh1, last_spike_sesh1_ms = load_session_timestamps(session1, neurodata_dir[0])
+trodes_timestamps_2, last_sample_sesh2, last_spike_sesh2_ms = load_session_timestamps(session2, neurodata_dir[1])
 combined_timestamps = np.concatenate((trodes_timestamps_1, trodes_timestamps_2 + last_sample_sesh1))
 # ----------------------------------------------------------------------- #
 
