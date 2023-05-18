@@ -91,7 +91,6 @@ SESSION_DIR = REC_PATH + f'.kilosort{kilosort_ver}_probe{probe}/'
 PREPROCESS_DIR = SESSION_DIR + 'preprocessing_output/'
 assert path.exists(PREPROCESS_DIR)
 
-spike_mat_str_indiv = f'spike_mat_in_ms.npy'
 # location of Trodes timestamps (in the kilosort folder of first probe)
 timestamps_dat = REC_PATH + f'.kilosort/{session1}.timestamps.dat'
 
@@ -110,5 +109,4 @@ if STITCH_SESSIONS:
     PREPROCESS_DIR2 = SESSION_DIR2 + 'preprocessing_output/'
 
     STITCH_DIR = STITCH_DAT_DIR + f'{combined_session}/probe{probe}/kilosort{kilosort_ver}/'
-    spike_mat_str_comb = f'spike_mat_in_ms_R{rat}_' + '{}' + f'_probe{probe}_from_combined_data.npy'
 # ----------------------------------------------------------------------- #
