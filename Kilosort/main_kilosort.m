@@ -24,11 +24,17 @@ remove_duplicates = true;
 
 combined_session = true;
 
+if combined_session
+    session_rec = '20230506_20230507';
+else
+    session_rec = '20230507_123146.rec';
+end
+
 % the raw data binary file is in this folder CANT HAVE TRAILING SLASH
-raw_data_dir = 'X:\Neurodata\Nina2\20210623_20210625';
+raw_data_dir = strcat('D:\Neurodata\R1\', session_rec);
 
 % path to temporary binary file (same size as data, should be on fast SSD)
-output_base = 'X:\Neurodata\Nina2\20210623_20210625';
+output_base = strcat('D:\Neurodata\R1\', session_rec);
 probenum = '1';
 % ---------------------------------------------------------------------- %
 

@@ -74,3 +74,7 @@ if exist(ops.fbinary,'file') ~= 2  % don't overwrite previous attempts
 end
 
 save(fullfile(combined_dat_folder, 'combined_ops.mat'), 'ops', '-v7.3');
+
+fprintf('\n');
+disp('-----> End program.');
+disp('------------------------------------------------------');
