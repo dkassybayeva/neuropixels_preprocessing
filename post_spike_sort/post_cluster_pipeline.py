@@ -95,14 +95,14 @@ metadata['behavior_phase'] = -1
 #                           PIPELINE                                   #
 #----------------------------------------------------------------------#
 if not TOY_DATA:
-    tu.create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
+    tu.create_spike_mat(session_path, output_dir, timestamp_file, date, probe_num, fs,
                         save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
 
     gap_filename = tu.find_recording_gaps(timestamp_file, fs, max_ISI, output_dir)
 
     tu.extract_TTL_events(session_path, gap_filename, save_dir=output_dir)
 
-    tu.add_TTL_trial_start_times_to_behav_data(session_path, behavior_mat_file)
+    tu.add_TTL_trial_start_times_to_behav_data(session_path, output_dir, behavior_mat_file)
 
     tu.calc_event_outcomes(output_dir)
 

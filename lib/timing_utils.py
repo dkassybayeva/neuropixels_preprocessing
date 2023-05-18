@@ -19,8 +19,8 @@ from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedData
 import neuropixels_preprocessing.lib.trace_utils as trace_utils
 import neuropixels_preprocessing.lib.behavior_utils as bu
 
-def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
-                     save_individual_spiketrains):
+def create_spike_mat(session_path, output_dir, timestamp_file, date, probe_num,
+                     fs, save_individual_spiketrains):
     """
     Make spiking matrix (and optionally individual spike time vectors, or 
     spike trains) for single unit recordings from Neuropixels & Trodes, 
@@ -84,7 +84,6 @@ def create_spike_mat(session_path, timestamp_file, date, probe_num, fs,
     #----------------------------------------------------------------------#
     #             Create Spike Time Vectors and Save in Matrix
     #----------------------------------------------------------------------#
-    output_dir = session_path + 'preprocessing_output/'
     
     # Create a matrix with a row for each good cluster and all rows same length
     last_spike_in_sec = trodes_timestamps[-1] / fs
@@ -381,7 +380,7 @@ def remove_laser_trials(trialwise_TTLs, start_times, laser_TTL=526):
     return trialwise_TTLs, start_times
 
 
-def add_TTL_trial_start_times_to_behav_data(session_dir, behavior_mat_file):
+def add_TTL_trial_start_times_to_behav_data(session_dir, output_dir, behavior_mat_file):
     """
     Synchronize trial events to recording times.
     
@@ -402,7 +401,6 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, behavior_mat_file):
     channel which serves as the basis for synchronization.
     """
 
-    output_dir = session_dir + 'preprocess_pipeline_output/'
     # --------------------------------------------------------------------- #
     # Trial start time recorded by the recording system (Neuralynx)
     # --------------------------------------------------------------------- #
@@ -413,6 +411,7 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, behavior_mat_file):
     except:
         print('TTL_events.npy file not found.  Make sure the TTL events \n\
         have been extraced from the TRODES .DIO files.')
+        return
 
     trialwise_TTLs = group_codes_and_timestamps_by_trial(**TTL_results)
     
