@@ -25,35 +25,21 @@ from joblib import load, dump
 
 from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 \
     import get_Trodes_timestamps
-# ----------------------------------------------------------------------- #
-
-
-# ----------------------------------------------------------------------- #
-#                           Session Info
-# ----------------------------------------------------------------------- #
-rat = 'R1'
-probe = 'probe1'
-KS_version = 'kilosort2.5'
-session1 = '20230506_152707'
-session2 = '20230507_123146'
-combined_session = '20230506_20230507'
-neurodata_dir = ['D:Neurodata', 'Y:NeuroData']
-combined_dir = f'D:Neurodata/{rat}/{combined_session}/{probe}/{KS_version}/'
-fs = 30e3  # sampling frequency in Hz
+from neuropixels_preprocessing.session_params import *
 # ----------------------------------------------------------------------- #
 
 
 # ----------------------------------------------------------------------- #
 # Phy's clustering results
-cluster_spikes_dict = load(combined_dir + '.phy/spikes_per_cluster.pkl')
+cluster_spikes_dict = load(STITCH_DIR + '.phy/spikes_per_cluster.pkl')
 
 # Phy curation table - find those curated as good
 # cluster_id corresponds to the key in cluster_spikes_dict
-cluster_label_df = pd.read_csv(combined_dir + 'cluster_group.tsv', sep="\t")
+cluster_label_df = pd.read_csv(STITCH_DIR + 'cluster_group.tsv', sep="\t")
 good_clusters = cluster_label_df.cluster_id[cluster_label_df['group'] == 'good'].to_numpy()
 
 # load KS timestamps (these are indices in reality!) for each spike index
-spike_times_arr = h5py.File(combined_dir + 'spike_times.mat')['spikeTimes'][()][0]
+spike_times_arr = h5py.File(STITCH_DIR + 'spike_times.mat')['spikeTimes'][()][0]
 # ----------------------------------------------------------------------- #
 
 
@@ -64,8 +50,7 @@ print('------------------------------------------------------------')
 
 # ----------------------------------------------------------------------- #
 def load_session_timestamps(session, session_dir):
-    session_base_dir = path.join(session_dir, rat, session + '.rec')
-    timestamps_dat = path.join(session_base_dir, session + '.kilosort', session + '.timestamps.dat')
+    timestamps_dat = path.join(session_dir + '.kilosort', session + '.timestamps.dat')
     trodes_timestamps = get_Trodes_timestamps(timestamps_dat)
     last_sample_sesh = trodes_timestamps[-1]  # last_sample_sesh1/fs = time [sec] of the last recorded Trodes sample
     last_spike_sesh_ms = int(np.ceil(last_sample_sesh / fs * 1000))
@@ -73,8 +58,8 @@ def load_session_timestamps(session, session_dir):
     return trodes_timestamps, last_sample_sesh, last_spike_sesh_ms
 
 
-trodes_timestamps_1, last_sample_sesh1, last_spike_sesh1_ms = load_session_timestamps(session1, neurodata_dir[0])
-trodes_timestamps_2, last_sample_sesh2, last_spike_sesh2_ms = load_session_timestamps(session2, neurodata_dir[1])
+trodes_timestamps_1, last_sample_sesh1, last_spike_sesh1_ms = load_session_timestamps(session1, REC_PATH)
+trodes_timestamps_2, last_sample_sesh2, last_spike_sesh2_ms = load_session_timestamps(session2, REC_PATH2)
 combined_timestamps = np.concatenate((trodes_timestamps_1, trodes_timestamps_2 + last_sample_sesh1))
 # ----------------------------------------------------------------------- #
 
@@ -120,9 +105,9 @@ for i, clust_i in enumerate(good_clusters):
     spike_mat_sesh2[i, spiktime_ms_inds_sesh2] = 1
 
 results = {'spike_mat': spike_mat_sesh1, 'row_cluster_id': good_clusters}
-dump(results, combined_dir + f'spike_mat_in_ms_{rat}_{session1}_{probe}_from_combined_data.npy', compress=3)
+dump(results, STITCH_DIR + f'spike_mat_in_ms_{rat}_{session1}_{probe}_from_combined_data.npy', compress=3)
 
 results = {'spike_mat': spike_mat_sesh2, 'row_cluster_id': good_clusters}
-dump(results, combined_dir + f'spike_mat_in_ms_{rat}_{session2}_{probe}_from_combined_data.npy', compress=3)
-print('\nSaved to ' + combined_dir)
+dump(results, STITCH_DIR + f'spike_mat_in_ms_{rat}_{session2}_{probe}_from_combined_data.npy', compress=3)
+print('\nSaved to ' + STITCH_DIR)
 # ----------------------------------------------------------------------- #
