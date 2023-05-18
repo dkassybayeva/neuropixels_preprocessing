@@ -45,20 +45,21 @@ You must edit the file paths in the script(s). It’s good for the temporary fil
 
 10) Re-evaluate the cluster metrics by running rerun\_metrics\_after\_cluster\_alteration.m
 
-## After Clustering (scripts in post\_spike\_sort/ directory):
+## After Spike Sorting (scripts in post\_spike\_sort/ directory):
 
 ### Single Session:
 
 #### Python-only:
 
 - Copy relevant behavior file (BPod session file, e.g., [subject]\_[protocol]\_[monthDay]\_[year]\_Session[#].mat) to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
-- open post\_cluster\_pipeline.py, change the relevant variables and paths up to the PIPELINE heading, and run it. 
-- \[OPTIONAL\] Run post\_spike\_sort/extract\_waveforms.py. (This step is required to compare neurons when validating stitched sessions.)
+- open post\_cluster\_pipeline.py, change the relevant variables and paths up to the PIPELINE heading, and run it.    **--> spike\_mat\_in\_ms.npy**    (\[OPTIONAL\] Set SAVE_INDIVIDUAL_SPIKETRAINS = True when stitching sessions. **--> spike\_times/spike\_times\_in\_sec\_shank=\[PROBE#\]\_clust=\[UNIT#\].npy**)
+
+- \[OPTIONAL\] Run post\_spike\_sort/extract\_waveforms.py. (This step is required to compare neurons when validating stitched sessions.) **--> waveforms/unit\_\[UNIT#\].mat**
 
 #### With Matlab (Matlab\_pipline/):
 
 - Copy convert_spikes_pkl_to_mat_file.py from this repository to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
-and run it (e.g., cmd: python convert_spikes.py) **-> spikes_per_cluster.mat**
+and run it (e.g., cmd: python convert_spikes.py) **--> spikes_per_cluster.mat**
 
 - Run extract_Trodes_spiketimes_and_gaps__KS_waveforms.m in Matlab, editing directories as relevant.  This creates spike time vectors in the cellbase subdirectory, matching the Kilosort/Phy cluster information with the timekeeping from Trodes.  This data is saved for each unit in the cellbase directory under **TT[shank#]\_[clusterID].mat**.  It also saves the waveforms in WF[shank#]\_[clusterID].mat, as well as "gaps" (GAPS.mat), the cluster quality metrics (PhyLabels\_[shank#].mat) and the analog input TTL events (EVENTS.mat).
 
@@ -87,4 +88,5 @@ and run it (e.g., cmd: python convert_spikes.py) **-> spikes_per_cluster.mat**
 
 ### Stitching Sessions
 
-- Run post\_spike\_sort/separate\_session\_spiketimes\_from\_combined\_data.py (requires curated Phy cluster\_group.tsv file in the combined data folder).
+- Run post\_spike\_sort/separate\_session\_spiketimes\_from\_combined\_data.py (requires curated Phy cluster\_group.tsv file in the combined data folder). **--> in combined data folder saves two files: spike_mat_in_ms_\[subject\]_\[session\]_probe\[probe#\]_from_combined_data.npy**
+- Continue with https://github.com/Ott-Decision-Circuits-Lab/spike_response_analysis/tree/master/session_stitching
