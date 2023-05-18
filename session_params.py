@@ -100,7 +100,7 @@ if STITCH_SESSIONS:
     try:
         INDIV_DATA_DIR2 = f'Y:NeuroData/R{rat}/'
         assert path.exists(INDIV_DATA_DIR2)
-        STITCH_DAT_DIR = f'X:NeuroData/R{rat}/'
+        STITCH_DAT_DIR = f'D:NeuroData/R{rat}/'
         assert path.exists(STITCH_DAT_DIR)
     except:
         INDIV_DATA_DIR2 = STITCH_DAT_DIR = INDIV_DATA_DIR

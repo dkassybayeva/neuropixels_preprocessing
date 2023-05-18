@@ -105,9 +105,9 @@ for i, clust_i in enumerate(good_clusters):
     spike_mat_sesh2[i, spiktime_ms_inds_sesh2] = 1
 
 results = {'spike_mat': spike_mat_sesh1, 'row_cluster_id': good_clusters}
-dump(results, STITCH_DIR + f'spike_mat_in_ms_{rat}_{session1}_{probe}_from_combined_data.npy', compress=3)
+dump(results, STITCH_DIR + f'spike_mat_in_ms_R{rat}_{session1}_probe{probe}_from_combined_data.npy', compress=3)
 
 results = {'spike_mat': spike_mat_sesh2, 'row_cluster_id': good_clusters}
-dump(results, STITCH_DIR + f'spike_mat_in_ms_{rat}_{session2}_{probe}_from_combined_data.npy', compress=3)
+dump(results, STITCH_DIR + f'spike_mat_in_ms_R{rat}_{session2}_probe{probe}_from_combined_data.npy', compress=3)
 print('\nSaved to ' + STITCH_DIR)
 # ----------------------------------------------------------------------- #
