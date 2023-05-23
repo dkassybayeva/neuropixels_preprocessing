@@ -145,16 +145,16 @@ def find_recording_gaps(timestamp_file, fs, max_ISI, save_dir):
     """
     trodes_timestamps = get_Trodes_timestamps(timestamp_file)
     
-    # length of gaps
-    gaps = np.diff(trodes_timestamps) / fs
+    # periods between samples
+    dt = np.diff(trodes_timestamps) / fs
     
-    # gaps_ts are timestamps where gaps *start*
-    gaps_ts = trodes_timestamps[:-1][gaps > max_ISI] / fs
+    # a gap is an intersample period that is too long
+    gaps = dt[dt > max_ISI]
     
-    gaps = gaps[gaps > max_ISI]
-    gaps_ts = gaps_ts[gaps > max_ISI]
+    # gaps_ts are timestamps [in seconds] where gaps *start*
+    gaps_ts = trodes_timestamps[:-1][dt > max_ISI] / fs
     
-    # also save some info for later in output folder
+    # save gap lengths and start points
     results = {'gaps': gaps, 'gaps_ts': gaps_ts}
     gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
     dump(results, save_dir + gap_filename, compress=3)
