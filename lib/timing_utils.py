@@ -446,6 +446,37 @@ def remove_laser_trials(trialwise_TTLs, start_times, laser_TTL=526):
             
     return trialwise_TTLs, start_times
 
+def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_mat_file):
+    TTL_results = load(save_dir + 'TTL_events.npy')
+
+    # first 0 is before Bpod session, first 1 is first trial, last 0 is end of last trial
+    TTL_timestamps_sec = TTL_results['timestamps'][1:]
+    TTL_code = TTL_results['TTL_code'][1:]
+
+    recorded_start_ts = TTL_timestamps_sec[TTL_code == 1]
+    assert recorded_start_ts.size == (TTL_code.size - np.sum(TTL_code == -1)) // 2
+
+    # --------------------------------------------------------------------- #
+    # Trial start in absolute time from the behavior control system
+    # --------------------------------------------------------------------- #
+    # Load trial events structure
+    session_data = loadmat(behavior_mat_file, simplify_cells=True)['SessionData']
+
+    n_trials = session_data['nTrials']
+    behav_start_ts = session_data['TrialStartTimestamp']
+    # --------------------------------------------------------------------- #
+
+    # --------------------------------------------------------------------- #
+    # Reconcile the recorded and behavioral timestamps
+    # --------------------------------------------------------------------- #
+    print('Reconciling recorded and behavioral timestamps...')
+    # First check the number of trials
+    print(f'{n_trials} behavioral trials, {len(recorded_start_ts)} TTLs')
+
+    # @TODO: first try taking out the trials where there's a gap and then see if the rest around the gaps fit
+    # @TODO: this worked at least for the current data
+
+
 
 def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_file):
     """
