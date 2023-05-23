@@ -18,7 +18,8 @@ probe = '1'
 kilosort_ver = '2.5'
 session1 = '20230506_152707'
 # name of the BPod behavioral data file for session1
-behavior_mat_file = '1_TwoArmBanditVariant_20230506_151733.mat'
+behav_datetime = '20230506_151733'
+behavior_mat_file = f'1_TwoArmBanditVariant_{behav_datetime}.mat'
 
 # when stitching
 STITCH_SESSIONS = True
@@ -83,11 +84,14 @@ else:
 try:
     INDIV_DATA_DIR = f'D:NeuroData/R{rat}/'
     assert path.exists(INDIV_DATA_DIR)
+    REC_PATH = INDIV_DATA_DIR + f'{session1}.rec/{session1}'
+    BEHAV_PATH = REC_PATH
 except:
-    INDIV_DATA_DIR = f'/media/ottlab/data/{rat}/ephys/'
+    INDIV_DATA_DIR = f'/media/ottlab/data/{rat}/'
     assert path.exists(INDIV_DATA_DIR)
+    REC_PATH = INDIV_DATA_DIR + f'ephys/{session1}.rec/{session1}'
+    BEHAV_PATH = INDIV_DATA_DIR + f'bpod_session/{behav_datetime}/'
 
-REC_PATH = INDIV_DATA_DIR + f'{session1}.rec/{session1}'
 SESSION_DIR = REC_PATH + f'.kilosort{kilosort_ver}_probe{probe}/'
 PREPROCESS_DIR = SESSION_DIR + 'preprocessing_output/'
 assert path.exists(PREPROCESS_DIR)
