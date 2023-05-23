@@ -651,7 +651,7 @@ def try_interpolation(s1, s2, first_trial_of_next_session, attempts=10):
             
             # find the first problematic index, where the difference
             # between the two series changes drastically (>0.1)
-            bad_idx = np.where(np.abs(d_diff_dt) > 0.1)[0] + 1
+            bad_idx = np.where(np.abs(d_diff_dt) > 0.1)[0][0] + 1
             
             if bad_idx == first_trial_of_next_session:
                 print('Problem is from concatenated sessions!')
