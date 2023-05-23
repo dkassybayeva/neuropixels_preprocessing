@@ -162,7 +162,74 @@ def find_recording_gaps(timestamp_file, fs, max_ISI, save_dir):
     return gap_filename
 
 
-def extract_TTL_events(session_path, gap_filename, save_dir):
+def extract_TTL_trial_start_times(session_path, gap_filename, DIO_port, save_dir):
+    """
+    Converts analog channel to TTL-like event times in seconds
+    TTL = transistor-transistor logic
+
+    Requires export of .DIO in Trodes.
+
+    Greg Knoll 2023
+
+    Parameters
+    ----------
+    session_path is the .rec directory (full path)
+
+    Saves
+    -------
+    TTL codes as time series with accompanying timestamps in 'TTL_events.npy'
+    in the directory save_dir
+    """
+
+    dio_path = '.'.join(session_path.split('.')[:-2]) + '.DIO/'
+
+    # each analog MCU input pin will have its own .dat file
+    dio_file_list = listdir(dio_path)
+    din_filename = [fn for fn in dio_file_list if f'Din{DIO_port}' in fn][0]
+
+    # Load the channel dictionary: data + metadata
+    channel_dict = readTrodesExtractedDataFile(dio_path + din_filename)
+    if not channel_dict:
+        print('Error while trying to read ' + din_filename)
+        raise ValueError
+
+    # Each data point is (timestamp, state) -> break into separate arrays
+    channel_data = channel_dict['data']
+    channel_states = np.array([tup[1] for tup in channel_data])
+    channel_timestamps = np.array([tup[0] for tup in channel_data])
+    assert channel_states.shape == channel_timestamps.shape
+
+    # Convert timestamps to seconds and save both structures in their
+    # respective containers
+    TTL_timestamps_sec = channel_timestamps / int(channel_dict['clockrate'])
+
+    # ------------------------------------------------------------ #
+    #           Now consider gaps in the recordings
+    # ------------------------------------------------------------ #
+    gaps = load(save_dir + gap_filename)
+    gap_timestamps = gaps['gaps_ts']
+
+    # append their timestamps to the timestamps array
+    TTL_timestamps_sec = np.append(TTL_timestamps_sec, gap_timestamps)
+
+    # add -1 as placeholder code for the gaps
+    TTL_code = np.append(channel_states, -1 * np.ones(gap_timestamps.size))
+    assert TTL_code.size == TTL_timestamps_sec.size
+
+    # resort the timestamps
+    sort_idx = np.argsort(TTL_timestamps_sec)
+    TTL_timestamps_sec = TTL_timestamps_sec[sort_idx]
+    TTL_code = TTL_code[sort_idx]
+    # ------------------------------------------------------------ #
+
+    # ------------------------------------------------------------ #
+    #                      Save results
+    # ------------------------------------------------------------ #
+    results = {'TTL_code': TTL_code, 'timestamps': TTL_timestamps_sec, 'gap_lengths': gaps}
+    dump(results, save_dir + 'TTL_events.npy', compress=3)
+
+
+def convert_TTL_timestamps_to_nbit_events(session_path, gap_filename, save_dir):
     """
     Converts 6 analog channels to TTL-like event times in seconds
     TTL = transistor-transistor logic
@@ -221,8 +288,8 @@ def extract_TTL_events(session_path, gap_filename, save_dir):
     assert sum(map(len, state_list)) == TTL_timestamps.size
     assert sum(map(len, timestamp_list)) == TTL_timestamps.size
     # ------------------------------------------------------------ #
-    
-    
+
+
     # ------------------------------------------------------------ #
     #  Create n-channel-bit code with length as long as unique timestamps
     # ------------------------------------------------------------ #

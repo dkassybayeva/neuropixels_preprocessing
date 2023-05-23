@@ -50,7 +50,10 @@ if not TOY_DATA:
 
     gap_filename = tu.find_recording_gaps(timestamps_dat, fs, max_ISI, output_dir)
 
-    tu.extract_TTL_events(SESSION_DIR, gap_filename, save_dir=output_dir)
+    if OTT_LAB_DATA:
+        tu.extract_TTL_trial_start_times(SESSION_DIR, gap_filename, metadata['DIO_port_num'], save_dir=output_dir)
+    else:
+        tu.convert_TTL_timestamps_to_nbit_events(SESSION_DIR, gap_filename, save_dir=output_dir)
 
     tu.add_TTL_trial_start_times_to_behav_data(SESSION_DIR, output_dir, REC_PATH+behavior_mat_file)
 

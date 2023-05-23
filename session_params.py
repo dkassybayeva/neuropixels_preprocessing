@@ -41,6 +41,7 @@ if OTT_LAB_DATA:
                 'rat_name': f'R{rat}',
                 'date': session1,
                 'probe_num': probe,
+                'DIO_port_num': 1,
                 }
 else:
     metadata = {'time_investment': False,
