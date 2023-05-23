@@ -447,7 +447,7 @@ def remove_laser_trials(trialwise_TTLs, start_times, laser_TTL=526):
     return trialwise_TTLs, start_times
 
 
-def add_TTL_trial_start_times_to_behav_data(session_dir, output_dir, behavior_mat_file):
+def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_file):
     """
     Synchronize trial events to recording times.
     
@@ -469,23 +469,23 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, output_dir, behavior_ma
     """
 
     # --------------------------------------------------------------------- #
-    # Trial start time recorded by the recording system (Neuralynx)
+    # Trial start time recorded by the recording system (Neuralynx or Trodes)
     # --------------------------------------------------------------------- #
-    # Load converted TRODES event file 
+    # Load converted TRODES event file
     print('Grouping TTL events by trial and getting recorded trial start times...')
     try:
-        TTL_results = load(output_dir + 'TTL_events.npy')
+        TTL_results = load(save_dir + 'TTL_events.npy')
     except:
         print('TTL_events.npy file not found.  Make sure the TTL events \n\
         have been extraced from the TRODES .DIO files.')
         return
 
     trialwise_TTLs = group_codes_and_timestamps_by_trial(**TTL_results)
-    
-    aligned_trialwise_TTLs, recorded_start_ts = align_TTL_events(trialwise_TTLs, save=(True, output_dir))
-    
+
+    aligned_trialwise_TTLs, recorded_start_ts = align_TTL_events(trialwise_TTLs, save=(True, save_dir))
+
     aligned_trialwise_TTLs, recorded_start_ts = remove_laser_trials(aligned_trialwise_TTLs, recorded_start_ts)
-    
+
     assert aligned_trialwise_TTLs[0]['start_time'] == recorded_start_ts[0]
     recorded_start_ts = np.array(recorded_start_ts)
     print('Done.')
@@ -507,8 +507,8 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, output_dir, behavior_ma
     # --------------------------------------------------------------------- #
     print('Reconciling recorded and behavioral timestamps...')
     # First check the number of trials
-    print(f'{n_trials} behavioral trials, {len(aligned_trialwise_TTLs)} TTLs')
-    
+    print(f'{n_trials} behavioral trials, {len(recorded_start_ts)} TTLs')
+
     # Match timestamps - in case of mismatch, try to fix
     if not is_match(behav_start_ts, recorded_start_ts):
         print("Timestamps do not match.  Removing ISI violations...")
@@ -548,8 +548,8 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, output_dir, behavior_ma
     
     session_data['TrialStartAligned'] = recorded_start_ts
     
-    dump(session_data, output_dir + 'TrialEvents.npy', compress=3)
-    print('Results saved to ' + output_dir + 'TrialEvents.npy.')
+    dump(session_data, save_dir + 'TrialEvents.npy', compress=3)
+    print('Results saved to ' + save_dir + 'TrialEvents.npy.')
 
 
 
