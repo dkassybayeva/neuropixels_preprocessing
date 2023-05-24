@@ -418,18 +418,15 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_ma
         _end = min(len(behav_start_ts), len(recorded_start_ts))
         n_match = n_matching_ITIs(behav_start_ts[:_end], recorded_start_ts[:_end])
 
-        trials_preceding_gap = []
-        trials_without_matching_TTL = []
         for gap_idx in gap_start_indices:
             n_match_old = n_match
             first_miss = np.where(compare_ITIs(behav_start_ts[:_end], recorded_start_ts[:_end]) == False)[0][0]
             # @TODO: may need to insert multiple points if the gap is very large
-            recorded_start_ts_w_gaps = np.insert(recorded_start_ts, gap_idx+1, np.nan)
+            recorded_start_ts_w_gaps = np.insert(recorded_start_ts, gap_idx + 1, np.nan)
 
             _end = min(len(behav_start_ts), len(recorded_start_ts_w_gaps))
             n_match = n_matching_ITIs(behav_start_ts[:_end], recorded_start_ts_w_gaps[:_end])
             if n_match > n_match_old:
-                #@TODO: mark trials with problems
                 recorded_start_ts = recorded_start_ts_w_gaps
 
         if len(recorded_start_ts) > len(behav_start_ts):
@@ -440,13 +437,20 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_ma
     length of the behavioral array minus one (because we're comparing intervals, not time points)
     minus the number of gaps times two (because a single gap influences at least two periods).
     """
-    max_possible_matches = len(behav_start_ts) - 1 - 2*len(gap_lengths)
+    max_possible_matches = len(behav_start_ts) - 1 - 2 * len(gap_lengths)
     assert n_matching_ITIs(behav_start_ts, recorded_start_ts) == max_possible_matches
 
     # all ITIs match
     session_data['recorded_TTL_trial_start_time'] = recorded_start_ts
-    session_data['large_TTL_gap_after_start'] = trials_with_gaps
-    session_data['no_matching_TTL_start_time'] = trials_without_TTL_ts
+    session_data['no_matching_TTL_start_time'] = np.isnan(recorded_start_ts)
+
+    trials_preceding_gap = np.zeros_like(recorded_start_ts)
+    missing_trials = np.where(np.isnan(recorded_start_ts))[0]
+    for m_trial in missing_trials:
+        if ~np.isnan(recorded_start_ts[m_trial - 1]):  # only count recorded trials followed by a missing trial
+            trials_preceding_gap[m_trial - 1] = 1
+
+    session_data['large_TTL_gap_after_start'] = trials_preceding_gap
 
     dump(session_data, save_dir + 'TrialEvents.npy', compress=3)
     print('Results saved to ' + save_dir + 'TrialEvents.npy.')
