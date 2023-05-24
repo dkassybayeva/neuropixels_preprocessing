@@ -123,8 +123,12 @@ def create_spike_mat(session_path, output_dir, timestamp_file, date, probe_num,
     results = {'spike_mat': spike_mat, 'row_cluster_id': good_clusters}
     dump(results, output_dir + 'spike_mat_in_ms.npy', compress=3)
     print('\nSaved to ' + output_dir)
+# ---------------------------------------------------------------------------------------- #
 
 
+# ---------------------------------------------------------------------------------------- #
+#                           Extract TTL input and gaps
+# ---------------------------------------------------------------------------------------- #
 def find_recording_gaps(timestamp_file, fs, max_ISI, save_dir):
     """
     Detects abnormalities in the lengths of the periods between samples which
@@ -158,7 +162,7 @@ def find_recording_gaps(timestamp_file, fs, max_ISI, save_dir):
     results = {'gaps': gaps, 'gaps_ts': gaps_ts}
     gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
     dump(results, save_dir + gap_filename, compress=3)
-    
+
     return gap_filename
 
 
@@ -341,111 +345,13 @@ def convert_TTL_timestamps_to_nbit_events(session_path, gap_filename, save_dir):
     #                      Save results
     # ------------------------------------------------------------ #
     results = {'TTL_code': TTL_code, 'timestamps': TTL_timestamps}
-    dump(results, save_dir + 'TTL_events.npy', compress=3) 
+    dump(results, save_dir + 'TTL_events.npy', compress=3)
+# ---------------------------------------------------------------------------------------- #
 
 
-def group_codes_and_timestamps_by_trial(TTL_code, timestamps):
-    """
-    Group TTLs and their timestamps by trial. 
-    This is tricky, since in TRODES we (TO/2020-2021) are using 5 bits to
-    sync Bpod events, which are the first 5 DIO at the Trodes MCU. The 6th
-    bit is used for laser pulse alignment. 
-    However, there can be more than 2^5 Bpod states.
-    
-    Parameters
-    ----------
-    TTL_code, Events_TS [numpy arrays]
-    
-    Returns
-    -------
-    list with length n_trials, in which each element is a dictionary:
-        'TTL_code': list of TTL codes (states) encountered in the trial
-        'timestamps': list of timestampts of the codes (states)
-    """
-
-    start_code = 1  # trialStart (WaitForInitialPoke)
-    pre_start = 0  # no state (between trials)
-    post_start = 2  # state that is always followed by start_code state
-    
-    first_start = np.where(TTL_code==start_code)[0][0]
-    n_codes = len(TTL_code)
-    
-    # Break Nlx events into a cell array by trials
-    n_trials = 0
-    events_and_timestamps_per_trial = []
-    
-    # create new data structures for trial's events
-    curr_trial_codes = []
-    curr_trial_timestamps = []
-    for x in range(first_start, n_codes):
-        # if a trial start
-        if TTL_code[x] == start_code and TTL_code[x-1]==pre_start and TTL_code[x+1]==post_start:
-            n_trials = n_trials + 1
-            if x != first_start:
-                # save previous trial's events to global container
-                events_and_timestamps_per_trial.append(
-                                    {'TTL_code': curr_trial_codes, 
-                                     'timestamps': curr_trial_timestamps})
-            
-            # create new data structures for trial's events
-            curr_trial_codes = []
-            curr_trial_timestamps = []
-        elif TTL_code[x]==1:  # DUPLICATE STATE CODE!!!
-            # This state is also 1, but it is not a start code, 
-            # because it is not preceded by 0 and followed by 2.
-            # Now that we have access to more bits, correct this state to
-            # 2^5+1=33 (Corrected value is SPECIFIC TO STATE MATRIX!)
-            TTL_code[x] = 33
-            
-        # append event to current trial's events and timestamps
-        curr_trial_codes.append(TTL_code[x])
-        curr_trial_timestamps.append(timestamps[x])
-    events_and_timestamps_per_trial.append({'TTL_code': curr_trial_codes, 
-                                        'timestamps': curr_trial_timestamps})
-
-    assert len(events_and_timestamps_per_trial) == n_trials
-        
-    return events_and_timestamps_per_trial
-
-
-def align_TTL_events(trialwise_TTLs, align_idx=1, save=('', False)):
-    """
-    Set TTL alignement state to the start_code (1=WaitingForInitialPoke).
-    """
-    start_times = []
-    
-    for tw_TTL in trialwise_TTLs:
-        start_idx = int(np.where(np.array(tw_TTL['TTL_code']) == align_idx)[0])
-        start_time = tw_TTL['timestamps'][start_idx]
-        tw_TTL['aligned_timestamps'] = tw_TTL['timestamps'] - start_time
-        tw_TTL['start_time'] = start_time
-        start_times.append(start_time)
-     
-    if save[0]:
-        dump(trialwise_TTLs, save[1] + 'aligned_TTL_events.npy', compress=3)
-    
-    return trialwise_TTLs, start_times
-
-
-def remove_laser_trials(trialwise_TTLs, start_times, laser_TTL=526):
-    """
-    Remove laser trials (tagging protocol) 
-    using specific hard-codee TTL code 526 (NLX system)
-    """
-
-    laser_trials = []
-
-    for i, tw_TTL in enumerate(trialwise_TTLs):
-        if laser_TTL in tw_TTL['TTL_code']: 
-            laser_trials.append(i)
-            del trialwise_TTLs[i]
-            del start_times[i]
-   
-    if len(laser_trials):
-        print(f'Removed {len(laser_trials)} laser trials: {laser_trials}')
-            
-    return trialwise_TTLs, start_times
-
+# ---------------------------------------------------------------------------------------- #
+#                       Reconcile TTL and Behavior Timestamps
+# ---------------------------------------------------------------------------------------- #
 def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_mat_file):
     """
     The recording system (e.g., Trodes) receives information about the behavior via the
@@ -496,7 +402,6 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_ma
     # First check the number of trials
     print(f'{n_trials} behavioral trials, {len(recorded_start_ts)} TTLs')
 
-
     def compare_ITIs(arr1, arr2):
         return np.isclose(np.diff(arr1), np.diff(arr2), atol=0.01, rtol=0)
 
@@ -530,8 +435,6 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_ma
         if len(recorded_start_ts) > len(behav_start_ts):
             recorded_start_ts = recorded_start_ts[:len(behav_start_ts)]
 
-
-
     """
     When comparing the intertrial periods, the number of possible matches is the 
     length of the behavioral array minus one (because we're comparing intervals, not time points)
@@ -549,12 +452,13 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_ma
     print('Results saved to ' + save_dir + 'TrialEvents.npy.')
 
 
+# ---------------------------Legacy Code---------------------------- #
 def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_file):
     """
     Synchronize trial events to recording times.
-    
+
     Requires: TTL_events.npy from extract_TTL_events().
-    
+
     MakeTrialEvents2_TorbenNP(SESSIONPATH) loads TRODES events and adjusts
     trial event times (trial-based behavioral data, see
     SOLO2TRIALEVENTS4_AUDITORY_GONOGO) to the recorded time stamps. This
@@ -563,7 +467,7 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_
     trial events structure is saved under the name 'TrialEvents.mat'. This
     file becomes the primary store of behavioral data for a particular
     session it is retrieved by LOADCB via CELLID2FNAMES. This default
-    file name is one of the preference settings of CellBase - type 
+    file name is one of the preference settings of CellBase - type
     getpref('cellbase','session_filename')
 
     MakeTrialEvents2_TorbenNP(SESSIONPATH,'StimNttl',TTL) specifies the TTL
@@ -592,17 +496,16 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_
     recorded_start_ts = np.array(recorded_start_ts)
     print('Done.')
     # --------------------------------------------------------------------- #
-    
+
     # --------------------------------------------------------------------- #
     # Trial start in absolute time from the behavior control system
     # --------------------------------------------------------------------- #
     # Load trial events structure
     session_data = loadmat(behavior_mat_file, simplify_cells=True)['SessionData']
-    
+
     n_trials = session_data['nTrials']
     behav_start_ts = session_data['TrialStartTimestamp']
     # --------------------------------------------------------------------- #
-    
 
     # --------------------------------------------------------------------- #
     # Reconcile the recorded and behavioral timestamps
@@ -615,29 +518,28 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_
     if not is_match(behav_start_ts, recorded_start_ts):
         print("Timestamps do not match.  Removing ISI violations...")
         # note: obsolete due the introduction of TTL parsing
-        recorded_start_ts = clear_ttls_with_isi_violation(recorded_start_ts) 
-        
+        recorded_start_ts = clear_ttls_with_isi_violation(recorded_start_ts)
+
         if not is_match(behav_start_ts, recorded_start_ts):
             print('Still no match. Try to match time series by shifting...')
-            recorded_start_ts = reconcile_with_shift(behav_start_ts, recorded_start_ts)  
-            
+            recorded_start_ts = reconcile_with_shift(behav_start_ts, recorded_start_ts)
+
             if not is_match(behav_start_ts, recorded_start_ts):
                 print('Still no match. Try to interpolate missing TTLs...')
-                recorded_start_ts = try_interpolation(behav_start_ts, recorded_start_ts, 
-                                                      first_trial_of_next_session=n_trials+1) 
-                
+                recorded_start_ts = try_interpolation(behav_start_ts, recorded_start_ts,
+                                                      first_trial_of_next_session=n_trials + 1)
+
                 if not is_match(behav_start_ts, recorded_start_ts):
                     Exception('Matching TTLs failed.')
 
     print('Timestamp matching resolved.')
 
-    
     # If the timestamp arrays have different lengths, eliminate timestamps
     # from the longer series to make them the same length
     if len(recorded_start_ts) > len(behav_start_ts):
         # missing timestamp in behavior file (likely reason: autosave was used)
         recorded_start_ts = recorded_start_ts[:len(behav_start_ts)]
-    elif len(recorded_start_ts) < len(behav_start_ts):  
+    elif len(recorded_start_ts) < len(behav_start_ts):
         # missing timestamp from recording sys (likely reason: recording stopped)
         session_data = shorten_session_data(session_data, len(recorded_start_ts))
         print('Trial Event File shortened to match TTL!')
@@ -647,12 +549,114 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_
     # Finally, save the trial-start timestamps of the aligned, recorded TTLs
     # These will be used to align the trialwise spiking data
     # --------------------------------------------------------------------- #
-    
+
     session_data['TrialStartAligned'] = recorded_start_ts
-    
+
     dump(session_data, save_dir + 'TrialEvents.npy', compress=3)
     print('Results saved to ' + save_dir + 'TrialEvents.npy.')
 
+
+def group_codes_and_timestamps_by_trial(TTL_code, timestamps):
+    """
+    Group TTLs and their timestamps by trial. 
+    This is tricky, since in TRODES we (TO/2020-2021) are using 5 bits to
+    sync Bpod events, which are the first 5 DIO at the Trodes MCU. The 6th
+    bit is used for laser pulse alignment. 
+    However, there can be more than 2^5 Bpod states.
+    
+    Parameters
+    ----------
+    TTL_code, Events_TS [numpy arrays]
+    
+    Returns
+    -------
+    list with length n_trials, in which each element is a dictionary:
+        'TTL_code': list of TTL codes (states) encountered in the trial
+        'timestamps': list of timestampts of the codes (states)
+    """
+
+    start_code = 1  # trialStart (WaitForInitialPoke)
+    pre_start = 0  # no state (between trials)
+    post_start = 2  # state that is always followed by start_code state
+
+    first_start = np.where(TTL_code==start_code)[0][0]
+    n_codes = len(TTL_code)
+
+    # Break Nlx events into a cell array by trials
+    n_trials = 0
+    events_and_timestamps_per_trial = []
+
+    # create new data structures for trial's events
+    curr_trial_codes = []
+    curr_trial_timestamps = []
+    for x in range(first_start, n_codes):
+        # if a trial start
+        if TTL_code[x] == start_code and TTL_code[x-1]==pre_start and TTL_code[x+1]==post_start:
+            n_trials = n_trials + 1
+            if x != first_start:
+                # save previous trial's events to global container
+                events_and_timestamps_per_trial.append(
+                    {'TTL_code': curr_trial_codes,
+                     'timestamps': curr_trial_timestamps})
+
+            # create new data structures for trial's events
+            curr_trial_codes = []
+            curr_trial_timestamps = []
+        elif TTL_code[x]==1:  # DUPLICATE STATE CODE!!!
+            # This state is also 1, but it is not a start code, 
+            # because it is not preceded by 0 and followed by 2.
+            # Now that we have access to more bits, correct this state to
+            # 2^5+1=33 (Corrected value is SPECIFIC TO STATE MATRIX!)
+            TTL_code[x] = 33
+
+        # append event to current trial's events and timestamps
+        curr_trial_codes.append(TTL_code[x])
+        curr_trial_timestamps.append(timestamps[x])
+    events_and_timestamps_per_trial.append({'TTL_code': curr_trial_codes,
+                                            'timestamps': curr_trial_timestamps})
+
+    assert len(events_and_timestamps_per_trial) == n_trials
+
+    return events_and_timestamps_per_trial
+
+
+def align_TTL_events(trialwise_TTLs, align_idx=1, save=('', False)):
+    """
+    Set TTL alignement state to the start_code (1=WaitingForInitialPoke).
+    """
+    start_times = []
+    
+    for tw_TTL in trialwise_TTLs:
+        start_idx = int(np.where(np.array(tw_TTL['TTL_code']) == align_idx)[0])
+        start_time = tw_TTL['timestamps'][start_idx]
+        tw_TTL['aligned_timestamps'] = tw_TTL['timestamps'] - start_time
+        tw_TTL['start_time'] = start_time
+        start_times.append(start_time)
+     
+    if save[0]:
+        dump(trialwise_TTLs, save[1] + 'aligned_TTL_events.npy', compress=3)
+    
+    return trialwise_TTLs, start_times
+
+
+def remove_laser_trials(trialwise_TTLs, start_times, laser_TTL=526):
+    """
+    Remove laser trials (tagging protocol) 
+    using specific hard-codee TTL code 526 (NLX system)
+    """
+
+    laser_trials = []
+
+    for i, tw_TTL in enumerate(trialwise_TTLs):
+        if laser_TTL in tw_TTL['TTL_code']: 
+            laser_trials.append(i)
+            del trialwise_TTLs[i]
+            del start_times[i]
+   
+    if len(laser_trials):
+        print(f'Removed {len(laser_trials)} laser trials: {laser_trials}')
+            
+    return trialwise_TTLs, start_times
 
 
 def is_match(s1, s2):
@@ -770,10 +774,10 @@ def shorten_session_data(session_data, n_trials):
     session_data['nTrials'] = n_trials
 
     return session_data
+# ---------------------------------------------------------------------------------------- #
 
 
-
-    
+# ---------------------------------------------------------------------------------------- #
 def calc_event_outcomes(output_dir):
     """
     Creates additional useful fields in the session data (trial events).
