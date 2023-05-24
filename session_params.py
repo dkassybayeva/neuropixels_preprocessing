@@ -35,7 +35,8 @@ if STITCH_SESSIONS:
 recording_session_id = 0
 
 if OTT_LAB_DATA:
-    metadata = {'task': 'matching',
+    metadata = {'ott_lab': True,
+                'task': 'matching',
                 'experimenter': 'Gregory Knoll',
                 'region': 'mPFC',
                 'recording_type': 'neuropixels_1.0',
@@ -45,7 +46,8 @@ if OTT_LAB_DATA:
                 'DIO_port_num': 1,
                 }
 else:
-    metadata = {'time_investment': False,
+    metadata = {'ott_lab': False,
+                'time_investment': False,
                 'reward_bias': False,
                 'prior': False,  # Could possibly be Amy's code for a task type that was previously used
                 'experimenter': 'Amy',
@@ -55,7 +57,6 @@ else:
                 'linking_group': 'Nina2',
                 'rat_name': rat_name,
                 'date': date,
-                'sps': sps,
                 'probe_num': probe_num,
                 }
 

@@ -18,9 +18,13 @@ import scipy.io as sio
 from datetime import date
 from scipy.signal import find_peaks
 
-def trial_start_align(behav_df, traces, sps):
+def trial_start_align(behav_df, traces, metadata, sps):
 
-    behav_df = behav_df[~np.isnan(behav_df.TrialStartAligned)]
+    if metadata['ott_lab']:
+        trialstart_str = 'recorded_TTL_trial_start_time'
+    else:
+        trialstart_str = 'TrialStartAligned'
+    behav_df = behav_df[~np.isnan(behav_df[trialstart_str])]
 
     # ----------------------------------------------------------------------- #
     # Find longest trial, so that all trials can be zero padded to same len
@@ -54,7 +58,7 @@ def trial_start_align(behav_df, traces, sps):
     # ----------------------------------------------------------------------- #
 
     # trial start in bins (index) in the recording system timeframe
-    t_starts = np.round(sps*behav_df['TrialStartAligned']).astype('int')
+    t_starts = np.round(sps*behav_df[trialstart_str]).astype('int')
 
     n_trials = len(behav_df)
     n_neurons = traces.shape[0]

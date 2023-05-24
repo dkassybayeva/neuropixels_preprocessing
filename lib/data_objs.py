@@ -48,7 +48,9 @@ class DataContainer:
             self.objID = objID
         else:
             self.objID = str(np.datetime64('now')).split('T')[0]
-        self.behavior_phase = metadata['behavior_phase']
+
+        if not metadata['ott_lab']:
+            self.behavior_phase = metadata['behavior_phase']
 
         if traces_dict is not None:
             self.sa_traces = traces_dict['stim_aligned']

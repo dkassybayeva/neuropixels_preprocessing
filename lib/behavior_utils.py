@@ -2,22 +2,25 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 from scipy.io import loadmat
+from joblib import load, dump
 import matplotlib.pyplot as plt
 
 
-def calc_event_outcomes(output_dir, OTT_LAB_DATA):
+def calc_event_outcomes(output_dir, metadata):
     """
     Creates additional useful fields in the session data (trial events).
 
     :param output_dir: [string] directory where TrialEvents.npy was saved.
     :return: [None] Overwrites TrialEvents.npy
     """
+    OTT_LAB_DATA = metadata['ott_lab']
+
     # Load the session data in TrialEvents.npy
     _sd = load(output_dir + 'TrialEvents.npy')
 
     WT_low_threshold = 0.  # Lower cut-off for waiting time turning all to NaN
 
-    n_trials = _sd['nTrials'] - 1  # throw out last trial (may be incomplete)
+    n_trials = _sd['nTrials']  # throw out last trial (may be incomplete)
     _sd['nTrials'] = n_trials
     _sd['TrialNumber'] = np.arange(n_trials)
 
@@ -38,9 +41,10 @@ def calc_event_outcomes(output_dir, OTT_LAB_DATA):
     _sd['ChosenDirection'][left_choice_idx] = 1
     _sd['ChosenDirection'][right_choice_idx] = 2
 
-    # Correct and error trials
-    choice_correct = _sd_custom['ChoiceCorrect'][:n_trials]
-    _sd['CorrectChoice'], _sd['PunishedTrial'] = one_zero_idx(choice_correct)
+    if not OTT_LAB_DATA:
+        # Correct and error trials
+        choice_correct = _sd_custom['ChoiceCorrect'][:n_trials]
+        _sd['CorrectChoice'], _sd['PunishedTrial'] = one_zero_idx(choice_correct)
 
     # Trial where rat gave a response
     _sd['CompletedTrial'] = (choice_left > -1) & (_sd['TrialNumber'] > 30)
@@ -54,27 +58,31 @@ def calc_event_outcomes(output_dir, OTT_LAB_DATA):
     _sd['UnansweredTrials'] = incomplete & early_withdrawal
     assert _sd['UnansweredTrials'].sum() <= min(early_withdrawal.sum(), incomplete.sum())
 
-    # CatchTrial
-    _sd['CatchTrial'] = _sd_custom['CatchTrial'][:n_trials]
+    if not OTT_LAB_DATA:
+        # CatchTrial
+        _sd['CatchTrial'] = _sd_custom['CatchTrial'][:n_trials]
 
-    # Correct catch trials
-    _sd['CompletedCatchTrial'] = complete & (_sd['CatchTrial'] == 1)
+        # Correct catch trials
+        _sd['CompletedCatchTrial'] = complete & (_sd['CatchTrial'] == 1)
 
-    # Correct trials, but rat was waiting too short
-    wait_too_short = _sd_custom['FeedbackTime'][:n_trials] < 0.5
-    _sd['CorrectShortWTTrial'] = _sd['CorrectChoice'] & wait_too_short
+        # Correct trials, but rat was waiting too short
+        wait_too_short = _sd_custom['FeedbackTime'][:n_trials] < 0.5
+        _sd['CorrectShortWTTrial'] = _sd['CorrectChoice'] & wait_too_short
 
-    # These are all the waiting time trials (correct catch and incorrect trials)
-    catch_or_wrong = _sd['CompletedCatchTrial'] & _sd['PunishedTrial']
-    _sd['CompletedWTTrial'] = catch_or_wrong & complete
-    assert _sd['CompletedWTTrial'].sum() <= min(catch_or_wrong.sum(), complete.sum())
+        # These are all the waiting time trials (correct catch and incorrect trials)
+        catch_or_wrong = _sd['CompletedCatchTrial'] & _sd['PunishedTrial']
+        _sd['CompletedWTTrial'] = catch_or_wrong & complete
+        assert _sd['CompletedWTTrial'].sum() <= min(catch_or_wrong.sum(), complete.sum())
 
-    # Trials where rat answered but did not receive reward
-    punish_or_catch = _sd['PunishedTrial'] | _sd['CatchTrial']
-    _sd['WaitingTimeTrial'] = punish_or_catch & complete
+        # Trials where rat answered but did not receive reward
+        punish_or_catch = _sd['PunishedTrial'] | _sd['CatchTrial']
+        _sd['WaitingTimeTrial'] = punish_or_catch & complete
 
     # Waiting Time
-    _sd['WaitingTime'] = _sd_custom['FeedbackTime']
+    if OTT_LAB_DATA:
+        _sd['WaitingTime'] = _sd_custom['FeedbackWaitingTime'][:n_trials]
+    else:
+        _sd['WaitingTime'] = _sd_custom['FeedbackTime']
 
     # Threshold for waiting time (e.g., negative waiting times are impossible)
     _sd['WaitingTime'][_sd['WaitingTime'] < WT_low_threshold] = np.nan
@@ -168,82 +176,110 @@ def calc_event_outcomes(output_dir, OTT_LAB_DATA):
 
     _sd['LaserTrialTrainLength'] = np.zeros(n_trials)
 
+    if OTT_LAB_DATA:
+        Cin_str = 'StartCIn'
+        StimOn_str = 'Sampling'
+        Rin_str = 'StartRIn'
+        Lin_str = 'StartLIn'
+        Feedback_str = 'FeedbackWaitingTime'
+        Sample_str = 'SampleTime' if metadata['task']=='matching' else 'SampleLength'
+        DV_str = 'DecisionVariable'
+    else:
+        Cin_str = 'stay_Cin'
+        StimOn_str = 'stimulus_delivery_min'
+        Rin_str = 'start_Rin'
+        Lin_str = 'start_Lin'
+        Feedback_str = 'FeedbackTime'
+        Sample_str = 'ST'
+        DV_str = 'DV'
+
     for nt in range(n_trials):
         nt_states = _sd['RawEvents']['Trial'][nt]['States']
 
-        _sd['StimulusOnset'][nt] = nt_states['stimulus_delivery_min'][0]
-        _sd['PokeCenterStart'][nt] = nt_states['stay_Cin'][0]
+        _sd['PokeCenterStart'][nt] = nt_states[Cin_str][0]
+        _sd['StimulusOnset'][nt] = nt_states[StimOn_str][0]
 
-        if ~np.isnan(nt_states['start_Rin'][0]):
-            _sd['ResponseStart'][nt] = nt_states['start_Rin'][0]
-            _sd['ResponseEnd'][nt] = nt_states['start_Rin'][0] + _sd_custom['FeedbackTime'][nt]
-        elif ~np.isnan(nt_states['start_Lin'][0]):
-            _sd['ResponseStart'][nt] = nt_states['start_Lin'][0]
-            _sd['ResponseEnd'][nt] = nt_states['start_Lin'][0] + _sd_custom['FeedbackTime'][nt]
+        if ~np.isnan(nt_states[Rin_str][0]):
+            _sd['ResponseStart'][nt] = nt_states[Rin_str][0]
+            _sd['ResponseEnd'][nt] = nt_states[Rin_str][0] + _sd_custom[Feedback_str][nt]
+        elif ~np.isnan(nt_states[Lin_str][0]):
+            _sd['ResponseStart'][nt] = nt_states[Lin_str][0]
+            _sd['ResponseEnd'][nt] = nt_states[Lin_str][0] + _sd_custom[Feedback_str][nt]
         else:
             _sd['ResponseStart'][nt] = np.nan
             _sd['ResponseEnd'][nt] = np.nan
 
-        nt_GUI = _sd['TrialSettings'][nt]['GUI']
-        if 'LaserTrials' in nt_GUI.keys():
-            if nt_GUI['LaserTrials'] > 0:
-                if 'LaserTrainDuration_ms' in nt_GUI.keys():
-                    _sd['LaserTrialTrainLength'][nt] = nt_GUI['LaserTrainDuration_ms']
-                else:  # old version
+        if not OTT_LAB_DATA:
+            nt_GUI = _sd['TrialSettings'][nt]['GUI']
+            if 'LaserTrials' in nt_GUI.keys():
+                if nt_GUI['LaserTrials'] > 0:
+                    if 'LaserTrainDuration_ms' in nt_GUI.keys():
+                        _sd['LaserTrialTrainLength'][nt] = nt_GUI['LaserTrainDuration_ms']
+                    else:  # old version
+                        _sd['LaserTrialTrainLength'][nt] = np.nan
+                else:
                     _sd['LaserTrialTrainLength'][nt] = np.nan
-            else:
+            else:  # not even Laser Trials settings, very old version
                 _sd['LaserTrialTrainLength'][nt] = np.nan
-        else:  # not even Laser Trials settings, very old version
-            _sd['LaserTrialTrainLength'][nt] = np.nan
 
-    _sd['SamplingDuration'] = _sd_custom['ST'][:n_trials]
+    _sd['SamplingDuration'] = _sd_custom[Sample_str][:n_trials]
     _sd['StimulusOffset'] = _sd['StimulusOnset'] + _sd['SamplingDuration']
 
     _sd['ChosenDirectionBis'] = _sd['ChosenDirection']
     _sd['ChosenDirectionBis'][_sd['ChosenDirectionBis'] == 3] = np.nan
 
     # Correct length of TrialStartAligned
-    _sd['TrialStartAligned'] = _sd['TrialStartAligned'][:n_trials]
     _sd['TrialStartTimestamp'] = _sd['TrialStartTimestamp'][:n_trials]
+    _sd['TrialEndTimestamp'] = _sd['TrialEndTimestamp'][:n_trials]
+    _sd['TrialTypes'] = _sd['TrialTypes'][:n_trials]
     _sd['TrialSettings'] = _sd['TrialSettings'][:n_trials]
 
-    # laser trials
-    if 'LaserTrial' in _sd_custom.keys() and _sd_custom['LaserTrial'].sum() > 0:
-        if 'LaserTrialTrainStart' in _sd_custom.keys():
-            _sd['LaserTrialTrainStart'] = _sd_custom['LaserTrialTrainStart'][:n_trials]
-            _sd['LaserTrialTrainStartAbs'] = _sd['LaserTrialTrainStart'] + _sd['ResponseStart']
-            _sd['LaserTrial'] = _sd_custom['LaserTrial'][:n_trials]
-            _sd['LaserTrial'][_sd['CompletedTrial'] == 0] = 0
-            _sd['LaserTrial'][_sd['LaserTrialTrainStartAbs'] > _sd['ResponseEnd']] = 0
-            _sd['LaserTrialTrainStartAbs'][_sd['LaserTrial'] != 1] = np.nan
-            _sd['LaserTrialTrainStart'][_sd['LaserTrial'] != 1] = np.nan
-
-            _sd['CompletedWTLaserTrial'] = _sd['LaserTrial']
-            _sd['CompletedWTLaserTrial'][_sd['CompletedWTTrial'] != 1] = np.nan
-        else:  # old version, laser during entire time investment
-            _sd['LaserTrialTrainStart'] = np.zeros(n_trials)
-            _sd['LaserTrialTrainStartAbs'] = _sd['ResponseStart']
-            _sd['LaserTrial'] = _sd_custom['LaserTrial'][:n_trials]
-            _sd['LaserTrial'][_sd['CompletedTrial'] == 0] = 0
-            _sd['LaserTrialTrainStartAbs'][_sd['LaserTrial'] != 1] = np.nan
-            _sd['LaserTrialTrainStart'][_sd['LaserTrial'] != 1] = np.nan
+    if OTT_LAB_DATA:
+        _sd['recorded_TTL_trial_start_time'] = _sd['recorded_TTL_trial_start_time'][:n_trials]
+        _sd['no_matching_TTL_start_time'] = _sd['no_matching_TTL_start_time'][:n_trials]
+        _sd['large_TTL_gap_after_start'] = _sd['large_TTL_gap_after_start'][:n_trials]
     else:
-        _sd['LaserTrialTrainStart'] = np.full(n_trials, np.nan)
-        _sd['LaserTrialTrainStartAbs'] = np.full(n_trials, np.nan)
-        _sd['LaserTrial'] = np.zeros(n_trials)
-        _sd['CompletedWTLaserTrial'] = np.full(n_trials, np.nan)
-        _sd['CompletedWTLaserTrial'][_sd['CompletedWTTrial'] == 1] = 0
+        _sd['TrialStartAligned'] = _sd['TrialStartAligned'][:n_trials]
+
+        # laser trials
+        if 'LaserTrial' in _sd_custom.keys() and _sd_custom['LaserTrial'].sum() > 0:
+            if 'LaserTrialTrainStart' in _sd_custom.keys():
+                _sd['LaserTrialTrainStart'] = _sd_custom['LaserTrialTrainStart'][:n_trials]
+                _sd['LaserTrialTrainStartAbs'] = _sd['LaserTrialTrainStart'] + _sd['ResponseStart']
+                _sd['LaserTrial'] = _sd_custom['LaserTrial'][:n_trials]
+                _sd['LaserTrial'][_sd['CompletedTrial'] == 0] = 0
+                _sd['LaserTrial'][_sd['LaserTrialTrainStartAbs'] > _sd['ResponseEnd']] = 0
+                _sd['LaserTrialTrainStartAbs'][_sd['LaserTrial'] != 1] = np.nan
+                _sd['LaserTrialTrainStart'][_sd['LaserTrial'] != 1] = np.nan
+
+                _sd['CompletedWTLaserTrial'] = _sd['LaserTrial']
+                _sd['CompletedWTLaserTrial'][_sd['CompletedWTTrial'] != 1] = np.nan
+            else:  # old version, laser during entire time investment
+                _sd['LaserTrialTrainStart'] = np.zeros(n_trials)
+                _sd['LaserTrialTrainStartAbs'] = _sd['ResponseStart']
+                _sd['LaserTrial'] = _sd_custom['LaserTrial'][:n_trials]
+                _sd['LaserTrial'][_sd['CompletedTrial'] == 0] = 0
+                _sd['LaserTrialTrainStartAbs'][_sd['LaserTrial'] != 1] = np.nan
+                _sd['LaserTrialTrainStart'][_sd['LaserTrial'] != 1] = np.nan
+        else:
+            _sd['LaserTrialTrainStart'] = np.full(n_trials, np.nan)
+            _sd['LaserTrialTrainStartAbs'] = np.full(n_trials, np.nan)
+            _sd['LaserTrial'] = np.zeros(n_trials)
+            _sd['CompletedWTLaserTrial'] = np.full(n_trials, np.nan)
+            _sd['CompletedWTLaserTrial'][_sd['CompletedWTTrial'] == 1] = 0
 
     if 'BlockNumber' in _sd_custom.keys():
         _sd['BlockNumber'] = _sd_custom['BlockNumber'][:n_trials]
 
-    if 'RewardMagnitude' in _sd_custom.keys():
-        _sd['RelativeReward'] = _sd_custom['RewardMagnitude'][:, 0] - _sd_custom['RewardMagnitude'][:, 1]
-        _sd['RelativeReward'] = _sd['RelativeReward'][:n_trials]
+    if not OTT_LAB_DATA:
+        if 'RewardMagnitude' in _sd_custom.keys():
+            _sd['RelativeReward'] = _sd_custom['RewardMagnitude'][:, 0] - _sd_custom['RewardMagnitude'][:, 1]
+            _sd['RelativeReward'] = _sd['RelativeReward'][:n_trials]
 
     # discrimination measures
-    _sd['MostClickSide'] = -1 * np.ones(n_trials)
     if 'AuditoryOmega' in _sd_custom.keys():
+        _sd['DV'] = _sd_custom[DV_str][:n_trials]
+        _sd['MostClickSide'] = -1 * np.ones(n_trials)
         _sd['OmegaDiscri'] = 2 * np.abs(_sd_custom['AuditoryOmega'][:n_trials] - 0.5)
         _sd['NRightClicks'] = np.zeros(n_trials)
         _sd['NLeftClicks'] = np.zeros(n_trials)
@@ -268,26 +304,26 @@ def calc_event_outcomes(output_dir, OTT_LAB_DATA):
         _sd['MostClickSide'][_sd['NRightClicks'] < _sd['NLeftClicks']] = 1
         _sd['MostClickSide'][_sd['NRightClicks'] == _sd['NLeftClicks']] = 3
         _sd['ChoiceGivenClick'] = _sd['MostClickSide'] == _sd['ChosenDirection']
-    else:
-        _sd['ChoiceGivenClick'] = _sd['CorrectChoice'][:n_trials]
+    # else:
+    #     _sd['ChoiceGivenClick'] = _sd['CorrectChoice'][:n_trials]
 
-    _sd['DV'] = _sd_custom['DV'][:n_trials]
 
-    if 'RewardMagnitude' in _sd_custom.keys():
-        _sd['RewardMagnitude'] = _sd_custom['RewardMagnitude'][:n_trials, :]
+    if not OTT_LAB_DATA:
+        if 'RewardMagnitude' in _sd_custom.keys():
+            _sd['RewardMagnitude'] = _sd_custom['RewardMagnitude'][:n_trials, :]
 
-        # Conditioning the trials
-        _sd['RewardMagnitudeCorrect'] = -1 * np.ones(n_trials)
-        for nt in range(n_trials):
-            rewMagTrial = _sd['RewardMagnitude'][nt, :]
+            # Conditioning the trials
+            _sd['RewardMagnitudeCorrect'] = -1 * np.ones(n_trials)
+            for nt in range(n_trials):
+                rewMagTrial = _sd['RewardMagnitude'][nt, :]
 
-            # chosen direction
-            cd = int(_sd['ChosenDirection'][nt])
+                # chosen direction
+                cd = int(_sd['ChosenDirection'][nt])
 
-            if cd == 3:
-                _sd['RewardMagnitudeCorrect'][nt] = np.nan
-            else:
-                _sd['RewardMagnitudeCorrect'][nt] = rewMagTrial[cd - 1]
+                if cd == 3:
+                    _sd['RewardMagnitudeCorrect'][nt] = np.nan
+                else:
+                    _sd['RewardMagnitudeCorrect'][nt] = rewMagTrial[cd - 1]
 
     dump(_sd, output_dir + 'TrialEvents.npy', compress=3)
 
@@ -298,38 +334,22 @@ def create_behavioral_dataframe(output_dir):
     """
     Create simpler copy of Trial Events to turn into pandas dataframe
     """
+    print('Creating behavioral dataframe')
+    print('Removing fields that are not trialwise...', end='')
     # Load the session data in TrialEvents.npy
     _sd = load(output_dir + 'TrialEvents.npy')
 
     # Remove keys no longer needed for spiking data alignment
     n_keys_start = len(_sd.keys())
 
-    _sd.pop('Custom')
-    _sd.pop('RawEvents')
-    _sd.pop('nTrials')
-    _sd.pop('TrialSettings')
-    _sd.pop('Settings')
+    non_trialwise_items = ['Custom', 'RawEvents', 'nTrials', 'TrialSettings', 'Settings',
+                           'Info', 'SettingsFile', 'RawData', 'RewardMagnitude', 'CompletedChosenDirection',
+                           'CompletedCatchTrial', 'ModReward', 'SideReward', 'ChosenDirectionBis',
+                           'CorrectShortWTTrial', 'CompletedWTLaserTrial', 'CompletedWTTrial', 'PunishedTrial']
 
-    if 'RawData' in _sd.keys():
-        _sd.pop('RawData')
-
-    if 'RewardMagnitude' in _sd.keys():
-        _sd.pop('RewardMagnitude')
-
-    try:
-        _sd.pop('CompletedChosenDirection')
-        _sd.pop('CompletedCatchTrial')
-
-        _sd.pop('ModReward')
-        _sd.pop('SideReward')
-        _sd.pop('ChosenDirectionBis')
-        _sd.pop('CorrectShortWTTrial')
-
-        _sd.pop('CompletedWTLaserTrial')
-        _sd.pop('CompletedWTTrial')
-        _sd.pop('PunishedTrial')
-    except:
-        print('Some fields were not removed')
+    for ntw_item in non_trialwise_items:
+        if ntw_item in _sd.keys():
+            _sd.pop(ntw_item)
 
     print(f"{n_keys_start - len(_sd.keys())} fields removed.")
 
@@ -373,7 +393,7 @@ def trim_df(behav_df):
     'evidence', 'prior', 'probe',  'prev_completed_1', 'prev_evidence_1', 'prev_stim_dir_1', 'prev_rewarded_1', ''
                      'prev_resp_dir_1', 'prev_correct_1', 'WT_qs', 'prev_WT_qs_1']]
 
-def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim_last_trial=True):
+def convert_df(behav_df, metadata, session_type='SessionData', trim_last_trial=True):
     '''
     TODO: Map confidence for waiting time rats
 
@@ -390,6 +410,12 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim_last_tr
                 (often the same as correct, the exception is probe trials in the reward bias task)
         reward -  value of the recieved reward
     '''
+    if metadata['ott_lab']:
+        WTThresh = False if metadata['task'] == 'reward-bias' else True
+        discrimination_task = True if metadata['task'] == 'time-investment' else False
+    else:
+        WTThresh = metadata['time_investment']
+        discrimination_task = metadata['time-investment']
     if session_type == 'RatPriors':
         print('WARNING: Assuming no probe trials, all completed rewarded')
         behav_df['CatchTrial'] = False
@@ -408,7 +434,8 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim_last_tr
         behav_df['success'] = 'Correct'
         behav_df.loc[behav_df['Rewarded'] == 0, 'success'] = 'Error'
 
-        behav_df['correct'] = behav_df['CorrectChoice'].astype('bool')
+        if 'CorrectChoice' in behav_df.keys():
+            behav_df['correct'] = behav_df['CorrectChoice'].astype('bool')
         behav_df['completed'] = behav_df['CompletedTrial'].astype('bool')
         if "ChosenDirection" in behav_df.keys():
             behav_df["resp_dir"] = behav_df["ChosenDirection"] - 1
@@ -419,38 +446,44 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim_last_tr
         behav_df['trial'] = behav_df['TrialNumber']
         behav_df['WT'] = behav_df['WaitingTime']
 
-
-        behav_df.loc[:, 'next_trial_start'] = behav_df.loc[:, 'TrialStartAligned'].shift(-1).to_numpy()
-        trial_len = (behav_df['next_trial_start'] - behav_df['TrialStartAligned']).to_numpy()
+        if metadata['ott_lab']:
+            trialstart_str = 'recorded_TTL_trial_start_time'
+        else:
+            trialstart_str = 'TrialStartAligned'
+        behav_df.loc[:, 'next_trial_start'] = behav_df.loc[:, trialstart_str].shift(-1).to_numpy()
+        trial_len = (behav_df['next_trial_start'] - behav_df[trialstart_str]).to_numpy()
         behav_df['trial_len'] = trial_len
 
         # so that we can use this code for session data that doesnt have catch trials!
         if 'prior' not in behav_df.keys():
             behav_df['prior'] = .5
-        if 'DV' not in behav_df.keys():
-            behav_df['DV'] = behav_df['BetaDiscri']
+
 
         if 'before_switch' not in behav_df.keys():
             behav_df['before_switch'] = 0
 
-    behav_df['stim_dir'] = np.sign(behav_df['DV'])  # sessiondata matlab records have 1= left, 2 = right
-    behav_df.loc[:, 'stim_dir'] = behav_df['stim_dir'].replace({-1:0}).to_numpy()
-    behav_df['stimulus direction'] = 'Right'
-    behav_df.loc[behav_df['stim_dir'] == 0, 'stimulus direction'] = 'Left'
+    if discrimination_task:
+        if 'DV' not in behav_df.keys():
+            behav_df['DV'] = behav_df['BetaDiscri']
+        behav_df['stim_dir'] = np.sign(behav_df['DV'])  # sessiondata matlab records have 1= left, 2 = right
+        behav_df.loc[:, 'stim_dir'] = behav_df['stim_dir'].replace({-1:0}).to_numpy()
+        behav_df['stimulus direction'] = 'Right'
+        behav_df.loc[behav_df['stim_dir'] == 0, 'stimulus direction'] = 'Left'
 
-    behav_df['evidence'] = (behav_df['DV'] * 2).round(0) / 2
+        behav_df['evidence'] = (behav_df['DV'] * 2).round(0) / 2
 
-    behav_df = add_history_fields(behav_df, [1], ['completed', 'rewarded', 'evidence', 'stim_dir', 'WT', 'resp_dir', 'correct'])
-    behav_df.loc[:, 'prev_completed_1'] = behav_df['prev_completed_1'].astype('bool')
-    behav_df.loc[:, 'prev_correct_1'] = behav_df['prev_correct_1'].astype('bool')
-    behav_df.loc[:, 'prev_rewarded_1'] = behav_df['prev_rewarded_1'].astype('bool')
+    if not metadata['ott_lab']:
+        behav_df = add_history_fields(behav_df, [1], ['completed', 'rewarded', 'evidence', 'stim_dir', 'WT', 'resp_dir', 'correct'])
+        behav_df.loc[:, 'prev_completed_1'] = behav_df['prev_completed_1'].astype('bool')
+        behav_df.loc[:, 'prev_correct_1'] = behav_df['prev_correct_1'].astype('bool')
+        behav_df.loc[:, 'prev_rewarded_1'] = behav_df['prev_rewarded_1'].astype('bool')
 
-    behav_df.loc[:, 'prev_correct_1'] = behav_df['prev_correct_1'].fillna(False)
-    behav_df.loc[:, 'prev_completed_1'] = behav_df['prev_completed_1'].fillna(False)
+        behav_df.loc[:, 'prev_correct_1'] = behav_df['prev_correct_1'].fillna(False)
+        behav_df.loc[:, 'prev_completed_1'] = behav_df['prev_completed_1'].fillna(False)
 
-    behav_df['probe'] = behav_df['CatchTrial']
+        behav_df['probe'] = behav_df['CatchTrial']
 
-    behav_df['confidence'] = behav_df['WT']
+        behav_df['confidence'] = behav_df['WT']
 
 
 
@@ -458,10 +491,14 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim_last_tr
         behav_df  = behav_df[behav_df.completed & behav_df.ValidAlignedTrials]
         print("only using trials with valid alignment")
     else:
+        if metadata['ott_lab']:
+            behav_df = behav_df[~behav_df['no_matching_TTL_start_time']]
+            behav_df = behav_df[behav_df['large_TTL_gap_after_start']==0]
         behav_df = behav_df[behav_df['completed']]
 
-    if WTThresh:
-        behav_df = behav_df[behav_df.WaitingTime > WTThresh]
+    if not metadata['ott_lab']:
+        if WTThresh:
+            behav_df = behav_df[behav_df.WaitingTime > WTThresh]
 
     if trim_last_trial:
         print("warning triming the last trial")
@@ -469,7 +506,9 @@ def convert_df(behav_df, session_type='SessionData', WTThresh=None, trim_last_tr
 
     bins = np.quantile(behav_df.WT, [.33, .66])
     behav_df['WT_qs'] = np.digitize(behav_df.WT, bins)
-    behav_df['prev_WT_qs_1'] = np.digitize(behav_df.prev_WT_1, bins)
+
+    if not metadata['ott_lab']:
+        behav_df['prev_WT_qs_1'] = np.digitize(behav_df.prev_WT_1, bins)
 
     return behav_df.reset_index()
 

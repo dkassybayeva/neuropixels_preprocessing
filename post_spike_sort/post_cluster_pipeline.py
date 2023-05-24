@@ -7,6 +7,7 @@ Created on Thu Dec  8 10:33:50 2022
 
 import neuropixels_preprocessing.lib.timing_utils as tu
 import neuropixels_preprocessing.lib.obj_utils as ou
+import neuropixels_preprocessing.lib.behavior_utils as bu
 import neuropixels_preprocessing.lib.data_objs as data_objs
 from neuropixels_preprocessing.session_params import *
 
@@ -52,14 +53,14 @@ if not TOY_DATA:
 
     if OTT_LAB_DATA:
         tu.extract_TTL_trial_start_times(SESSION_DIR, gap_filename, metadata['DIO_port_num'], save_dir=output_dir)
+        tu.reconcile_TTL_and_behav_trial_start_times(SESSION_DIR, output_dir, BEHAV_PATH+behavior_mat_file)
     else:
         tu.convert_TTL_timestamps_to_nbit_events(SESSION_DIR, gap_filename, save_dir=output_dir)
+        tu.add_TTL_trial_start_times_to_behav_data(SESSION_DIR, output_dir, BEHAV_PATH+behavior_mat_file)
 
-    tu.add_TTL_trial_start_times_to_behav_data(SESSION_DIR, output_dir, REC_PATH+behavior_mat_file)
+    bu.calc_event_outcomes(output_dir, metadata)
 
-    tu.calc_event_outcomes(output_dir)
-
-    tu.create_behavioral_dataframe(output_dir)
+    bu.create_behavioral_dataframe(output_dir)
 
 trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(metadata, output_dir, trace_subsample_bin_size_ms, TOY_DATA=TOY_DATA)
 
