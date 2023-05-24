@@ -447,11 +447,34 @@ def remove_laser_trials(trialwise_TTLs, start_times, laser_TTL=526):
     return trialwise_TTLs, start_times
 
 def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_mat_file):
+    """
+    The recording system (e.g., Trodes) receives information about the behavior via the
+    digital input TTL port. It only knows when a trial starts (TTL goes high to 1) or
+    ends (TTL goes low to 0).  These trial start times need to be compared to the trial start
+    times recorded by the behavioral setup (e.g., Bpod).  If all goes well, this is simple,
+    because there should be exactly as many trials recorded by both systems, with slight
+    deviations in timinig.  Therefore, a simple comparison is matching the intertrial times,
+    which gives a pattern across the session which should (to some tolerance) match in both
+    timestamp arrays.  Then the TTL timestamps can be added to the behavioral data for each trial.
+
+    However, there are gaps in the recording system sometimes, meaning that it is possible
+    that a trial was missed or is incomplete.  For those trials, during which a large gap occurred
+    or a trial is missing, there needs to be an extra array which flags this trial as suspect
+    or missing.
+    :param session_dir:
+    :param save_dir:
+    :param behavior_mat_file:
+    :return:
+    """
+    # --------------------------------------------------------------------- #
+    # Trial start in absolute time from the recording system
+    # --------------------------------------------------------------------- #
     TTL_results = load(save_dir + 'TTL_events.npy')
 
     # first 0 is before Bpod session, first 1 is first trial, last 0 is end of last trial
     TTL_timestamps_sec = TTL_results['timestamps'][1:]
     TTL_code = TTL_results['TTL_code'][1:]
+    gap_lengths = TTL_results['gap_lengths']
 
     recorded_start_ts = TTL_timestamps_sec[TTL_code == 1]
     assert recorded_start_ts.size == (TTL_code.size - np.sum(TTL_code == -1)) // 2
@@ -473,9 +496,57 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_ma
     # First check the number of trials
     print(f'{n_trials} behavioral trials, {len(recorded_start_ts)} TTLs')
 
-    # @TODO: first try taking out the trials where there's a gap and then see if the rest around the gaps fit
-    # @TODO: this worked at least for the current data
 
+    def compare_ITIs(arr1, arr2):
+        return np.isclose(np.diff(arr1), np.diff(arr2), atol=0.01, rtol=0)
+
+    def n_matching_ITIs(arr1, arr2):
+        return np.sum(compare_ITIs(arr1, arr2))
+
+    if len(behav_start_ts) > len(recorded_start_ts):
+        """
+        This is likely due to a gap, so try to insert a NaN at the gap to shift the array after.
+        """
+
+        gap_start_indices = np.where(TTL_code == -1)[0] // 2
+
+        _end = min(len(behav_start_ts), len(recorded_start_ts))
+        n_match = n_matching_ITIs(behav_start_ts[:_end], recorded_start_ts[:_end])
+
+        trials_preceding_gap = []
+        trials_without_matching_TTL = []
+        for gap_idx in gap_start_indices:
+            n_match_old = n_match
+            first_miss = np.where(compare_ITIs(behav_start_ts[:_end], recorded_start_ts[:_end]) == False)[0][0]
+            # @TODO: may need to insert multiple points if the gap is very large
+            recorded_start_ts_w_gaps = np.insert(recorded_start_ts, gap_idx+1, np.nan)
+
+            _end = min(len(behav_start_ts), len(recorded_start_ts_w_gaps))
+            n_match = n_matching_ITIs(behav_start_ts[:_end], recorded_start_ts_w_gaps[:_end])
+            if n_match > n_match_old:
+                #@TODO: mark trials with problems
+                recorded_start_ts = recorded_start_ts_w_gaps
+
+        if len(recorded_start_ts) > len(behav_start_ts):
+            recorded_start_ts = recorded_start_ts[:len(behav_start_ts)]
+
+
+
+    """
+    When comparing the intertrial periods, the number of possible matches is the 
+    length of the behavioral array minus one (because we're comparing intervals, not time points)
+    minus the number of gaps times two (because a single gap influences at least two periods).
+    """
+    max_possible_matches = len(behav_start_ts) - 1 - 2*len(gap_lengths)
+    assert n_matching_ITIs(behav_start_ts, recorded_start_ts) == max_possible_matches
+
+    # all ITIs match
+    session_data['recorded_TTL_trial_start_time'] = recorded_start_ts
+    session_data['large_TTL_gap_after_start'] = trials_with_gaps
+    session_data['no_matching_TTL_start_time'] = trials_without_TTL_ts
+
+    dump(session_data, save_dir + 'TrialEvents.npy', compress=3)
+    print('Results saved to ' + save_dir + 'TrialEvents.npy.')
 
 
 def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_file):
