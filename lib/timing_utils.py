@@ -380,7 +380,7 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_ma
     # first 0 is before Bpod session, first 1 is first trial, last 0 is end of last trial
     TTL_timestamps_sec = TTL_results['timestamps'][1:]
     TTL_code = TTL_results['TTL_code'][1:]
-    gap_lengths = TTL_results['gap_lengths']
+    gap_lengths = TTL_results['gap_lengths']['gaps']
 
     recorded_start_ts = TTL_timestamps_sec[TTL_code == 1]
     assert recorded_start_ts.size == (TTL_code.size - np.sum(TTL_code == -1)) // 2
@@ -432,15 +432,24 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_ma
         if len(recorded_start_ts) > len(behav_start_ts):
             recorded_start_ts = recorded_start_ts[:len(behav_start_ts)]
 
-    """
-    When comparing the intertrial periods, the number of possible matches is the 
-    length of the behavioral array minus one (because we're comparing intervals, not time points)
-    minus the number of gaps times two (because a single gap influences at least two periods).
-    """
-    max_possible_matches = len(behav_start_ts) - 1 - 2 * len(gap_lengths)
-    assert n_matching_ITIs(behav_start_ts, recorded_start_ts) == max_possible_matches
 
-    # all ITIs match
+        """
+        When comparing the intertrial periods, the number of possible matches is the 
+        length of the behavioral array minus one (because we're comparing intervals, not time points)
+        minus the number of gaps times two (because a single gap influences at least two periods).
+        """
+        max_possible_matches = len(behav_start_ts) - 1 - 2 * len(gap_lengths)
+        assert n_matching_ITIs(behav_start_ts, recorded_start_ts) == max_possible_matches
+
+    elif len(behav_start_ts) < len(recorded_start_ts):
+        _end = min(len(behav_start_ts), len(recorded_start_ts))
+        n_match = n_matching_ITIs(behav_start_ts[:_end], recorded_start_ts[:_end])
+        if n_match == n_trials - 1:
+            recorded_start_ts = recorded_start_ts[:len(behav_start_ts)]
+
+    # ------------------------------------------------------------------------- #
+    #                           all ITIs match                                  #
+    # ------------------------------------------------------------------------- #
     session_data['recorded_TTL_trial_start_time'] = recorded_start_ts
     session_data['no_matching_TTL_start_time'] = np.isnan(recorded_start_ts)
 
