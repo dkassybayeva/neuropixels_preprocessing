@@ -83,22 +83,21 @@ else:
 #                               Paths
 # ----------------------------------------------------------------------- #
 try:
-    INDIV_DATA_DIR = f'D:NeuroData/R{rat}/'
+    INDIV_DATA_DIR = f'Y:NeuroData/R{rat}/'
     assert path.exists(INDIV_DATA_DIR)
-    REC_PATH = INDIV_DATA_DIR + f'{session1}.rec/{session1}'
-    BEHAV_PATH = REC_PATH
+    REC_PATH = BEHAV_PATH = INDIV_DATA_DIR + f'{session1}.rec/'
 except:
     INDIV_DATA_DIR = f'/media/ottlab/data/{rat}/'
     assert path.exists(INDIV_DATA_DIR)
     REC_PATH = INDIV_DATA_DIR + f'ephys/{session1}.rec/{session1}'
     BEHAV_PATH = INDIV_DATA_DIR + f'bpod_session/{behav_datetime}/'
 
-SESSION_DIR = REC_PATH + f'.kilosort{kilosort_ver}_probe{probe}/'
+SESSION_DIR = REC_PATH + f'{session1}.kilosort{kilosort_ver}_probe{probe}/'
 PREPROCESS_DIR = SESSION_DIR + 'preprocessing_output/'
 assert path.exists(PREPROCESS_DIR)
 
 # location of Trodes timestamps (in the kilosort folder of first probe)
-timestamps_dat = REC_PATH + f'.kilosort/{session1}.timestamps.dat'
+timestamps_dat = REC_PATH + f'{session1}.kilosort/{session1}.timestamps.dat'
 
 # -----------------When stitching sessions------------------ #
 if STITCH_SESSIONS:
@@ -110,8 +109,8 @@ if STITCH_SESSIONS:
     except:
         INDIV_DATA_DIR2 = STITCH_DAT_DIR = INDIV_DATA_DIR
 
-    REC_PATH2 = INDIV_DATA_DIR2 + f'{session2}.rec/{session2}'
-    SESSION_DIR2 = REC_PATH2 + f'.kilosort{kilosort_ver}_probe{probe}/'
+    REC_PATH2 = INDIV_DATA_DIR2 + f'{session2}.rec/'
+    SESSION_DIR2 = REC_PATH2 + f'{session2}.kilosort{kilosort_ver}_probe{probe}/'
     PREPROCESS_DIR2 = SESSION_DIR2 + 'preprocessing_output/'
 
     STITCH_DIR = STITCH_DAT_DIR + f'{combined_session}/probe{probe}/kilosort{kilosort_ver}/'
