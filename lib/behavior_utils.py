@@ -41,7 +41,7 @@ def calc_event_outcomes(output_dir, metadata):
     _sd['ChosenDirection'][left_choice_idx] = 1
     _sd['ChosenDirection'][right_choice_idx] = 2
 
-    if not OTT_LAB_DATA:
+    if not metadata['task']=='matching':
         # Correct and error trials
         choice_correct = _sd_custom['ChoiceCorrect'][:n_trials]
         _sd['CorrectChoice'], _sd['PunishedTrial'] = one_zero_idx(choice_correct)
@@ -58,7 +58,7 @@ def calc_event_outcomes(output_dir, metadata):
     _sd['UnansweredTrials'] = incomplete & early_withdrawal
     assert _sd['UnansweredTrials'].sum() <= min(early_withdrawal.sum(), incomplete.sum())
 
-    if not OTT_LAB_DATA:
+    if not metadata['task'] == 'matching':
         # CatchTrial
         _sd['CatchTrial'] = _sd_custom['CatchTrial'][:n_trials]
 
@@ -78,11 +78,9 @@ def calc_event_outcomes(output_dir, metadata):
         punish_or_catch = _sd['PunishedTrial'] | _sd['CatchTrial']
         _sd['WaitingTimeTrial'] = punish_or_catch & complete
 
-    # Waiting Time
-    if OTT_LAB_DATA:
-        _sd['WaitingTime'] = _sd_custom['FeedbackWaitingTime'][:n_trials]
-    else:
         _sd['WaitingTime'] = _sd_custom['FeedbackTime']
+    else:
+        _sd['WaitingTime'] = _sd_custom['FeedbackWaitingTime'][:n_trials]
 
     # Threshold for waiting time (e.g., negative waiting times are impossible)
     _sd['WaitingTime'][_sd['WaitingTime'] < WT_low_threshold] = np.nan
@@ -176,13 +174,13 @@ def calc_event_outcomes(output_dir, metadata):
 
     _sd['LaserTrialTrainLength'] = np.zeros(n_trials)
 
-    if OTT_LAB_DATA:
+    if metadata['task'] == 'matching':
         Cin_str = 'StartCIn'
         StimOn_str = 'Sampling'
         Rin_str = 'StartRIn'
         Lin_str = 'StartLIn'
         Feedback_str = 'FeedbackWaitingTime'
-        Sample_str = 'SampleTime' if metadata['task']=='matching' else 'SampleLength'
+        Sample_str = 'SampleTime'
         DV_str = 'DecisionVariable'
     else:
         Cin_str = 'stay_Cin'
@@ -190,8 +188,8 @@ def calc_event_outcomes(output_dir, metadata):
         Rin_str = 'start_Rin'
         Lin_str = 'start_Lin'
         Feedback_str = 'FeedbackTime'
-        Sample_str = 'ST'
-        DV_str = 'DV'
+        Sample_str = 'SampleLength' if OTT_LAB_DATA else 'ST'
+        DV_str = 'DecisionVariable' if OTT_LAB_DATA else 'DV'
 
     for nt in range(n_trials):
         nt_states = _sd['RawEvents']['Trial'][nt]['States']
@@ -231,7 +229,8 @@ def calc_event_outcomes(output_dir, metadata):
     # Correct length of TrialStartAligned
     _sd['TrialStartTimestamp'] = _sd['TrialStartTimestamp'][:n_trials]
     _sd['TrialEndTimestamp'] = _sd['TrialEndTimestamp'][:n_trials]
-    _sd['TrialTypes'] = _sd['TrialTypes'][:n_trials]
+    if 'TrialTypes' in _sd.keys():
+        _sd['TrialTypes'] = _sd['TrialTypes'][:n_trials]
     _sd['TrialSettings'] = _sd['TrialSettings'][:n_trials]
 
     if OTT_LAB_DATA:
@@ -324,6 +323,22 @@ def calc_event_outcomes(output_dir, metadata):
                     _sd['RewardMagnitudeCorrect'][nt] = np.nan
                 else:
                     _sd['RewardMagnitudeCorrect'][nt] = rewMagTrial[cd - 1]
+    elif not metadata['task'] == 'matching':
+        if 'RewardMagnitudeL' in _sd_custom.keys():
+            _sd['RewardMagnitudeL'] = _sd_custom['RewardMagnitudeL'][:n_trials]
+        if 'RewardMagnitudeR' in _sd_custom.keys():
+            _sd['RewardMagnitudeR'] = _sd_custom['RewardMagnitudeR'][:n_trials]
+
+        # Conditioning the trials
+        _sd['RewardMagnitudeCorrect'] = -1 * np.ones(n_trials)
+        # Get magnitudes for left choices
+        left_choices = _sd['ChosenDirection'] == 1
+        _sd['RewardMagnitudeCorrect'][left_choices] = _sd['RewardMagnitudeL'][left_choices]
+        assert n_trials - np.sum(_sd['RewardMagnitudeCorrect'] == -1) == left_choices.sum()
+
+        right_choices = _sd['ChosenDirection'] == 2
+        _sd['RewardMagnitudeCorrect'][right_choices] = _sd['RewardMagnitudeR'][right_choices]
+        assert n_trials - np.sum(_sd['RewardMagnitudeCorrect'] == -1) == left_choices.sum() + right_choices.sum()
 
     dump(_sd, output_dir + 'TrialEvents.npy', compress=3)
 
