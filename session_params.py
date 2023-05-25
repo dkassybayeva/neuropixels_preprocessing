@@ -16,10 +16,15 @@ OTT_LAB_DATA = True
 rat = '1'
 probe = '1'
 kilosort_ver = '2.5'
-session1 = '20230506_152707'
+# session1 = '20230506_152707'
+session1 = '20230507_123146'
 # name of the BPod behavioral data file for session1
-behav_datetime = '20230506_151733'
-behavior_mat_file = f'1_TwoArmBanditVariant_{behav_datetime}.mat'
+# behav_datetime = '20230506_151733'
+# task = 'matching'
+# behavior_mat_file = f'1_TwoArmBanditVariant_{behav_datetime}.mat'
+behav_datetime = '20230507_122316'
+task = 'time-investment'
+behavior_mat_file = f'1_DiscriminationConfidence_{behav_datetime}.mat'
 
 # when stitching
 STITCH_SESSIONS = True
@@ -36,7 +41,7 @@ recording_session_id = 0
 
 if OTT_LAB_DATA:
     metadata = {'ott_lab': True,
-                'task': 'matching',
+                'task': task,
                 'experimenter': 'Gregory Knoll',
                 'region': 'mPFC',
                 'recording_type': 'neuropixels_1.0',
@@ -49,6 +54,7 @@ else:
     metadata = {'ott_lab': False,
                 'time_investment': False,
                 'reward_bias': False,
+                'task': task,
                 'prior': False,  # Could possibly be Amy's code for a task type that was previously used
                 'experimenter': 'Amy',
                 'region': 'lOFC',
