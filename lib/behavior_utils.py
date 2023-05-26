@@ -176,12 +176,12 @@ def calc_event_outcomes(output_dir, metadata):
 
     if metadata['task'] == 'matching':
         Cin_str = 'StartCIn'
-        StimOn_str = 'Sampling'
+        StimOn_str = 'Sampling'  # For matching, this variable is nonsensical
         Rin_str = 'StartRIn'
         Lin_str = 'StartLIn'
-        Feedback_str = 'FeedbackWaitingTime'
+        Feedback_str = 'FeedbackWaitingTime'  # Time spent in the choice port before leaving or reward
         Sample_str = 'SampleTime'
-        DV_str = 'DecisionVariable'
+        # DV_str = 'DecisionVariable'
     else:
         Cin_str = 'stay_Cin'
         StimOn_str = 'stimulus_delivery_min'
