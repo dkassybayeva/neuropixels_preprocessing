@@ -27,7 +27,7 @@ task = 'time-investment'
 behavior_mat_file = f'1_DiscriminationConfidence_{behav_datetime}.mat'
 
 # when stitching
-STITCH_SESSIONS = True
+STITCH_SESSIONS = False
 if STITCH_SESSIONS:
     session2 = '20230507_123146'
     combined_session = '20230506_20230507'
@@ -95,7 +95,7 @@ try:
 except:
     INDIV_DATA_DIR = f'/media/ottlab/data/{rat}/'
     assert path.exists(INDIV_DATA_DIR)
-    REC_PATH = INDIV_DATA_DIR + f'ephys/{session1}.rec/{session1}'
+    REC_PATH = INDIV_DATA_DIR + f'ephys/{session1}.rec/'
     BEHAV_PATH = INDIV_DATA_DIR + f'bpod_session/{behav_datetime}/'
 
 SESSION_DIR = REC_PATH + f'{session1}.kilosort{kilosort_ver}_probe{probe}/'

@@ -79,7 +79,7 @@ def create_traces_np(behav_df, traces, sps,
                      traces_aligned='ResponseStart',
                      aligned_ind=40,
                      filter_by_trial_num=False,
-                     preITI=.5): 
+                     preITI=1.5):
     '''
     create different alignments from neuropixels data. The standard alignments are:
     stim_aligned
@@ -189,6 +189,8 @@ def create_traces_np(behav_df, traces, sps,
                            pad_width=[(0, 0), (0, 0), (prepad, postpad)],
                            mode='empty'
                           ).astype('uint8')
+    if not np.all(padded_traces == traces):
+        print('Traces padded.')
     # --------------------------------------------------------------------- #
 
 
@@ -242,15 +244,16 @@ def create_traces_np(behav_df, traces, sps,
     
     
     # -----------------------Response-aligned frame------------------------------- #
-    resp_frame_begin = np.maximum(stim_frame_end, response_start_idx - int(sps))
-    resp_frame_end = np.minimum(response_start_idx + int(10*sps), resp_end_idx + int(2*sps))
+    # resp_frame_begin = np.maximum(stim_frame_end, response_start_idx - int(sps))
+    resp_frame_begin = response_start_idx - int(2.1*sps)
+    resp_frame_end = np.minimum(response_start_idx + int(10*sps), resp_end_idx + int(2.1*sps))
 
     response_aligned, response_point = align_helper(resp_frame_begin, resp_frame_end, response_start_idx, trace_len_bins=int(13.5*sps))
 
 
     # -----------------------Reward-aligned frame--------------------------------- #
-    reward_frame_begin = np.maximum(response_start_idx, resp_end_idx - int(8*sps))
-    reward_frame_end = np.minimum(resp_end_idx + int(2*sps), trial_len_in_bins)
+    reward_frame_begin = np.maximum(response_start_idx, resp_end_idx - int(6.1*sps))
+    reward_frame_end = np.minimum(resp_end_idx + int(2.1*sps), trial_len_in_bins)
     
     reward_aligned, reward_point = align_helper(reward_frame_begin, reward_frame_end, resp_end_idx, trace_len_bins=int(10.1*sps))
 
