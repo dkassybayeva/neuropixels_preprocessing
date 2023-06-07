@@ -6,6 +6,8 @@ from os import path, makedirs
 # ----------------------------------------------------------------------- #
 fs = 30e3  # Trodes sampling frequency in Hz
 ms_converter = 1000 / fs
+n_Npix1_electrodes = 960
+n_active_electrodes = 384
 # ----------------------------------------------------------------------- #
 
 
@@ -16,15 +18,18 @@ OTT_LAB_DATA = True
 rat = '1'
 probe = '1'
 kilosort_ver = '2.5'
-# session1 = '20230506_152707'
-session1 = '20230507_123146'
+session1 = '20230506_152707'
+# session1 = '20230507_123146'
+
+Trodes_config = f'D:NeuroData/R{rat}/2023-04-10.trodesconf'
+
 # name of the BPod behavioral data file for session1
-# behav_datetime = '20230506_151733'
-# task = 'matching'
-# behavior_mat_file = f'1_TwoArmBanditVariant_{behav_datetime}.mat'
-behav_datetime = '20230507_122316'
-task = 'time-investment'
-behavior_mat_file = f'1_DiscriminationConfidence_{behav_datetime}.mat'
+behav_datetime = '20230506_151733'
+task = 'matching'
+behavior_mat_file = f'1_TwoArmBanditVariant_{behav_datetime}.mat'
+# behav_datetime = '20230507_122316'
+# task = 'time-investment'
+# behavior_mat_file = f'1_DiscriminationConfidence_{behav_datetime}.mat'
 
 # when stitching
 STITCH_SESSIONS = False
@@ -89,7 +94,7 @@ else:
 #                               Paths
 # ----------------------------------------------------------------------- #
 try:
-    INDIV_DATA_DIR = f'Y:NeuroData/R{rat}/'
+    INDIV_DATA_DIR = f'D:NeuroData/R{rat}/'
     assert path.exists(INDIV_DATA_DIR)
     REC_PATH = BEHAV_PATH = INDIV_DATA_DIR + f'{session1}.rec/'
 except:
