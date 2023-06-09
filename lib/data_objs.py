@@ -35,8 +35,8 @@ class DataContainer:
         self.metadata = metadata
         self.name = metadata['rat_name']
         self.sps = metadata['sps']
-        save_folder = '_'.join([self.name, self.metadata['date'], f"probe{self.metadata['probe_num']}_preprocessing_output"])
-        self.dat_path = dat_path + save_folder + '/'
+        # save_folder = '_'.join([self.name, self.metadata['date'], f"probe{self.metadata['probe_num']}_preprocessing_output"])
+        self.dat_path = dat_path
         self.feature_df_cache = feature_df_cache
         self.feature_df_keys = feature_df_keys
         self.behavior_phase = behavior_phase

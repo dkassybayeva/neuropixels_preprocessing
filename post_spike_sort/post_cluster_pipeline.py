@@ -66,4 +66,4 @@ trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(metada
 
 cbehav_df['session'] = recording_session_id
 
-data_objs.create_experiment_data_object(SESSION_DIR, metadata, trialwise_binned_mat, cbehav_df)
+data_objs.create_experiment_data_object(output_dir, metadata, trialwise_binned_mat, cbehav_df)
