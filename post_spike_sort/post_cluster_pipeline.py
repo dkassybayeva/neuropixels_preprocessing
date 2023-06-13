@@ -14,31 +14,25 @@ from neuropixels_preprocessing.session_params import *
 TOY_DATA = 0  # for testing
 
 #----------------------------------------------------------------------#
-# The information in this block needs to be filled out and updated
-# for each recording session.
+# The information in the metadata block of session_params needs to be
+# filled out and updated for each recording session.
 #----------------------------------------------------------------------#
 SAVE_INDIVIDUAL_SPIKETRAINS = True
-
-max_ISI = 0.001  # max intersample interval (ISI), above which the period
-                 # was considered a "gap" in the recording
-trace_subsample_bin_size_ms = 25  # sample period in ms
-sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of aligned traces
-metadata['sps'] = sps
 #----------------------------------------------------------------------#
-
 
 #----------------------------------------------------------------------#
 #                           PATHS
 #----------------------------------------------------------------------#
 # output directory of the pipeline
 if TOY_DATA:
-    SESSION_DIR = SESSION_DIR + 'toybase/'
-    output_dir = SESSION_DIR
+    session_dir = session_dir + 'toybase/'
+    preprocess_dir = session_dir
 else:
-    output_dir = SESSION_DIR + 'preprocessing_output/'
-    ou.make_dir_if_nonexistent(output_dir)
+    metadata = write_session_metadata_to_csv()
+    session_dir, behav_dir, preprocess_dir, timestamps_dat = get_session_path(metadata)
     if SAVE_INDIVIDUAL_SPIKETRAINS:
-        ou.make_dir_if_nonexistent(output_dir + 'spike_times/')
+        ou.make_dir_if_nonexistent(preprocess_dir + 'spike_times/')
+    behavior_mat_file = behav_dir + metadata['behavior_mat_file']
 #----------------------------------------------------------------------#
 
 
@@ -46,24 +40,24 @@ else:
 #                           PIPELINE                                   #
 #----------------------------------------------------------------------#
 if not TOY_DATA:
-    tu.create_spike_mat(SESSION_DIR, output_dir, timestamps_dat, session1, probe, fs,
+    tu.create_spike_mat(session_dir, preprocess_dir, timestamps_dat, metadata, fs,
                         save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
 
-    gap_filename = tu.find_recording_gaps(timestamps_dat, fs, max_ISI, output_dir)
+    gap_filename = tu.find_recording_gaps(timestamps_dat, fs, max_ISI, preprocess_dir)
 
     if OTT_LAB_DATA:
-        tu.extract_TTL_trial_start_times(SESSION_DIR, gap_filename, metadata['DIO_port_num'], save_dir=output_dir)
-        tu.reconcile_TTL_and_behav_trial_start_times(SESSION_DIR, output_dir, BEHAV_PATH+behavior_mat_file)
+        tu.extract_TTL_trial_start_times(session_dir, gap_filename, metadata['DIO_port_num'], save_dir=preprocess_dir)
+        tu.reconcile_TTL_and_behav_trial_start_times(session_dir, preprocess_dir, behavior_mat_file)
     else:
-        tu.convert_TTL_timestamps_to_nbit_events(SESSION_DIR, gap_filename, save_dir=output_dir)
-        tu.add_TTL_trial_start_times_to_behav_data(SESSION_DIR, output_dir, BEHAV_PATH+behavior_mat_file)
+        tu.convert_TTL_timestamps_to_nbit_events(session_dir, gap_filename, save_dir=preprocess_dir)
+        tu.add_TTL_trial_start_times_to_behav_data(session_dir, preprocess_dir, behavior_mat_file)
 
-    bu.calc_event_outcomes(output_dir, metadata)
+    bu.calc_event_outcomes(preprocess_dir, metadata)
 
-    bu.create_behavioral_dataframe(output_dir)
+    bu.create_behavioral_dataframe(preprocess_dir)
 
-trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(metadata, output_dir, trace_subsample_bin_size_ms, TOY_DATA=TOY_DATA)
+trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(metadata, preprocess_dir, trace_subsample_bin_size_ms, TOY_DATA=TOY_DATA)
 
-cbehav_df['session'] = recording_session_id
+cbehav_df['session'] = metadata['recording_session_id']
 
-data_objs.create_experiment_data_object(output_dir, metadata, trialwise_binned_mat, cbehav_df)
+data_objs.create_experiment_data_object(preprocess_dir, metadata, trialwise_binned_mat, cbehav_df)
