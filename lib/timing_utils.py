@@ -254,7 +254,7 @@ def convert_TTL_timestamps_to_nbit_events(session_path, gap_filename, save_dir):
     in the directory save_dir
     """
          
-    dio_path = '.'.join(session_path.split('.')[:-2]) + '.DIO/'
+    dio_path = session_path + session_path.split('/')[-2].split('.rec')[0] + '.DIO/'
     
     # each analog MCU input pin will have its own .dat file
     dio_file_list = listdir(dio_path)
@@ -798,7 +798,7 @@ def align_trialwise_spike_times_to_start(metadata, datapath, downsample_dt, TOY_
         behav_df = load(datapath + 'toy_behav_df')
     else:
         # load neural data: [number of neurons x time bins in ms]
-        spike_mat = load(datapath + "spike_mat_in_ms.npy")['spike_mat']
+        spike_mat = load(datapath + f"probe{metadata['probe_num']}/spike_mat_in_ms.npy")['spike_mat']
 
         # make pandas behavior dataframe
         behav_df = load(datapath + 'behav_df')
@@ -819,7 +819,7 @@ def align_trialwise_spike_times_to_start(metadata, datapath, downsample_dt, TOY_
     trial_binned_mat_start_align = trial_binned_mat_start_align.sum(axis=-1)  # sum over bins
 
     results = {'binned_mat': trial_binned_mat_start_align, 'downsample_dt': downsample_dt}
-    dump(results, datapath + 'trial_binned_mat_start_align.npy', compress=3)
+    dump(results, datapath + f"probe{metadata['probe_num']}/trial_binned_mat_start_align.npy", compress=3)
 
     return trial_binned_mat_start_align, cbehav_df
 

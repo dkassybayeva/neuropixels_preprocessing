@@ -20,7 +20,7 @@ def calc_event_outcomes(output_dir, metadata):
 
     WT_low_threshold = 0.  # Lower cut-off for waiting time turning all to NaN
 
-    n_trials = _sd['nTrials']  # throw out last trial (may be incomplete)
+    n_trials = _sd['nTrials'] - 1  # throw out last trial (may be incomplete)
     _sd['nTrials'] = n_trials
     _sd['TrialNumber'] = np.arange(n_trials)
 
@@ -228,7 +228,8 @@ def calc_event_outcomes(output_dir, metadata):
 
     # Correct length of TrialStartAligned
     _sd['TrialStartTimestamp'] = _sd['TrialStartTimestamp'][:n_trials]
-    _sd['TrialEndTimestamp'] = _sd['TrialEndTimestamp'][:n_trials]
+    if 'TrialEndTimestamp' in _sd.keys():
+        _sd['TrialEndTimestamp'] = _sd['TrialEndTimestamp'][:n_trials]
     if 'TrialTypes' in _sd.keys():
         _sd['TrialTypes'] = _sd['TrialTypes'][:n_trials]
     _sd['TrialSettings'] = _sd['TrialSettings'][:n_trials]
@@ -427,10 +428,11 @@ def convert_df(behav_df, metadata, session_type='SessionData', trim_last_trial=T
     '''
     if metadata['ott_lab']:
         WTThresh = False if metadata['task'] == 'reward-bias' else True
-        discrimination_task = True if metadata['task'] == 'time-investment' else False
     else:
         WTThresh = metadata['time_investment']
-        discrimination_task = metadata['time-investment']
+
+    discrimination_task = True if metadata['task'] == 'time-investment' else False
+
     if session_type == 'RatPriors':
         print('WARNING: Assuming no probe trials, all completed rewarded')
         behav_df['CatchTrial'] = False
