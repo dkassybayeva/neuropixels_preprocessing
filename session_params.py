@@ -20,17 +20,17 @@ sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of a
 
 def save_directory_helper():
     try:
-        DATA_DIR = f'/home/mud/Workspace/ott_neuropix_data/'
+        DATA_DIR = '/home/mud/Workspace/ott_neuropix_data/'
         assert path.exists(DATA_DIR)
     except:
-        DATA_DIR = 'D:NeuroData/'
+        DATA_DIR = 'O:share/ephys/'
         assert path.exists(DATA_DIR)
     return DATA_DIR
 
 
 def write_session_metadata_to_csv():
     columns = ['ott_lab', 'rat_name', 'date', 'trodes_datetime', 'task', 'behav_datetime',
-               'region', 'probe_num', 'trodes_config', 'recording_type', 'DIO_port_num',
+               'region', 'n_probes', 'trodes_config', 'recording_type', 'DIO_port_num',
                'time_investment', 'reward_bias', 'behavior_mat_file',
                'sps', 'kilosort_ver', 'experimenter',
                'linking_group', 'recording_session_id', 'prior', 'experiment_id', 'stimulus', 'behavior_phase']
@@ -41,11 +41,11 @@ def write_session_metadata_to_csv():
                 'trodes_datetime': '20230507_123146',
                 'task': 'time-investment', #'matching'
                 'behav_datetime': '20230507_122316',
-                'probe_num': '1',
+                'n_probes': 1,
                 'trodes_config': '2023-04-10.trodesconf',
                 'recording_type': 'neuropixels_1.0',
                 'DIO_port_num': 1,
-                'time_investment': False,
+                'time_investment': True,
                 'reward_bias': False,
                 'prior': False,  # Could possibly be Amy's code for a task type that was previously used
                 'experiment_id': 'learning_uncertainty',
@@ -104,21 +104,22 @@ def get_session_path(metadata):
     rat = metadata['rat_name']
     session = metadata['trodes_datetime']
 
+    session_paths = dict()
     try:
-        rec_dir = behav_dir = f'D:NeuroData/R{rat}/{session}.rec/'
-        assert path.exists(rec_dir)
+        session_paths['rec_dir'] = f'D:NeuroData/{rat}/{session}.rec/'
+        session_paths['behav_dir'] = session_paths['rec_dir']
+        assert path.exists(session_paths['rec_dir'])
     except:
-        rec_dir = f'/media/ottlab/data/{rat}/ephys/{session}.rec/'
-        behav_dir = f'/media/ottlab/data/{rat}/bpod_session/{metadata["behav_datetime"]}/'
-        assert path.exists(rec_dir)
+        session_paths['rec_dir'] = f'/media/ottlab/data/{rat}/ephys/{session}.rec/'
+        session_paths['behav_dir'] = f'/media/ottlab/data/{rat}/bpod_session/{metadata["behav_datetime"]}/'
+        assert path.exists(session_paths['rec_dir'])
 
-    session_dir = rec_dir + f'{session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/'
-    preprocess_dir = session_dir + 'preprocessing_output/'
-    assert path.exists(preprocess_dir)
+    session_paths['probe_dir'] = session_paths['rec_dir'] + f'{session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/'
+    session_paths['preprocess_dir'] = session_paths['rec_dir'] + 'preprocessing_output/'
 
     # location of Trodes timestamps (in the kilosort folder of first probe)
-    timestamps_dat = rec_dir + f'{session}.kilosort/{session}.timestamps.dat'
-    return session_dir, behav_dir, preprocess_dir, timestamps_dat
+    session_paths['timestamps_dat'] = session_paths['rec_dir'] + f'{session}.kilosort/{session}.timestamps.dat'
+    return session_paths
 
 
 def get_stitched_session_paths(sesh_1_metadata, sesh_2_metadata):
