@@ -59,7 +59,7 @@ if not TOY_DATA:
         if SAVE_INDIVIDUAL_SPIKETRAINS:
             ou.make_dir_if_nonexistent(spike_dir + 'spike_times/')
         
-        process ephys recordings
+        # process ephys recordings
         tu.create_spike_mat(session_paths['probe_dir'], spike_dir, session_paths['timestamps_dat'], metadata, fs,
                             save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
     

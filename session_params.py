@@ -41,7 +41,7 @@ def write_session_metadata_to_csv():
                 'trodes_datetime': '20230507_123146',
                 'task': 'time-investment', #'matching'
                 'behav_datetime': '20230507_122316',
-                'n_probes': 1,
+                'n_probes': 2,
                 'trodes_config': '2023-04-10.trodesconf',
                 'recording_type': 'neuropixels_1.0',
                 'DIO_port_num': 1,
