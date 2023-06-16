@@ -4,14 +4,15 @@ Created on Thu Dec  8 10:33:50 2022
 
 @author: Greg Knoll
 """
-
 import neuropixels_preprocessing.lib.timing_utils as tu
 import neuropixels_preprocessing.lib.obj_utils as ou
 import neuropixels_preprocessing.lib.behavior_utils as bu
 import neuropixels_preprocessing.lib.data_objs as data_objs
 from neuropixels_preprocessing.session_params import *
 
+
 TOY_DATA = 0  # for testing
+
 
 #----------------------------------------------------------------------#
 # The information in the metadata block of session_params needs to be
@@ -19,7 +20,11 @@ TOY_DATA = 0  # for testing
 #----------------------------------------------------------------------#
 SAVE_INDIVIDUAL_SPIKETRAINS = True
 WRITE_METADATA = False
+if not WRITE_METADATA:
+    rat = 'Nina2'
+    date = '20210625'
 #----------------------------------------------------------------------#
+
 
 #----------------------------------------------------------------------#
 #                           PATHS
@@ -32,7 +37,7 @@ else:
     if WRITE_METADATA:
         metadata = write_session_metadata_to_csv()
     else:
-        metadata = load_session_metadata_from_csv('Nina2', '20210623')
+        metadata = load_session_metadata_from_csv(rat, date)
     
     # all probes share same behav & timestamp data, so just set probe_num=1
     metadata['probe_num'] = 1
@@ -47,7 +52,6 @@ else:
 #----------------------------------------------------------------------#
 #                           PIPELINE                                   #
 #----------------------------------------------------------------------#
-
 if not TOY_DATA:
     for probe_i in range(1, metadata['n_probes']+1):
         metadata['probe_num'] = probe_i
