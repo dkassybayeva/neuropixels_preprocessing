@@ -431,7 +431,7 @@ def convert_df(behav_df, metadata, session_type='SessionData', trim_last_trial=T
     else:
         WTThresh = metadata['time_investment']
 
-    discrimination_task = True if metadata['task'] == 'time-investment' else False
+    discrimination_task = False if metadata['task'] == 'matching' else True
 
     if session_type == 'RatPriors':
         print('WARNING: Assuming no probe trials, all completed rewarded')
@@ -489,18 +489,18 @@ def convert_df(behav_df, metadata, session_type='SessionData', trim_last_trial=T
 
         behav_df['evidence'] = (behav_df['DV'] * 2).round(0) / 2
 
-    if not metadata['ott_lab']:
-        behav_df = add_history_fields(behav_df, [1], ['completed', 'rewarded', 'evidence', 'stim_dir', 'WT', 'resp_dir', 'correct'])
-        behav_df.loc[:, 'prev_completed_1'] = behav_df['prev_completed_1'].astype('bool')
-        behav_df.loc[:, 'prev_correct_1'] = behav_df['prev_correct_1'].astype('bool')
-        behav_df.loc[:, 'prev_rewarded_1'] = behav_df['prev_rewarded_1'].astype('bool')
-
-        behav_df.loc[:, 'prev_correct_1'] = behav_df['prev_correct_1'].fillna(False)
-        behav_df.loc[:, 'prev_completed_1'] = behav_df['prev_completed_1'].fillna(False)
-
-        behav_df['probe'] = behav_df['CatchTrial']
-
-        behav_df['confidence'] = behav_df['WT']
+        if not metadata['ott_lab']:
+            behav_df = add_history_fields(behav_df, [1], ['completed', 'rewarded', 'evidence', 'stim_dir', 'WT', 'resp_dir', 'correct'])
+            behav_df.loc[:, 'prev_completed_1'] = behav_df['prev_completed_1'].astype('bool')
+            behav_df.loc[:, 'prev_correct_1'] = behav_df['prev_correct_1'].astype('bool')
+            behav_df.loc[:, 'prev_rewarded_1'] = behav_df['prev_rewarded_1'].astype('bool')
+    
+            behav_df.loc[:, 'prev_correct_1'] = behav_df['prev_correct_1'].fillna(False)
+            behav_df.loc[:, 'prev_completed_1'] = behav_df['prev_completed_1'].fillna(False)
+    
+            behav_df['probe'] = behav_df['CatchTrial']
+    
+            behav_df['confidence'] = behav_df['WT']
 
 
 
