@@ -18,6 +18,33 @@ import scipy.io as sio
 from datetime import date
 from scipy.signal import find_peaks
 
+
+def align_spikes_to_event(event_name, prebuffer, postbuffer, behav_df, traces, metadata, sps):
+    if metadata['ott_lab']:
+        trialstart_str = 'recorded_TTL_trial_start_time'
+    else:
+        trialstart_str = 'TrialStartAligned'
+
+    behav_df = behav_df[~np.isnan(behav_df[trialstart_str])]
+
+    # trial start in bins (index) in the recording system timeframe
+    t_starts_ms = np.round(sps * behav_df[trialstart_str]).astype('int')
+    event_time_after_start = np.round(sps*behav_df[event_name]).astype('int')
+    assert len(event_time_after_start) == len(t_starts_ms)
+    event_time = t_starts_ms + event_time_after_start
+    pre_event = int(sps*prebuffer)
+    post_event = int(sps*postbuffer)
+
+    n_trials = len(behav_df)
+    n_neurons = traces.shape[0]
+    spikes = np.zeros([n_neurons, n_trials, pre_event + post_event]).astype('uint8')
+
+    for i in range(n_trials):
+        spikes[:, i, :] = traces[:, (event_time[i]-pre_event):(event_time[i] + post_event)]
+
+    return spikes
+
+
 def trial_start_align(behav_df, traces, metadata, sps):
 
     if metadata['ott_lab']:
