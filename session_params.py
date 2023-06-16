@@ -29,24 +29,29 @@ def save_directory_helper():
 
 
 def write_session_metadata_to_csv():
-    columns = ['ott_lab', 'rat_name', 'date', 'trodes_datetime', 'task', 'behav_datetime',
+    columns = ['ott_lab', 'rat_name', 'date', 'trodes_datetime', 
+               'trodes_logfile', 'task', 'behav_datetime',
                'region', 'n_probes', 'trodes_config', 'recording_type', 'DIO_port_num',
                'time_investment', 'reward_bias', 'behavior_mat_file',
                'sps', 'kilosort_ver', 'experimenter',
                'linking_group', 'recording_session_id', 'prior', 'experiment_id', 'stimulus', 'behavior_phase']
 
-    metadata = {'ott_lab': True,
-                'rat_name': '1',
-                'date': '20230507_123146',
-                'trodes_datetime': '20230507_123146',
-                'task': 'time-investment', #'matching'
-                'behav_datetime': '20230507_122316',
-                'n_probes': 2,
-                'trodes_config': '2023-04-10.trodesconf',
+    metadata = {'ott_lab': False,
+                'rat_name': 'Nina2',
+                'date': '20210625',
+                # ----------------------------------- #
+                'trodes_datetime': '20210625_114657',
+                'trodes_logfile': 'Trodes_extraction_log.txt',
+                'trodes_config': '',
                 'recording_type': 'neuropixels_1.0',
-                'DIO_port_num': 1,
-                'time_investment': True,
-                'reward_bias': False,
+                'n_probes': 2,
+                'DIO_port_num': 6,
+                # ----------------------------------- #
+                'behav_datetime': '20210625',
+                'task': 'reward-bias', # ['matching', 'reward-bias', 'time-investment']
+                'time_investment': False,
+                'reward_bias': True,
+                # ----------------------------------- #
                 'prior': False,  # Could possibly be Amy's code for a task type that was previously used
                 'experiment_id': 'learning_uncertainty',
                 'linking_group': None, #'Nina2',
@@ -55,8 +60,8 @@ def write_session_metadata_to_csv():
                 'sps': sps
     }
 
-    metadata['behavior_mat_file'] = f'{metadata["rat_name"]}_DiscriminationConfidence_{metadata["behav_datetime"]}.mat'
-    # metadata['behavior_mat_file'] = f'{metadata["rat_name"]}_TwoArmBanditVariant_{metadata["behav_datetime"]}.mat',
+    task_type = 'TwoArmBanditVariant' if metadata['task'] == 'matching' else 'DiscriminationConfidence'
+    metadata['behavior_mat_file'] = f'{metadata["rat_name"]}_{task_type}_{metadata["behav_datetime"]}.mat'
     metadata['experimenter'] = 'Gregory Knoll' if metadata['ott_lab'] else 'Amy'
     metadata['region'] = 'lmPFC' if metadata['ott_lab'] else 'lOFC'
     # -----------------------------------#
