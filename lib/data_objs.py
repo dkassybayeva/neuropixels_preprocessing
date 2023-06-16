@@ -150,7 +150,8 @@ class DataContainer:
 
         # ---------- first get rows (trials) that match value of column of interest ------------ #
         if type(trial_property_column) == str:
-            trial_id = self.behav_df[trial_property_column].index.to_list()
+            _col = self.behav_df[trial_property_column].copy()
+            trial_id = _col.index[_col==True].to_list()
         elif type(trial_property_column) == list:
             if np.issubdtype(type(trial_property_column[0]), np.integer):
                 trial_id = trial_property_column
