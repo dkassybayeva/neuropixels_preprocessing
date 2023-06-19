@@ -212,10 +212,10 @@ def create_traces_np(behav_df, traces, sps,
     trial_len_in_bins += prepad
 
     # Add padding to the time axis of the traces [n_nrn, n_trials, time in bins]
-    padded_traces = np.pad(traces[:, trial_number, :],
+    padded_traces = np.pad(traces[:, trial_number, :].astype('float'),
                            pad_width=[(0, 0), (0, 0), (prepad, postpad)],
-                           mode='empty'
-                          ).astype('uint8')
+                           mode='constant', constant_values=np.nan
+                          )
     if not np.all(padded_traces == traces):
         print('Traces padded.')
     # --------------------------------------------------------------------- #
@@ -255,7 +255,7 @@ def create_traces_np(behav_df, traces, sps,
         # number of bins at beginning of each trace such that the event lines up in all traces
         offset = (reference_point - delay_arr)
 
-        _aligned_arr = np.zeros([n_trials, n_neurons, trace_len_bins], dtype='uint16')
+        _aligned_arr = np.full([n_trials, n_neurons, trace_len_bins], np.nan)
         for i in range(n_trials):
             _aligned_arr[i, :, offset[i]:(offset[i]+len_arr[i])] = padded_traces[:, i, begin_arr[i]:end_arr[i]]
             
