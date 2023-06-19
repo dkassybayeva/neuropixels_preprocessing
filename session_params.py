@@ -128,15 +128,13 @@ def get_session_path(metadata):
 
 
 def get_stitched_session_paths(sesh_1_metadata, sesh_2_metadata):
-    session1_dir, behav1_dir, preprocess1_dir, timestamps1_dat = get_session_path(sesh_1_metadata)
-    session2_dir, behav2_dir, preprocess2_dir, timestamps2_dat = get_session_path(sesh_2_metadata)
+    session1_paths = get_session_path(sesh_1_metadata)
+    session2_paths = get_session_path(sesh_2_metadata)
 
     combined_session = f"{sesh_1_metadata['date']}_{sesh_2_metadata['date']}"
-    stitch_dat_dir = session1_dir.split('ephys')[0] + 'ephys/'
+    stitch_dat_dir = session1_paths['rec_dir'].split('ephys')[0] + 'ephys/'
     stitch_dir = stitch_dat_dir + f"{combined_session}/probe{sesh_1_metadata['probe_num']}/kilosort{sesh_1_metadata['kilosort_ver']}/"
     assert path.exists(stitch_dir)
 
-    return {'session1_dir':session1_dir, 'behav1_dir':behav1_dir, 'preprocess1_dir':preprocess1_dir, 'timestamps1_dat':timestamps1_dat,
-            'session2_dir':session2_dir, 'behav2_dir':behav2_dir, 'preprocess2_dir':preprocess2_dir, 'timestamps2_dat':timestamps2_dat,
-            'stitch_dir':stitch_dir}
+    return {'session1_paths':session1_paths, 'session2_paths':session2_paths, 'stitch_dir':stitch_dir}
 
