@@ -136,5 +136,5 @@ def get_stitched_session_paths(sesh_1_metadata, sesh_2_metadata):
     stitch_dir = stitch_dat_dir + f"{combined_session}/probe{sesh_1_metadata['probe_num']}/kilosort{sesh_1_metadata['kilosort_ver']}/"
     assert path.exists(stitch_dir)
 
-    return {'session1_paths':session1_paths, 'session2_paths':session2_paths, 'stitch_dir':stitch_dir}
+    return {f"{sesh_1_metadata['date']}":session1_paths, f"{sesh_2_metadata['date']}":session2_paths, 'stitch_dir':stitch_dir}
 
