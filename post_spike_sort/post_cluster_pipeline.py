@@ -21,8 +21,8 @@ TOY_DATA = 0  # for testing
 SAVE_INDIVIDUAL_SPIKETRAINS = True
 WRITE_METADATA = False
 if not WRITE_METADATA:
-    rat = 'Nina2'
-    date = '20210625'
+    rat = 'R1'
+    date = '20230507'
 #----------------------------------------------------------------------#
 
 
@@ -70,7 +70,7 @@ if not TOY_DATA:
     gap_filename = tu.find_recording_gaps(session_paths['timestamps_dat'], fs, max_ISI, preprocess_dir)
     
     if metadata['ott_lab']:
-        tu.extract_TTL_trial_start_times(rec_dir, gap_filename, metadata['DIO_port_num'], save_dir=preprocess_dir)
+        tu.extract_TTL_trial_start_times(session_paths['probe_dir'], gap_filename, metadata['DIO_port_num'], save_dir=preprocess_dir)
         tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file)
     else:
         tu.convert_TTL_timestamps_to_nbit_events(rec_dir, gap_filename, save_dir=preprocess_dir)

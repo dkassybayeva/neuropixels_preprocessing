@@ -78,7 +78,7 @@ def calc_event_outcomes(output_dir, metadata):
         punish_or_catch = _sd['PunishedTrial'] | _sd['CatchTrial']
         _sd['WaitingTimeTrial'] = punish_or_catch & complete
 
-        _sd['WaitingTime'] = _sd_custom['FeedbackTime']
+        _sd['WaitingTime'] = _sd_custom['FeedbackTime'][:n_trials]
     else:
         _sd['WaitingTime'] = _sd_custom['FeedbackWaitingTime'][:n_trials]
 
