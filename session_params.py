@@ -115,6 +115,8 @@ def get_session_path(metadata):
         session_paths['behav_dir'] = session_paths['rec_dir']
         assert path.exists(session_paths['rec_dir'])
     except:
+        if 'R' in rat:
+            rat = rat.split('R')[-1]
         session_paths['rec_dir'] = f'/media/ottlab/data/{rat}/ephys/{session}.rec/'
         session_paths['behav_dir'] = f'/media/ottlab/data/{rat}/bpod_session/{metadata["behav_datetime"]}/'
         assert path.exists(session_paths['rec_dir'])
