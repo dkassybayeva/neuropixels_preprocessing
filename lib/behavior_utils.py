@@ -70,7 +70,7 @@ def calc_event_outcomes(output_dir, metadata):
         _sd['CorrectShortWTTrial'] = _sd['CorrectChoice'] & wait_too_short
 
         # These are all the waiting time trials (correct catch and incorrect trials)
-        catch_or_wrong = _sd['CompletedCatchTrial'] & _sd['PunishedTrial']
+        catch_or_wrong = _sd['CompletedCatchTrial'] | _sd['PunishedTrial']
         _sd['CompletedWTTrial'] = catch_or_wrong & complete
         assert _sd['CompletedWTTrial'].sum() <= min(catch_or_wrong.sum(), complete.sum())
 
@@ -405,9 +405,10 @@ def trim_df(behav_df):
     :return:
     '''
 
-    return behav_df[['completed', 'rewarded', 'correct', 'stim_dir', 'resp_dir', 'DV', 'WT', 'trial', 'session', 'confidence', 'before_switch',
-    'evidence', 'prior', 'probe',  'prev_completed_1', 'prev_evidence_1', 'prev_stim_dir_1', 'prev_rewarded_1', ''
-                     'prev_resp_dir_1', 'prev_correct_1', 'WT_qs', 'prev_WT_qs_1']]
+    return behav_df[['completed', 'rewarded', 'correct', 'stim_dir', 'resp_dir', 'DV', 'WT', 'trial', 'session',
+                     'confidence', 'before_switch', 'evidence', 'prior', 'probe', 'WT_qs', 'prev_WT_qs_1',
+                     'prev_completed_1', 'prev_evidence_1', 'prev_stim_dir_1',
+                     'prev_rewarded_1', 'prev_resp_dir_1', 'prev_correct_1']]
 
 def convert_df(behav_df, metadata, session_type='SessionData', trim_last_trial=True):
     '''
