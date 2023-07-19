@@ -150,7 +150,7 @@ def calc_event_outcomes(output_dir, metadata):
     # --------------------------------------------------------------------- #
     # Waiting time split
     # @TODO: break off into own function
-    _sd['WaitingTimeSplit'] = np.full(_sd['ChosenDirection'].shape, np.nan)
+    _sd['WaitingTimeSplit'] = np.full(_sd['ChosenDirection'].shape, "", dtype=object)
 
     complete_no_reward = complete & no_reward
 
@@ -312,7 +312,7 @@ def calc_event_outcomes(output_dir, metadata):
             _sd['RewardMagnitudeCorrect'] = np.full(n_trials, np.nan)
             for nt in range(n_trials):
                 cd = _sd['ChosenDirection'][nt]
-                if cd.notnan():
+                if ~np.isnan(cd):
                     _sd['RewardMagnitudeCorrect'][nt] = _sd['RewardMagnitude'][nt, int(cd) - 1]
 
     elif not metadata['task'] == 'matching':
