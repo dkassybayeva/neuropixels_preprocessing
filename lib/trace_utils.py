@@ -102,7 +102,7 @@ def trial_start_align(behav_df, traces, metadata, sps):
     return spikes, behav_df
 
 
-def create_traces_np(behav_df, traces, sps,
+def create_traces_np(behav_df, traces, metadata,
                      traces_aligned='ResponseStart',
                      aligned_ind=40,
                      filter_by_trial_num=False,
@@ -129,6 +129,7 @@ def create_traces_np(behav_df, traces, sps,
     time_interp
 
     '''
+    sps = metadata['sps']
     n_neurons, n_trials, n_time_bins  = traces.shape
 
     # only sending in completed trials now
@@ -314,7 +315,7 @@ def create_traces_np(behav_df, traces, sps,
                        int(.35*sps),  # stim_end = 2
                        int(.15*sps),  # response_begin = 3
                        int(.5*sps),   # arbitrary buffer?
-                       int(3*sps),    # time investment (feedback delay)
+                       int(1*sps) if metadata['task']=='reward-bias' else int(3*sps),    # time investment (feedback delay)
                        int(.5*sps)]   # arbitrary buffer?
 
         # trace is matrix with [n_nrns x time in bins]

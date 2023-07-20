@@ -398,7 +398,7 @@ def from_pickle(dat_path, objID, obj_class):
 def create_experiment_data_object(datapath, metadata, trialwise_binned_mat, cbehav_df):
     traces_dict = trace_utils.create_traces_np(cbehav_df,
                                                trialwise_binned_mat,
-                                               sps=metadata['sps'],
+                                               metadata,
                                                aligned_ind=0,
                                                filter_by_trial_num=False,
                                                traces_aligned="TrialStart")
