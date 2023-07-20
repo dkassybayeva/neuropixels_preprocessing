@@ -278,7 +278,7 @@ class DataContainer:
                 traces = gaussian_filter1d(traces, sigma=1, axis=2)
 
             # the given list of selected neurons will be used, unless it is empty or if 'active' is passed instead
-            if selected_neurons == 'active':
+            if type(selected_neurons)==str and selected_neurons == 'active':
                 selected_neurons = self.active_neurons
             elif not len(selected_neurons):
                 selected_neurons = np.arange(self.n_neurons)
@@ -286,7 +286,7 @@ class DataContainer:
             feature_df = trace_utils.get_trace_feature_df(self.behav_df, selected_neurons,
                                                           traces=traces, behavior_variables=variables, rat_name=self.name)
 
-            print("Created new feature df.")
+            # print("Created new feature df.")
             if save:
                 self.feature_df_keys.append([alignment, variables])
                 fname = self.dat_path + self.objID + '_feature_df_' + str(len(self.feature_df_keys)) + '.pkl'

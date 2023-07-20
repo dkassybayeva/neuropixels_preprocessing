@@ -20,6 +20,10 @@ from scipy.signal import find_peaks
 
 
 def align_spikes_to_event(event_name, prebuffer, postbuffer, behav_df, traces, metadata, sps):
+    """
+    returns: array [int] of spiking activity [n_neurons x n_trials x pre_event + post_event]
+    where pre_event and post_event are prebuffer and postbuffer (in seconds) converted to samples
+    """
     if metadata['ott_lab']:
         trialstart_str = 'recorded_TTL_trial_start_time'
     else:

@@ -13,11 +13,13 @@ from neuropixels_preprocessing.session_params import *
 
 TOY_DATA = 0  # for testing
 
-
 #----------------------------------------------------------------------#
 # The information in the metadata block of session_params needs to be
 # filled out and updated for each recording session.
 #----------------------------------------------------------------------#
+SPIKES_AND_TTL = False
+BEHAVIOR = False
+
 SAVE_INDIVIDUAL_SPIKETRAINS = True
 WRITE_METADATA = False
 if not WRITE_METADATA:
@@ -53,32 +55,32 @@ else:
 #                           PIPELINE                                   #
 #----------------------------------------------------------------------#
 if not TOY_DATA:
-    for probe_i in range(1, metadata['n_probes']+1):
-        metadata['probe_num'] = probe_i
-        
-        # load/create ephys-specific (probe-specific) paths
-        session_paths = get_session_path(metadata)
-        spike_dir = preprocess_dir + f'probe{probe_i}/'
-        ou.make_dir_if_nonexistent(spike_dir)
-        if SAVE_INDIVIDUAL_SPIKETRAINS:
-            ou.make_dir_if_nonexistent(spike_dir + 'spike_times/')
-        
-        # process ephys recordings
-        tu.create_spike_mat(session_paths['probe_dir'], spike_dir, session_paths['timestamps_dat'], metadata, fs,
-                            save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
-    
-    gap_filename = tu.find_recording_gaps(session_paths['timestamps_dat'], fs, max_ISI, preprocess_dir)
-    
-    if metadata['ott_lab']:
-        tu.extract_TTL_trial_start_times(session_paths['probe_dir'], gap_filename, metadata['DIO_port_num'], save_dir=preprocess_dir)
-        tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file)
-    else:
-        tu.convert_TTL_timestamps_to_nbit_events(rec_dir, gap_filename, save_dir=preprocess_dir)
-        tu.add_TTL_trial_start_times_to_behav_data(rec_dir, preprocess_dir, behavior_mat_file)
+    if SPIKES_AND_TTL:
+        for probe_i in range(1, metadata['n_probes']+1):
+            metadata['probe_num'] = probe_i
 
-    bu.calc_event_outcomes(preprocess_dir, metadata)
+            # load/create ephys-specific (probe-specific) paths
+            session_paths = get_session_path(metadata)
+            spike_dir = preprocess_dir + f'probe{probe_i}/'
+            ou.make_dir_if_nonexistent(spike_dir)
+            if SAVE_INDIVIDUAL_SPIKETRAINS:
+                ou.make_dir_if_nonexistent(spike_dir + 'spike_times/')
 
-    bu.create_behavioral_dataframe(preprocess_dir)
+            # process ephys recordings
+            tu.create_spike_mat(session_paths['probe_dir'], spike_dir, session_paths['timestamps_dat'], metadata, fs,
+                                save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
+
+        gap_filename = tu.find_recording_gaps(session_paths['timestamps_dat'], fs, max_ISI, preprocess_dir)
+
+        if metadata['ott_lab']:
+            tu.extract_TTL_trial_start_times(session_paths['probe_dir'], gap_filename, metadata['DIO_port_num'], save_dir=preprocess_dir)
+            tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file)
+        else:
+            tu.convert_TTL_timestamps_to_nbit_events(rec_dir, gap_filename, save_dir=preprocess_dir)
+            tu.add_TTL_trial_start_times_to_behav_data(rec_dir, preprocess_dir, behavior_mat_file)
+    if BEHAVIOR:
+        bu.calc_event_outcomes(preprocess_dir, metadata)
+        bu.create_behavioral_dataframe(preprocess_dir)
 
 for probe_i in range(1, metadata['n_probes']+1):
     metadata['probe_num'] = probe_i
