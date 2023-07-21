@@ -71,7 +71,7 @@ def map_traces(behav_df, obj_list, matches):
 
     return interp_dict
 
-def get_cluster_traces(obj_list, alignment, filter_active=True, require_all_clusters=False, cluster_list=None):
+def get_cluster_traces(obj_list, alignment, filter_stable=True, require_all_clusters=False, cluster_list=None):
     """
     Returns an iterable group of lists containing the cluster labels, behavioral dataframes, neural traces, rat names.
     """
@@ -99,7 +99,7 @@ def get_cluster_traces(obj_list, alignment, filter_active=True, require_all_clus
         traces = []
         rat_names = []
         for obj in obj_list:
-            if filter_active:
+            if filter_stable:
                 clust = obj.stable_neurons[obj.cluster_labels == cluster_id]
             else:
                 clust = np.arange(0, obj.n_neurons)[obj.cluster_labels == cluster_id]
