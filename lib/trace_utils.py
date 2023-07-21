@@ -896,7 +896,7 @@ def split_multiday(behav_df, traces_dict):
 
 
 
-def filter_active(obj, set_active=False, n_bootstraps=10, cor_val=.95, save=False):
+def filter_stable(obj, set_stable=False, n_bootstraps=10, cor_val=.95, save=False):
 
     _, n_neurons, trial_len = obj.interp_traces.shape
 
@@ -923,20 +923,23 @@ def filter_active(obj, set_active=False, n_bootstraps=10, cor_val=.95, save=Fals
 
     all_cors = np.array(all_cors).mean(axis=0)
 
-    active = all_cors > cor_val
+    stable = all_cors > cor_val
 
-    if set_active:
-        update_active(obj, active, save)
+    if set_stable:
+        update_stable(obj, stable, save)
 
     return obj
 
 
-def update_active(obj, active, save=True):
-    print("updated active inds for rat: " +  obj.name)
-    obj.active_neurons = np.where(active)[0]
+def update_stable(obj, stable, save=True):
+    obj.stable_neurons = np.where(stable)[0]
+    print("Updated stable inds for rat: " +  obj.name, end='')
+
     if save:
         obj.to_pickle()
-        print("saved new active inds")
+        print(", and saved obj.")
+    else:
+        print(".")
 
 
 def compute_d_primes(traces, var_data, n_shuff = 1000, distance = "dprime", balance_by = None):

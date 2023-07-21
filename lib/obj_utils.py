@@ -100,7 +100,7 @@ def get_cluster_traces(obj_list, alignment, filter_active=True, require_all_clus
         rat_names = []
         for obj in obj_list:
             if filter_active:
-                clust = obj.active_neurons[obj.cluster_labels == cluster_id]
+                clust = obj.stable_neurons[obj.cluster_labels == cluster_id]
             else:
                 clust = np.arange(0, obj.n_neurons)[obj.cluster_labels == cluster_id]
 

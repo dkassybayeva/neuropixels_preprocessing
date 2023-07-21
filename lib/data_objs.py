@@ -26,7 +26,7 @@ class DataContainer:
                  cluster_labels=None,
                  metadata=None,
                  linking_group=None,
-                 active_neurons=None,
+                 stable_neurons=None,
                  record=False,
                  feature_df_cache=[],
                  feature_df_keys=[],
@@ -67,35 +67,35 @@ class DataContainer:
             self.stim_ind = traces_dict['stim_ind']
             self.n_trials, self.n_neurons, _ = self.sa_traces.shape
 
-            if active_neurons is not None:
-                self.active_neurons = active_neurons
+            if stable_neurons is not None:
+                self.stable_neurons = stable_neurons
             else:
-                self.active_neurons = np.arange(self.n_neurons)
+                self.stable_neurons = np.arange(self.n_neurons)
 
             if neuron_mask_df is not None:
                 self.neuron_mask_df = neuron_mask_df
             else:
                 neurons = np.arange(0, self.n_neurons)
                 df_dict = {'neurons':neurons}
-                if active_neurons is not None and len(active_neurons) > 0:
-                    active_mask = np.zeros_like(neurons)
-                    active_mask[active_neurons] = 1
-                    df_dict['active_mask'] = active_mask
+                if stable_neurons is not None and len(stable_neurons) > 0:
+                    stability_mask = np.zeros_like(neurons)
+                    stability_mask[stable_neurons] = 1
+                    df_dict['stability_mask'] = stability_mask
                 else:
-                    df_dict['active_mask'] = [True]*self.n_neurons
+                    df_dict['stability_mask'] = [True]*self.n_neurons
 
                 if len(cluster_labels) > 0:
                     cluster_mask = np.zeros_like(neurons)*np.nan
                     if len(cluster_labels) == self.n_neurons:
                         cluster_mask = cluster_labels
-                    elif len(cluster_labels) == len(self.active_neurons):
-                        cluster_mask[self.active_neurons] == cluster_labels
+                    elif len(cluster_labels) == len(self.stable_neurons):
+                        cluster_mask[self.stable_neurons] == cluster_labels
                     else:
                         raise("number of cluster labels is not the same as either "
-                              "total number of neurons or number of active neurons")
+                              "total number of neurons or number of stable neurons")
 
                     df_dict['cluster_mask'] = cluster_mask
-                self.neuron_mask_df = pd.DataFrame(df_dict, index=df_dict["neurons"], columns=["cluster_mask", "active_mask"])
+                self.neuron_mask_df = pd.DataFrame(df_dict, index=df_dict["neurons"], columns=["cluster_mask", "stability_mask"])
 
             self.traces_dict = traces_dict
         self.behav_df = behav_df
@@ -200,11 +200,11 @@ class DataContainer:
     def iter_clusters(self,  phase_indexer = slice(None), return_labels = True):
         if return_labels:
             for c in np.unique(self.cluster_labels):
-                tr = self[ :, self.active_neurons[self.cluster_labels == c], phase_indexer]
+                tr = self[ :, self.stable_neurons[self.cluster_labels == c], phase_indexer]
                 yield c, tr
         else:
             for c in np.unique(self.cluster_labels):
-                tr = self[ :, self.active_neurons[self.cluster_labels == c], phase_indexer]
+                tr = self[ :, self.stable_neurons[self.cluster_labels == c], phase_indexer]
                 yield tr
 
     def to_pickle(self, remove_old=False):
@@ -235,7 +235,7 @@ class DataContainer:
         with open(self.dat_path + "persistent_info.pkl", 'wb') as f:
 
             persistent_info = {'cluster_labels':self.cluster_labels,
-                               'active_neurons':self.active_neurons,
+                               'stable_neurons':self.stable_neurons,
                                'feature_df_cache': self.feature_df_cache,
                                'feature_df_keys':self.feature_df_keys,
                                'neuron_mask_df':self.neuron_mask_df,
@@ -277,14 +277,14 @@ class DataContainer:
             if apply_Gauss_filter_to_traces:
                 traces = gaussian_filter1d(traces, sigma=1, axis=2)
 
-            # the given list of selected neurons will be used, unless it is empty or if 'active' is passed instead
-            if type(selected_neurons)==str and selected_neurons == 'active':
-                selected_neurons = self.active_neurons
+            # the given list of selected neurons will be used, unless it is empty or if 'stable' is passed instead
+            if type(selected_neurons)==str and selected_neurons=='stable':
+                selected_neurons = self.stable_neurons
             elif not len(selected_neurons):
                 selected_neurons = np.arange(self.n_neurons)
 
-            feature_df = trace_utils.get_trace_feature_df(self.behav_df, selected_neurons,
-                                                          traces=traces, behavior_variables=variables, rat_name=self.name)
+            feature_df = trace_utils.get_trace_feature_df(self.behav_df, selected_neurons, traces=traces,
+                                                          behavior_variables=variables, rat_name=self.name)
 
             # print("Created new feature df.")
             if save:
@@ -300,35 +300,35 @@ class DataContainer:
 
 
 class TwoAFC(DataContainer):
-    def __init__(self, dat_path, behav_df, traces_dict, 
-                 neuron_mask_df=None, 
-                 objID=None, 
+    def __init__(self, dat_path, behav_df, traces_dict,
+                 neuron_mask_df=None,
+                 objID=None,
                  cluster_labels=None,
                  metadata=None,
-                 linking_group=None, 
-                 active_neurons=None, 
-                 record=False, 
-                 feature_df_cache=[], 
-                 feature_df_keys=[], 
-                 session=None, 
+                 linking_group=None,
+                 stable_neurons=None,
+                 record=False,
+                 feature_df_cache=[],
+                 feature_df_keys=[],
+                 session=None,
                  behavior_phase=None):
 
-        super().__init__(dat_path, behav_df, traces_dict, neuron_mask_df, 
+        super().__init__(dat_path, behav_df, traces_dict, neuron_mask_df,
                          objID, cluster_labels, metadata,
-                         linking_group, active_neurons, record, 
+                         linking_group, stable_neurons, record,
                          feature_df_cache, feature_df_keys, behavior_phase)
 
         self.session = session
 
 
 class Multiday_2AFC(DataContainer):
-    def __init__(self, dat_path, obj_list, cell_mapping, 
+    def __init__(self, dat_path, obj_list, cell_mapping,
                  objID=None,
                  sps=None,
                  name=None,
                  cluster_labels=None,
                  metadata=None,
-                 active_neurons=None,
+                 stable_neurons=None,
                  record=True,
                  feature_df_cache=[],
                  feature_df_keys=[]):
@@ -365,10 +365,10 @@ class Multiday_2AFC(DataContainer):
         self.stim_ind = traces_dict['stim_ind']
         self.n_trials, self.n_neurons, _ = self.sa_traces.shape
 
-        if active_neurons is not None:
-            self.active_neurons = active_neurons
+        if stable_neurons is not None:
+            self.stable_neurons = stable_neurons
         else:
-            self.active_neurons = np.arange(self.n_neurons)
+            self.stable_neurons = np.arange(self.n_neurons)
 
         self.traces_dict = traces_dict
 
@@ -381,6 +381,10 @@ class Multiday_2AFC(DataContainer):
 
 
 def from_pickle(dat_path, objID, obj_class):
+    if os.path.exists(dat_path+'stable_clusters/'):
+        print('Stable cluster data found.')
+        dat_path += 'stable_clusters/'
+
     with open(dat_path + objID + "traces_dict.pkl", 'rb') as f:
         traces_dict = pickle.load(f)
 
@@ -390,9 +394,9 @@ def from_pickle(dat_path, objID, obj_class):
     with open(dat_path + objID + "persistent_info.pkl", 'rb') as f:
         kwargs = pickle.load(f)
 
-    base_path = '/'.join(dat_path.split('/')[:-2]) + '/'
+    # base_path = '/'.join(dat_path.split('/')[:-2]) + '/'
 
-    return obj_class(base_path, behav_df=behav_df, traces_dict=traces_dict, objID=objID, record=False, **kwargs)
+    return obj_class(dat_path, behav_df=behav_df, traces_dict=traces_dict, objID=objID, record=False, **kwargs)
 
 
 def create_experiment_data_object(datapath, metadata, trialwise_binned_mat, cbehav_df):
