@@ -111,7 +111,7 @@ def get_session_path(metadata):
 
     session_paths = dict()
     try:
-        session_paths['rec_dir'] = f'D:NeuroData/{rat}/{session}.rec/'
+        session_paths['rec_dir'] = f'O:data/{rat}/ephys/{session}.rec/'
         session_paths['behav_dir'] = session_paths['rec_dir']
         assert path.exists(session_paths['rec_dir'])
     except:
@@ -137,7 +137,7 @@ def get_stitched_session_paths(sesh_1_metadata, sesh_2_metadata):
     stitch_paths = dict()
     combined_session = f"{sesh_1_metadata['date']}_{sesh_2_metadata['date']}"
     try:
-        stitch_paths['stitch_dir'] = f'D:NeuroData/{rat}/{combined_session}/'
+        stitch_paths['stitch_dir'] = f'O:data/{rat}/ephys/{combined_session}/'
         assert path.exists(stitch_paths['stitch_dir'])
     except:
         if 'R' in rat:
