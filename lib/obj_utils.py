@@ -7,13 +7,31 @@ import numpy as np
 import os
 import glob
 
+from neuropixels_preprocessing.lib.data_objs import TwoAFC, from_pickle
+from neuropixels_preprocessing.session_params import load_session_metadata_from_csv, get_session_path
+
+
 def make_dir_if_nonexistent(path):
     """create a directory if it doesn't exist"""
     if not os.path.exists(path):
         os.makedirs(path)
-        print(f"{path} created.")
+        print(f"{path} created.", flush=True)
     else:
-        print(f"{path} already exists.")
+        print(f"{path} already exists.", flush=True)
+
+def combine_session_data_objects(rat_name_l, date_l):
+    data_obj_l = []
+    for sesh_i in range(len(date_l)):
+        _metadata = load_session_metadata_from_csv(rat=rat_name_l[sesh_i], session_date=date_l[sesh_i])
+        for probe_i in range(1, _metadata['n_probes']+1):
+            _metadata['probe_num'] = probe_i
+            _paths = get_session_path(_metadata)
+            # _obj = from_pickle(_paths['preprocess_dir'] + f"probe{probe_i}/", '', TwoAFC)
+            DATA_DIR = f'/home/mud/Workspace/ott_neuropix_data/Nina2/20210625/preprocessing_output/probe{probe_i}/'
+            _obj = from_pickle(DATA_DIR, '', TwoAFC)
+            _obj.task = _metadata['task']
+            _obj.behavior_mat_path = _paths['behav_dir'] + _metadata['behavior_mat_file']
+            data_obj_l.append(_obj)
 
 def clear_obj_files(path):
     files = glob.glob(path + ".pkl")
