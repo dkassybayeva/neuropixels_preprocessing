@@ -283,8 +283,13 @@ class DataContainer:
             elif not len(selected_neurons):
                 selected_neurons = np.arange(self.n_neurons)
 
-            feature_df = trace_utils.get_trace_feature_df(self.behav_df, selected_neurons, traces=traces,
-                                                          behavior_variables=variables, rat_name=self.name)
+            feature_df = trace_utils.get_trace_feature_df(behav_df=self.behav_df,
+                                                          selected_neurons=selected_neurons,
+                                                          traces=traces,
+                                                          rat_name=self.name,
+                                                          session_date=self.metadata['date'],
+                                                          probe_num=self.metadata['probe_num'],
+                                                          behavior_variables=variables)
 
             # print("Created new feature df.")
             if save:
