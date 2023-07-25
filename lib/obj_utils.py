@@ -18,58 +18,6 @@ def make_dir_if_nonexistent(path):
 def clear_obj_files(path):
     files = glob.glob(path + ".pkl")
 
-def map_traces(behav_df, obj_list, matches):
-    assert(len(obj_list) == matches.shape[1])
-
-    n_total_neurons = matches.shape[0]
-    n_trials = len(behav_df)
-
-    _, _, il = obj_list[0].interp_traces.shape
-    _, _, sl = obj_list[0].sa_traces.shape
-    _, _, rl = obj_list[0].ca_traces.shape
-    _, _, rwl = obj_list[0].ra_traces.shape
-
-    interp = np.zeros([n_trials, n_total_neurons, il])*np.nan
-    stim = np.zeros([n_trials, n_total_neurons, sl])*np.nan
-    response = np.zeros([n_trials, n_total_neurons, rl])*np.nan
-    reward = np.zeros([n_trials, n_total_neurons, rwl])*np.nan
-
-    for i, obj in enumerate(obj_list):
-        trials = behav_df[behav_df.session == obj.session].index.to_numpy()
-
-        assert(len(trials) == obj.n_trials)
-        assert(il == obj.interp_traces.shape[2])
-
-        iids = matches[:, i][~np.isnan(matches[:, i])]
-        mids = [np.where(matches[:, i] == c)[0][0] for c in iids]
-
-        A = np.zeros_like(interp[trials])
-        A[:, mids, :] = obj[:, iids, :]
-        interp[trials] = A
-
-        A = np.zeros_like(stim[trials])
-        A[:, mids, :] = obj[:, iids, 'stimulus']
-        stim[trials] = A
-
-        A = np.zeros_like(response[trials])
-        A[:, mids, :] = obj[:, iids, 'response']
-        response[trials] = A
-
-        A = np.zeros_like(reward[trials])
-        A[:, mids, :] = obj[:, iids, 'reward']
-        reward[trials] = A
-
-    interp_dict = {'interp_traces': interp,
-                   'stim_aligned': stim,
-                   'response_aligned': response,
-                   'reward_aligned': reward,
-                   'interp_inds': obj.interp_inds,
-                   'response_ind':obj.choice_ind,
-                   'reward_ind': obj.reward_ind,
-                   'stim_ind': obj.stim_ind}
-
-
-    return interp_dict
 
 def get_cluster_traces(obj_list, alignment, filter_stable=True, require_all_clusters=False, cluster_list=None):
     """
