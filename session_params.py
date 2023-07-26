@@ -110,7 +110,7 @@ def insert_value_into_metadata_csv(rat, session_date, column, value):
     ephys_metadata_file = DATA_DIR + 'ephys_sessions_metadata.csv'
     ephys_df = pd.read_csv(ephys_metadata_file)
 
-    session_idx = (ephys_df['rat_name'].apply(str)==rat) & (ephys_df['date'].apply(str)==session_date)
+    session_idx = (ephys_df['rat_name'].apply(str)==rat) & (ephys_df['date'].apply(str)==str(session_date))
     ephys_df.loc[session_idx, column] = value
     ephys_df.to_csv(ephys_metadata_file, index=False)
 
