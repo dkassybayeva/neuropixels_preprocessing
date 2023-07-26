@@ -32,6 +32,7 @@ def combine_session_data_objects(rat_name_l, date_l):
             _obj.task = _metadata['task']
             _obj.behavior_mat_path = _paths['behav_dir'] + _metadata['behavior_mat_file']
             data_obj_l.append(_obj)
+    return data_obj_l
 
 def clear_obj_files(path):
     files = glob.glob(path + ".pkl")
