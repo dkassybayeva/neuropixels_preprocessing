@@ -19,117 +19,67 @@ import neuropixels_preprocessing.lib.trace_utils as trace_utils
 import neuropixels_preprocessing.lib.behavior_utils as bu
 
 class DataContainer:
-    def __init__(self, dat_path, behav_df, traces_dict,
-                 neuron_mask_df=None,
-                 objID=None,
-                 cluster_labels=None,
-                 metadata=None,
-                 linking_group=None,
-                 stable_neurons=None,
-                 record=False,
-                 feature_df_cache=[],
-                 feature_df_keys=[],
-                 behavior_phase=None):
+    def __init__(self, data_path, behav_df, metadata, traces_dict,
+                 stable_neurons=[], cluster_labels=[], neuron_mask_df=None,
+                 feature_df_cache=[], feature_df_keys=[]):
 
+        self.data_path = data_path
+        self.behav_df = behav_df
         self.metadata = metadata
-        self.name = metadata['rat_name']
-        self.sps = metadata['sps']
-        # save_folder = '_'.join([self.name, self.metadata['date'], f"probe{self.metadata['probe_num']}_preprocessing_output"])
-        self.dat_path = dat_path
         self.feature_df_cache = feature_df_cache
         self.feature_df_keys = feature_df_keys
-        self.behavior_phase = behavior_phase
-        self.pos_conf = []
-        self.neg_conf = []
 
-
-        if objID is not None:
-            self.objID = objID
-        else:
-            self.objID = str(np.datetime64('now')).split('T')[0]
-
-        if not metadata['ott_lab']:
-            self.behavior_phase = metadata['behavior_phase']
+        self.objID = f"{metadata['rat_name']}_{metadata['date']}_{metadata['task']}_probe{metadata['probe_num']}"
 
         if traces_dict is not None:
+            # -------------------------------------------- #
+            self.traces_dict = traces_dict
             self.sa_traces = traces_dict['stim_aligned']
             self.ca_traces = traces_dict['response_aligned']
             self.ra_traces = traces_dict['reward_aligned']
             self.interp_traces = traces_dict['interp_traces']
-
+            # -------------------------------------------- #
             self.interp_inds = traces_dict['interp_inds']
             if type(self.interp_inds) ==  list:
                 self.interp_inds = [np.sum(self.interp_inds[0:i]) for i in np.arange(1, len(self.interp_inds) + 1)]
-
             self.response_ind = traces_dict['response_ind']
             self.reward_ind = traces_dict['reward_ind']
             self.stim_ind = traces_dict['stim_ind']
+            # -------------------------------------------- #
             self.n_trials, self.n_neurons, _ = self.sa_traces.shape
 
-            if stable_neurons is not None:
-                self.stable_neurons = stable_neurons
-            else:
-                self.stable_neurons = np.arange(self.n_neurons)
+        self.stable_neurons = stable_neurons
+        self.cluster_labels = cluster_labels
 
-            if neuron_mask_df is not None:
-                self.neuron_mask_df = neuron_mask_df
-            else:
-                neurons = np.arange(0, self.n_neurons)
-                df_dict = {'neurons':neurons}
-                if stable_neurons is not None and len(stable_neurons) > 0:
-                    stability_mask = np.zeros_like(neurons)
-                    stability_mask[stable_neurons] = 1
-                    df_dict['stability_mask'] = stability_mask
-                else:
-                    df_dict['stability_mask'] = [True]*self.n_neurons
+        if neuron_mask_df is None:
+            neurons = np.arange(0, self.n_neurons)
+            df_dict = {'neurons':neurons}
+            # if len(stable_neurons) > 0:
+            #     stability_mask = np.zeros_like(neurons)
+            #     stability_mask[stable_neurons] = 1
+            #     df_dict['stability_mask'] = stability_mask
+            # else:
+            #     df_dict['stability_mask'] = np.full(shape=self.n_neurons, fill_value=np.nan)
+            #
+            # if len(cluster_labels) > 0:
+            #     cluster_mask = np.zeros_like(neurons)*np.nan
+            #     if len(cluster_labels) == self.n_neurons:
+            #         cluster_mask = cluster_labels
+            #     elif len(cluster_labels) == len(self.stable_neurons):
+            #         cluster_mask[self.stable_neurons] == cluster_labels
+            #     else:
+            #         raise("number of cluster labels is not the same as either "
+            #               "total number of neurons or number of stable neurons")
+            #     df_dict['cluster_mask'] = cluster_mask
+            # else:
+            #     df_dict['cluster_mask'] = np.full(shape=self.n_neurons, fill_value=np.nan)
+            df_dict['stability_mask'] = np.full(shape=self.n_neurons, fill_value=np.nan)
+            df_dict['cluster_mask'] = np.full(shape=self.n_neurons, fill_value=np.nan)
+            self.neuron_mask_df = pd.DataFrame(df_dict, index=df_dict["neurons"], columns=["cluster_mask", "stability_mask"])
+        else:
+            self.neuron_mask_df = neuron_mask_df
 
-                if len(cluster_labels) > 0:
-                    cluster_mask = np.zeros_like(neurons)*np.nan
-                    if len(cluster_labels) == self.n_neurons:
-                        cluster_mask = cluster_labels
-                    elif len(cluster_labels) == len(self.stable_neurons):
-                        cluster_mask[self.stable_neurons] == cluster_labels
-                    else:
-                        raise("number of cluster labels is not the same as either "
-                              "total number of neurons or number of stable neurons")
 
-                    df_dict['cluster_mask'] = cluster_mask
-                self.neuron_mask_df = pd.DataFrame(df_dict, index=df_dict["neurons"], columns=["cluster_mask", "stability_mask"])
-
-            self.traces_dict = traces_dict
-        self.behav_df = behav_df
-
-        if (cluster_labels is not None):
-            self.cluster_labels = cluster_labels
-            self.cluster_ids = np.unique(cluster_labels)
-
-        if record:
-            self.record_experiment(linking_group, self.metadata['experiment_id'])
-
-    def record_experiment(self, linking_group, experiment_id):
-        tracking_df = pd.DataFrame.from_dict({'ratname': [self.name],
-                                              'date': [self.metadata['date']],
-                                              'experimenter': [self.metadata['experimenter']],
-                                              'stimulus': [self.metadata['stimulus']],
-                                              'time_investment': [self.metadata['time_investment']],
-                                              'reward_bias': [self.metadata['reward_bias']],
-                                              'prior':[self.metadata['prior']],
-                                              'behavior_phase':[self.metadata['behavior_phase']],
-                                              'recording_type': [self.metadata['recording_type']],
-                                              'linking_group': [linking_group],
-                                              'experiment_id': [experiment_id],
-                                              'recording_region': [self.metadata['region']],
-                                              'n_neurons': [self.n_neurons],
-                                              'n_trials': [self.n_trials],
-                                              'dat_path': [self.dat_path],
-                                              'fps':[self.sps],
-                                              'data_obj_version': ['TwoAFC_spikes_v1'],
-                                              'objID': [self.objID]})
-
-        #this is always the tracking file!
-        engine = create_engine('sqlite:///D:\\tracking.db', echo=True)
-        with engine.connect() as con:
-            tracking_df.to_sql('2AFC_tracking', con=con, if_exists='append')
 
     def __getitem__(self, item):
         """
@@ -210,36 +160,34 @@ class DataContainer:
         print('Saving...', end='')
         if remove_old:
             print("warning, deleting all old obj files")
-            trace_files = glob.glob(self.dat_path+"*traces_dict.pkl")
+            trace_files = glob.glob(self.data_path + "*traces_dict.pkl")
             [os.remove(f) for f in trace_files]
 
-            df_files = glob.glob(self.dat_path+"*behav_df.pkl")
+            df_files = glob.glob(self.data_path + "*behav_df.pkl")
             [os.remove(f) for f in df_files]
 
-            info_files = glob.glob(self.dat_path + "*info.pkl")
+            info_files = glob.glob(self.data_path + "*info.pkl")
             [os.remove(f) for f in info_files]
 
-            feature_files = glob.glob(self.dat_path + "*feature_df*.pkl")
+            feature_files = glob.glob(self.data_path + "*feature_df*.pkl")
             [os.remove(f) for f in feature_files]
 
 
-        if not os.path.isdir(self.dat_path):
-            os.mkdir(self.dat_path)
-        with open(self.dat_path + 'traces_dict.pkl', 'wb') as f:
+        if not os.path.isdir(self.data_path):
+            os.mkdir(self.data_path)
+        with open(self.data_path + 'traces_dict.pkl', 'wb') as f:
             pickle.dump(self.traces_dict, f)
 
-        with open(self.dat_path + "behav_df.pkl", 'wb') as f:
+        with open(self.data_path + "behav_df.pkl", 'wb') as f:
             pickle.dump(self.behav_df, f)
 
-        with open(self.dat_path + "persistent_info.pkl", 'wb') as f:
-
-            persistent_info = {'cluster_labels':self.cluster_labels,
+        with open(self.data_path + "persistent_info.pkl", 'wb') as f:
+            persistent_info = {'metadata': self.metadata,
+                               'cluster_labels':self.cluster_labels,
                                'stable_neurons':self.stable_neurons,
-                               'feature_df_cache': self.feature_df_cache,
-                               'feature_df_keys':self.feature_df_keys,
                                'neuron_mask_df':self.neuron_mask_df,
-                               'metadata': self.metadata,
-                               'behavior_phase': self.behavior_phase,
+                               'feature_df_cache':self.feature_df_cache,
+                               'feature_df_keys':self.feature_df_keys,
                                }
 
             pickle.dump(persistent_info, f)
@@ -285,7 +233,7 @@ class DataContainer:
             feature_df = trace_utils.get_trace_feature_df(behav_df=self.behav_df,
                                                           selected_neurons=selected_neurons,
                                                           traces=traces,
-                                                          rat_name=self.name,
+                                                          rat_name=self.rat_name,
                                                           session_date=self.metadata['date'],
                                                           probe_num=self.metadata['probe_num'],
                                                           behavior_variables=variables)
@@ -293,7 +241,7 @@ class DataContainer:
             # print("Created new feature df.")
             if save:
                 self.feature_df_keys.append([alignment, variables])
-                fname = self.dat_path + self.objID + '_feature_df_' + str(len(self.feature_df_keys)) + '.pkl'
+                fname = self.data_path + '_feature_df_' + str(len(self.feature_df_keys)) + '.pkl'
                 with open (fname, 'wb') as f:
                     pickle.dump(feature_df, f)
 
@@ -303,167 +251,149 @@ class DataContainer:
         return feature_df
 
 
-class TwoAFC(DataContainer):
-    def __init__(self, dat_path, behav_df, traces_dict,
-                 neuron_mask_df=None,
-                 objID=None,
-                 cluster_labels=None,
-                 metadata=None,
-                 linking_group=None,
-                 stable_neurons=None,
-                 record=False,
-                 feature_df_cache=[],
-                 feature_df_keys=[],
-                 session=None,
-                 behavior_phase=None):
-
-        super().__init__(dat_path, behav_df, traces_dict, neuron_mask_df,
-                         objID, cluster_labels, metadata,
-                         linking_group, stable_neurons, record,
-                         feature_df_cache, feature_df_keys, behavior_phase)
-
-        self.session = session
-
-
-class Multiday_2AFC(DataContainer):
-    def __init__(self, dat_path, obj_list, cell_mapping,
-                 objID=None,
-                 sps=None,
-                 name=None,
-                 cluster_labels=None,
-                 metadata=None,
-                 stable_neurons=None,
-                 record=True,
-                 feature_df_cache=[],
-                 feature_df_keys=[]):
-
-        assert('session' in obj_list[0].behav_df.keys())
-
-        self.behav_df = pd.concat([obj.behav_df for obj in obj_list])
-        self.n_sessions = len(obj_list)
-        traces_dict = map_traces(self.behav_df, obj_list, matches=cell_mapping)
-
-        self.name = name
-        self.metadata = metadata
-        self.sps = sps
-        self.dat_path = dat_path
-        self.feature_df_cache = feature_df_cache
-        self.feature_df_keys = feature_df_keys
-
-        self.linking_group = [obj.objID for obj in obj_list]
-
-        if objID is not None:
-            self.objID = objID
-        else:
-            self.objID = str(np.datetime64('now').astype('uint32'))
-
-        self.sa_traces = traces_dict['stim_aligned']
-        self.ca_traces = traces_dict['response_aligned']
-        self.ra_traces = traces_dict['reward_aligned']
-        self.interp_traces = traces_dict['interp_traces']
-
-        self.interp_inds = traces_dict['interp_inds']
-
-        self.choice_ind = traces_dict['response_ind']
-        self.reward_ind = traces_dict['reward_ind']
-        self.stim_ind = traces_dict['stim_ind']
-        self.n_trials, self.n_neurons, _ = self.sa_traces.shape
-
-        if stable_neurons is not None:
-            self.stable_neurons = stable_neurons
-        else:
-            self.stable_neurons = np.arange(self.n_neurons)
-
-        self.traces_dict = traces_dict
-
-        if (cluster_labels is not None):
-            self.cluster_labels = cluster_labels
-            self.cluster_ids = np.unique(cluster_labels)
-
-        if record:
-            self.record_experiment(self.linking_group, self.metadata['experiment_id'])
-
-
-def from_pickle(dat_path, objID, obj_class):
-    if os.path.exists(dat_path+'stable_clusters/'):
+def from_pickle(data_path, obj_class):
+    if os.path.exists(data_path + 'stable_clusters/'):
         print('Stable cluster data found.')
-        dat_path += 'stable_clusters/'
+        data_path += 'stable_clusters/'
 
-    with open(dat_path + objID + "traces_dict.pkl", 'rb') as f:
+    with open(data_path + "traces_dict.pkl", 'rb') as f:
         traces_dict = pickle.load(f)
 
-    with open(dat_path + objID + "behav_df.pkl", 'rb') as f:
+    with open(data_path + "behav_df.pkl", 'rb') as f:
         behav_df = pickle.load(f)
 
-    with open(dat_path + objID + "persistent_info.pkl", 'rb') as f:
+    with open(data_path + "persistent_info.pkl", 'rb') as f:
         kwargs = pickle.load(f)
 
-    # base_path = '/'.join(dat_path.split('/')[:-2]) + '/'
-
-    return obj_class(dat_path, behav_df=behav_df, traces_dict=traces_dict, objID=objID, record=False, **kwargs)
+    return obj_class(data_path, behav_df=behav_df, traces_dict=traces_dict, **kwargs)
 
 
-def create_experiment_data_object(datapath, metadata, trialwise_binned_mat, cbehav_df):
+class TwoAFC(DataContainer):
+    def __init__(self, data_path, behav_df, metadata, traces_dict,
+                 stable_neurons=[], cluster_labels=[], neuron_mask_df=None, feature_df_cache=[], feature_df_keys=[]):
+        super().__init__(data_path, behav_df, metadata, traces_dict,
+                         stable_neurons, cluster_labels, neuron_mask_df, feature_df_cache, feature_df_keys)
+
+
+def create_experiment_data_object(data_path, metadata, trialwise_binned_mat, cbehav_df):
     traces_dict = trace_utils.create_traces_np(cbehav_df,
                                                trialwise_binned_mat,
                                                metadata,
                                                aligned_ind=0,
                                                filter_by_trial_num=False,
                                                traces_aligned="TrialStart")
-
     print('Creating data object...', end='')
     # create and save data object
-    TwoAFC(datapath, cbehav_df, traces_dict, metadata=metadata, cluster_labels=[]).to_pickle(remove_old=False)
-
-def map_traces(behav_df, obj_list, matches):
-    assert(len(obj_list) == matches.shape[1])
-
-    n_total_neurons = matches.shape[0]
-    n_trials = len(behav_df)
-
-    _, _, il = obj_list[0].interp_traces.shape
-    _, _, sl = obj_list[0].sa_traces.shape
-    _, _, rl = obj_list[0].ca_traces.shape
-    _, _, rwl = obj_list[0].ra_traces.shape
-
-    interp = np.zeros([n_trials, n_total_neurons, il])*np.nan
-    stim = np.zeros([n_trials, n_total_neurons, sl])*np.nan
-    response = np.zeros([n_trials, n_total_neurons, rl])*np.nan
-    reward = np.zeros([n_trials, n_total_neurons, rwl])*np.nan
-
-    for i, obj in enumerate(obj_list):
-        trials = behav_df[behav_df.session == obj.session].index.to_numpy()
-
-        assert(len(trials) == obj.n_trials)
-        assert(il == obj.interp_traces.shape[2])
-
-        iids = matches[:, i][~np.isnan(matches[:, i])]
-        mids = [np.where(matches[:, i] == c)[0][0] for c in iids]
-
-        A = np.zeros_like(interp[trials])
-        A[:, mids, :] = obj[:, iids, :]
-        interp[trials] = A
-
-        A = np.zeros_like(stim[trials])
-        A[:, mids, :] = obj[:, iids, 'stimulus']
-        stim[trials] = A
-
-        A = np.zeros_like(response[trials])
-        A[:, mids, :] = obj[:, iids, 'response']
-        response[trials] = A
-
-        A = np.zeros_like(reward[trials])
-        A[:, mids, :] = obj[:, iids, 'reward']
-        reward[trials] = A
-
-    interp_dict = {'interp_traces': interp,
-                   'stim_aligned': stim,
-                   'response_aligned': response,
-                   'reward_aligned': reward,
-                   'interp_inds': obj.interp_inds,
-                   'response_ind':obj.choice_ind,
-                   'reward_ind': obj.reward_ind,
-                   'stim_ind': obj.stim_ind}
+    TwoAFC(data_path, cbehav_df, metadata, traces_dict=traces_dict).to_pickle(remove_old=False)
 
 
-    return interp_dict
+# class Multiday_2AFC(DataContainer):
+#     def __init__(self, dat_path, obj_list, cell_mapping,
+#                  sps=None,
+#                  name=None,
+#                  cluster_labels=None,
+#                  metadata=None,
+#                  stable_neurons=None,
+#                  record=True,
+#                  feature_df_cache=[],
+#                  feature_df_keys=[]):
+#
+#         assert('session' in obj_list[0].behav_df.keys())
+#
+#         self.behav_df = pd.concat([obj.behav_df for obj in obj_list])
+#         self.n_sessions = len(obj_list)
+#         traces_dict = map_traces(self.behav_df, obj_list, matches=cell_mapping)
+#
+#         self.name = name
+#         self.metadata = metadata
+#         self.sps = sps
+#         self.dat_path = dat_path
+#         self.feature_df_cache = feature_df_cache
+#         self.feature_df_keys = feature_df_keys
+#
+#         self.linking_group = [obj.objID for obj in obj_list]
+#
+#         if objID is not None:
+#             self.objID = objID
+#         else:
+#             self.objID = str(np.datetime64('now').astype('uint32'))
+#
+#         self.sa_traces = traces_dict['stim_aligned']
+#         self.ca_traces = traces_dict['response_aligned']
+#         self.ra_traces = traces_dict['reward_aligned']
+#         self.interp_traces = traces_dict['interp_traces']
+#
+#         self.interp_inds = traces_dict['interp_inds']
+#
+#         self.choice_ind = traces_dict['response_ind']
+#         self.reward_ind = traces_dict['reward_ind']
+#         self.stim_ind = traces_dict['stim_ind']
+#         self.n_trials, self.n_neurons, _ = self.sa_traces.shape
+#
+#         if stable_neurons is not None:
+#             self.stable_neurons = stable_neurons
+#         else:
+#             self.stable_neurons = np.arange(self.n_neurons)
+#
+#         self.traces_dict = traces_dict
+#
+#         if (cluster_labels is not None):
+#             self.cluster_labels = cluster_labels
+#             self.cluster_ids = np.unique(cluster_labels)
+#
+#         if record:
+#             self.record_experiment(self.linking_group, self.metadata['experiment_id'])
+
+
+# def map_traces(behav_df, obj_list, matches):
+#     assert(len(obj_list) == matches.shape[1])
+#
+#     n_total_neurons = matches.shape[0]
+#     n_trials = len(behav_df)
+#
+#     _, _, il = obj_list[0].interp_traces.shape
+#     _, _, sl = obj_list[0].sa_traces.shape
+#     _, _, rl = obj_list[0].ca_traces.shape
+#     _, _, rwl = obj_list[0].ra_traces.shape
+#
+#     interp = np.zeros([n_trials, n_total_neurons, il])*np.nan
+#     stim = np.zeros([n_trials, n_total_neurons, sl])*np.nan
+#     response = np.zeros([n_trials, n_total_neurons, rl])*np.nan
+#     reward = np.zeros([n_trials, n_total_neurons, rwl])*np.nan
+#
+#     for i, obj in enumerate(obj_list):
+#         trials = behav_df[behav_df.session == obj.session].index.to_numpy()
+#
+#         assert(len(trials) == obj.n_trials)
+#         assert(il == obj.interp_traces.shape[2])
+#
+#         iids = matches[:, i][~np.isnan(matches[:, i])]
+#         mids = [np.where(matches[:, i] == c)[0][0] for c in iids]
+#
+#         A = np.zeros_like(interp[trials])
+#         A[:, mids, :] = obj[:, iids, :]
+#         interp[trials] = A
+#
+#         A = np.zeros_like(stim[trials])
+#         A[:, mids, :] = obj[:, iids, 'stimulus']
+#         stim[trials] = A
+#
+#         A = np.zeros_like(response[trials])
+#         A[:, mids, :] = obj[:, iids, 'response']
+#         response[trials] = A
+#
+#         A = np.zeros_like(reward[trials])
+#         A[:, mids, :] = obj[:, iids, 'reward']
+#         reward[trials] = A
+#
+#     interp_dict = {'interp_traces': interp,
+#                    'stim_aligned': stim,
+#                    'response_aligned': response,
+#                    'reward_aligned': reward,
+#                    'interp_inds': obj.interp_inds,
+#                    'response_ind':obj.choice_ind,
+#                    'reward_ind': obj.reward_ind,
+#                    'stim_ind': obj.stim_ind}
+#
+#
+#     return interp_dict

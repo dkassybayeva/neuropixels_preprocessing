@@ -934,7 +934,7 @@ def filter_stable(obj, set_stable=False, n_bootstraps=10, cor_val=.95, save=Fals
 
 def update_stable(obj, stable, save=True):
     obj.stable_neurons = np.where(stable)[0]
-    print("Updated stable inds for rat: " +  obj.name, end='')
+    print("Updated stable inds for rat: " + obj.metadata['rat_name'], end='')
 
     if save:
         obj.to_pickle()

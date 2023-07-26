@@ -19,6 +19,7 @@ def make_dir_if_nonexistent(path):
     else:
         print(f"{path} already exists.", flush=True)
 
+
 def combine_session_data_objects(rat_name_l, date_l):
     data_obj_l = []
     for sesh_i in range(len(date_l)):
@@ -54,7 +55,7 @@ def get_cluster_traces(obj_list, alignment, filter_stable=True, require_all_clus
         for obj in obj_list:
             if set(cluster_list).issubset(obj.cluster_labels):
                 if sum([(sum(obj.cluster_labels == c) > 2) for c in cluster_list]) == len(cluster_list):
-                    print(obj.name)
+                    print(obj.metadata['rat_name'])
                     objs_red.append(obj)
                     labels_red.append(obj.cluster_labels)
 
@@ -74,7 +75,7 @@ def get_cluster_traces(obj_list, alignment, filter_stable=True, require_all_clus
             if len(clust) > 0:
                 behavior_df_list.append(obj.behav_df)
                 traces.append(obj[:, clust, alignment])
-                rat_names.append(obj.name)
+                rat_names.append(obj.metadata['rat_name'])
             else:
                 print("uhoh the cluster was too small")
         yield(cluster_id, behavior_df_list, traces, rat_names)
