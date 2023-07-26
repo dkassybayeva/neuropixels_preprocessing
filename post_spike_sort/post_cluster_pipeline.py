@@ -85,7 +85,11 @@ if not TOY_DATA:
 for probe_i in range(1, metadata['n_probes']+1):
     metadata['probe_num'] = probe_i
     trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(metadata, preprocess_dir, trace_subsample_bin_size_ms, TOY_DATA=TOY_DATA)
-    
+
+    n_neurons, n_trials, _ = trialwise_binned_mat.shape
+    insert_value_into_metadata_csv(rat, date, 'n_good_units', n_neurons)
+    insert_value_into_metadata_csv(rat, date, 'n_trials', n_trials)
+
     cbehav_df['session'] = metadata['recording_session_id']
     
     data_objs.create_experiment_data_object(preprocess_dir + f"probe{probe_i}/", metadata, trialwise_binned_mat, cbehav_df)
