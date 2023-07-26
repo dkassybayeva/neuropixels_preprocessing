@@ -233,7 +233,7 @@ class DataContainer:
             feature_df = trace_utils.get_trace_feature_df(behav_df=self.behav_df,
                                                           selected_neurons=selected_neurons,
                                                           traces=traces,
-                                                          rat_name=self.rat_name,
+                                                          rat_name=self.metadata['rat_name'],
                                                           session_date=self.metadata['date'],
                                                           probe_num=self.metadata['probe_num'],
                                                           behavior_variables=variables)
