@@ -503,6 +503,10 @@ def convert_df(behav_df, metadata, session_type='SessionData', trim_last_trial=T
 
     bins = np.quantile(behav_df.WT, [.33, .66])
     behav_df['WT_qs'] = np.digitize(behav_df.WT, bins)
+    # behav_df['WT_qs'] = pd.cut(behav_df.WT, bins=5, labels=np.arange(0, 5), retbins=False)
+
+    # Add some behavioral data and
+    behav_df["easy"] = map_p_correct(_obj.behav_df)["p_correct"] >= .85
 
     if not metadata['ott_lab']:
         behav_df['prev_WT_qs_1'] = np.digitize(behav_df.prev_WT_1, bins)
