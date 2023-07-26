@@ -82,14 +82,17 @@ if not TOY_DATA:
         bu.calc_event_outcomes(preprocess_dir, metadata)
         bu.create_behavioral_dataframe(preprocess_dir)
 
+n_neurons = 0
 for probe_i in range(1, metadata['n_probes']+1):
     metadata['probe_num'] = probe_i
     trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(metadata, preprocess_dir, trace_subsample_bin_size_ms, TOY_DATA=TOY_DATA)
 
-    n_neurons, n_trials, _ = trialwise_binned_mat.shape
-    insert_value_into_metadata_csv(rat, date, 'n_good_units', n_neurons)
-    insert_value_into_metadata_csv(rat, date, 'n_trials', n_trials)
+    n_probe_neurons, n_trials, _ = trialwise_binned_mat.shape
+    n_neurons += n_probe_neurons
 
     cbehav_df['session'] = metadata['recording_session_id']
     
     data_objs.create_experiment_data_object(preprocess_dir + f"probe{probe_i}/", metadata, trialwise_binned_mat, cbehav_df)
+
+insert_value_into_metadata_csv(rat, date, 'n_good_units', n_neurons)
+insert_value_into_metadata_csv(rat, date, 'n_trials', n_trials)
