@@ -47,6 +47,7 @@ class DataContainer:
             self.stim_ind = traces_dict['stim_ind']
             # -------------------------------------------- #
             self.n_trials, self.n_neurons, _ = self.sa_traces.shape
+            assert self.n_trials == self.metadata['n_trials']
 
         self.stable_neurons = stable_neurons
         self.cluster_labels = cluster_labels
@@ -144,7 +145,7 @@ class DataContainer:
         raise "Not Implemented"
 
     def __str__(self):
-        return str(self.metadata)
+        return str(self.objID)
 
     def iter_clusters(self,  phase_indexer = slice(None), return_labels = True):
         if return_labels:
@@ -158,26 +159,23 @@ class DataContainer:
 
     def to_pickle(self, remove_old=False):
         print('Saving...', end='')
-        if remove_old:
-            print("warning, deleting all old obj files")
-            trace_files = glob.glob(self.data_path + "*traces_dict.pkl")
-            [os.remove(f) for f in trace_files]
-
+        # ------------------------------------------------------------- #
+        # original data or not, check whether current data path exists
+        if not os.path.isdir(self.data_path):
+            os.mkdir(self.data_path)
+        # ------------------------------------------------------------- #
+        evolved_obj = True if self.data_path.split('/')[-2]=='stable_clusters' else False
+        if remove_old and evolved_obj:  # Don't remove original preprocess data
             df_files = glob.glob(self.data_path + "*behav_df.pkl")
             [os.remove(f) for f in df_files]
 
-            info_files = glob.glob(self.data_path + "*info.pkl")
+            info_files = glob.glob(self.data_path + "persistent_info.pkl")
             [os.remove(f) for f in info_files]
 
-            feature_files = glob.glob(self.data_path + "*feature_df*.pkl")
-            [os.remove(f) for f in feature_files]
-
-
-        if not os.path.isdir(self.data_path):
-            os.mkdir(self.data_path)
-        with open(self.data_path + 'traces_dict.pkl', 'wb') as f:
-            pickle.dump(self.traces_dict, f)
-
+            # feature_files = glob.glob(self.data_path + "*feature_df*.pkl")
+            # [os.remove(f) for f in feature_files]
+        # ------------------------------------------------------------- #
+        # always write behav df and persist info (e.g., metadata)
         with open(self.data_path + "behav_df.pkl", 'wb') as f:
             pickle.dump(self.behav_df, f)
 
@@ -191,6 +189,12 @@ class DataContainer:
                                }
 
             pickle.dump(persistent_info, f)
+        # ------------------------------------------------------------- #
+        # only write traces the first time, b/c they shouldn't change
+        if not evolved_obj:
+            with open(self.data_path + 'traces_dict.pkl', 'wb') as f:
+                pickle.dump(self.traces_dict, f)
+        # ------------------------------------------------------------- #
         print('Done.')
 
     def get_feature_df(self, alignment='reward',
@@ -252,12 +256,16 @@ class DataContainer:
 
 
 def from_pickle(data_path, obj_class):
+    # always load original traces (only 1 copy)
+    with open(data_path + "traces_dict.pkl", 'rb') as f:
+        traces_dict = pickle.load(f)
+
+    # Then check whether an evolved data object exists
+    # If it does, then load the behavior and persistent info from there,
+    # because this may have changed in analysis
     if os.path.exists(data_path + 'stable_clusters/'):
         print('Stable cluster data found.')
         data_path += 'stable_clusters/'
-
-    with open(data_path + "traces_dict.pkl", 'rb') as f:
-        traces_dict = pickle.load(f)
 
     with open(data_path + "behav_df.pkl", 'rb') as f:
         behav_df = pickle.load(f)
