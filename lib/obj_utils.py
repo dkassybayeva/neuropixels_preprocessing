@@ -27,9 +27,11 @@ def combine_session_data_objects(rat_name_l, date_l):
         for probe_i in range(1, _metadata['n_probes']+1):
             _metadata['probe_num'] = probe_i
             _paths = get_session_path(_metadata)
-            # _obj = from_pickle(_paths['preprocess_dir'] + f"probe{probe_i}/", '', TwoAFC)
-            DATA_DIR = f'/home/mud/Workspace/ott_neuropix_data/Nina2/20210625/preprocessing_output/probe{probe_i}/'
-            _obj = from_pickle(DATA_DIR, TwoAFC)
+
+            # @TODO: uncomment next line and delete the following 2 once ready to run on server
+            _obj = from_pickle(_paths['preprocess_dir'] + f"probe{probe_i}/", TwoAFC)
+            # DATA_DIR = f'/home/mud/Workspace/ott_neuropix_data/Nina2/20210625/preprocessing_output/probe{probe_i}/'
+            # _obj = from_pickle(DATA_DIR, TwoAFC)
 
             _obj.behavior_mat_path = _paths['behav_dir'] + _metadata['behavior_mat_file']
             data_obj_l.append(_obj)

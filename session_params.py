@@ -20,7 +20,7 @@ sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of a
 
 def save_directory_helper():
     try:
-        DATA_DIR = '/home/mud/Workspace/ott_neuropix_data/'
+        DATA_DIR = f'/media/ottlab/share/ephys/'
         assert path.exists(DATA_DIR)
     except:
         DATA_DIR = 'O:share/ephys/'
