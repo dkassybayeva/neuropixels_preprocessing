@@ -264,7 +264,7 @@ def from_pickle(data_path, obj_class):
     # If it does, then load the behavior and persistent info from there,
     # because this may have changed in analysis
     if os.path.exists(data_path + 'stable_clusters/'):
-        print('Stable cluster data found.')
+        print('Stable cluster data found. ', end='')
         data_path += 'stable_clusters/'
 
     with open(data_path + "behav_df.pkl", 'rb') as f:

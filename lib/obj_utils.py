@@ -32,6 +32,7 @@ def combine_session_data_objects(rat_name_l, date_l):
             _obj = from_pickle(_paths['preprocess_dir'] + f"probe{probe_i}/", TwoAFC)
             # DATA_DIR = f'/home/mud/Workspace/ott_neuropix_data/Nina2/20210625/preprocessing_output/probe{probe_i}/'
             # _obj = from_pickle(DATA_DIR, TwoAFC)
+            print(_obj, 'loaded.')
 
             _obj.behavior_mat_path = _paths['behav_dir'] + _metadata['behavior_mat_file']
             data_obj_l.append(_obj)
