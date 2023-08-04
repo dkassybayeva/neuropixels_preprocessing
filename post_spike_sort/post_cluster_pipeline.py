@@ -94,5 +94,6 @@ for probe_i in range(1, metadata['n_probes']+1):
     
     data_objs.create_experiment_data_object(preprocess_dir + f"probe{probe_i}/", metadata, trialwise_binned_mat, cbehav_df)
 
-insert_value_into_metadata_csv(rat, date, 'n_good_units', n_neurons)
-insert_value_into_metadata_csv(rat, date, 'n_trials', n_trials)
+if WRITE_METADATA:
+    insert_value_into_metadata_csv(rat, date, 'n_good_units', n_neurons)
+    insert_value_into_metadata_csv(rat, date, 'n_trials', n_trials)
