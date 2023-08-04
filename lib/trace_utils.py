@@ -278,7 +278,7 @@ def create_traces_np(behav_df, traces, metadata,
     # -----------------------Response-aligned frame------------------------------- #
     # resp_frame_begin = np.maximum(stim_frame_end, response_start_idx - int(sps))
     resp_frame_begin = response_start_idx - int(2.1*sps)
-    resp_frame_end = resp_end_idx + int(2.1*sps)  # np.minimum(response_start_idx + int(10*sps), resp_end_idx + int(2.1*sps))
+    resp_frame_end = response_start_idx + int(3.1*sps)  # np.minimum(response_start_idx + int(10*sps), resp_end_idx + int(2.1*sps))
 
     response_aligned, response_point = align_helper(resp_frame_begin, resp_frame_end, response_start_idx, trace_len_bins=int(13.5*sps))
 
