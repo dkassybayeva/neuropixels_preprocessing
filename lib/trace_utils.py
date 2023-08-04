@@ -270,7 +270,7 @@ def create_traces_np(behav_df, traces, metadata,
     # -----------------------Stimulus-aligned frame------------------------------- #
     stim_frame_begin = center_poke_idx - int(.5*sps)  # extend the beginning of the frame 0.5s before center poke
     # the end of the frame extends to 0.6s after the stimulus is on OR .15s after the stimulus ends
-    stim_frame_end = np.minimum(stim_off_idx + int(.15*sps), stim_on_idx + int(.6*sps))
+    stim_frame_end = stim_on_idx + int(0.5*sps) #np.minimum(stim_off_idx + int(.15*sps), stim_on_idx + int(.6*sps))
 
     stim_aligned, stim_point = align_helper(stim_frame_begin, stim_frame_end, stim_on_idx, trace_len_bins=int(2.5*sps))
     
@@ -278,14 +278,14 @@ def create_traces_np(behav_df, traces, metadata,
     # -----------------------Response-aligned frame------------------------------- #
     # resp_frame_begin = np.maximum(stim_frame_end, response_start_idx - int(sps))
     resp_frame_begin = response_start_idx - int(2.1*sps)
-    resp_frame_end = np.minimum(response_start_idx + int(10*sps), resp_end_idx + int(2.1*sps))
+    resp_frame_end = resp_end_idx + int(2.1*sps)  # np.minimum(response_start_idx + int(10*sps), resp_end_idx + int(2.1*sps))
 
     response_aligned, response_point = align_helper(resp_frame_begin, resp_frame_end, response_start_idx, trace_len_bins=int(13.5*sps))
 
 
     # -----------------------Reward-aligned frame--------------------------------- #
     reward_frame_begin = np.maximum(response_start_idx, resp_end_idx - int(6.1*sps))
-    reward_frame_end = np.minimum(resp_end_idx + int(2.1*sps), trial_len_in_bins)
+    reward_frame_end = resp_end_idx + int(2.1*sps)  # np.minimum(resp_end_idx + int(2.1*sps), trial_len_in_bins)
     
     reward_aligned, reward_point = align_helper(reward_frame_begin, reward_frame_end, resp_end_idx, trace_len_bins=int(10.1*sps))
 
@@ -314,13 +314,13 @@ def create_traces_np(behav_df, traces, metadata,
         # print([len(f) for f in interp_frames])
         # print(padded_traces.shape)
 
-        interp_lens = [int(.5*sps),   # ITI
-                       int(.2*sps),   # stim_begin = 1
+        interp_lens = [int(0.5*sps),  # ITI
+                       int(0.2*sps),  # stim_begin = 1
                        int(.35*sps),  # stim_end = 2
                        int(.15*sps),  # response_begin = 3
-                       int(.5*sps),   # arbitrary buffer?
-                       int(1*sps) if metadata['task']=='reward-bias' else int(3*sps),    # time investment (feedback delay)
-                       int(.5*sps)]   # arbitrary buffer?
+                       int(0.5*sps),  # arbitrary buffer?
+                       int(3.0*sps),  # time investment (feedback delay), reward-bias will be stretched too
+                       int(0.5*sps)]  # arbitrary buffer?
 
         # trace is matrix with [n_nrns x time in bins]
         trace_i = padded_traces[:, i, :].reshape([n_neurons, -1])
