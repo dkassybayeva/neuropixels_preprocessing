@@ -1,5 +1,4 @@
 from os import path, makedirs
-
 import pandas as pd
 
 # ----------------------------------------------------------------------- #
@@ -15,6 +14,9 @@ n_active_electrodes = 384
 max_ISI = 0.001  # max intersample interval (ISI), above which the period is considered a "gap" in the recording
 trace_subsample_bin_size_ms = 25  # sample period in ms
 sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of aligned traces
+
+# ---------file names---------- #
+spike_mat_str_indiv = f'spike_mat_in_ms.npy'
 # ----------------------------------------------------------------------- #
 
 
@@ -155,8 +157,9 @@ def get_stitched_session_paths(sesh_1_metadata, sesh_2_metadata):
         stitch_paths['stitch_dir'] = f'/media/ottlab/data/{rat}/ephys/{combined_session}/'
         assert path.exists(stitch_paths['stitch_dir'])
 
-    stitch_paths['preprocess_dir'] = stitch_paths['stitch_dir'] + f"preprocessing_output/probe{sesh_1_metadata['probe_num']}/"
     stitch_paths['probe_dir'] = stitch_paths['stitch_dir'] + f"probe{sesh_1_metadata['probe_num']}/kilosort{sesh_1_metadata['kilosort_ver']}/"
+    stitch_paths['preprocess_dir'] = stitch_paths['stitch_dir'] + f"preprocessing_output/probe{sesh_1_metadata['probe_num']}/"
+    stitch_paths['matches_dir'] = stitch_paths['preprocess_dir'] + 'matches/'
 
     return {f"{sesh_1_metadata['date']}":session1_paths, f"{sesh_2_metadata['date']}":session2_paths, 'stitched':stitch_paths}
 
