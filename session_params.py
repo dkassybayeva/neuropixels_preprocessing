@@ -124,7 +124,7 @@ def get_session_path(metadata, use_local_data):
     session_paths = dict()
     try:
         session_paths['rec_dir'] = f'O:data/{rat}/ephys/{session}.rec/'
-        session_paths['behav_dir'] = session_paths['rec_dir']
+        session_paths['behav_dir'] = f'O:data/{rat}/bpod_session/{metadata["behav_datetime"]}/'
         assert path.exists(session_paths['rec_dir'])
     except:
         if 'R' in rat:
