@@ -307,7 +307,10 @@ def calc_event_outcomes(output_dir, metadata):
     if not OTT_LAB_DATA:
         if 'RewardMagnitude' in _sd_custom.keys():
             _sd['RewardMagnitude'] = _sd_custom['RewardMagnitude'][:n_trials, :]
-            _sd['RelativeReward'] = _sd['RewardMagnitude'][:, 0] - _sd['RewardMagnitude'][:, 1]
+            _sd['RewardMagnitudeL'] = _sd['RewardMagnitude'][:, 0].astype('int')
+            _sd['RewardMagnitudeR'] = _sd['RewardMagnitude'][:, 1].astype('int')
+            _sd['RelativeReward'] = _sd['RewardMagnitudeL'] - _sd['RewardMagnitudeR']
+
 
             _sd['RewardMagnitudeCorrect'] = np.full(n_trials, np.nan)
             for nt in range(n_trials):
