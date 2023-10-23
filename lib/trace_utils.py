@@ -49,7 +49,7 @@ def align_spikes_to_event(event_name, prebuffer, postbuffer, behav_df, traces, m
     return spikes
 
 
-def trial_start_align(behav_df, traces, metadata, sps):
+def trial_start_align(behav_df, traces, metadata, sps, max_allowable_len=36000):
 
     if metadata['ott_lab']:
         trialstart_str = 'recorded_TTL_trial_start_time'
@@ -64,7 +64,7 @@ def trial_start_align(behav_df, traces, metadata, sps):
     trial_len = np.ceil(sps*(behav_df['trial_len']).to_numpy()).astype('int')
 
     longest_trial = max(trial_len)
-    max_allowable_len = 36000
+
 
     if longest_trial < 12000:
         longest_trial = 12000
