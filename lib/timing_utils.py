@@ -161,10 +161,8 @@ def find_recording_gaps(timestamp_file, fs, max_ISI, save_dir):
     
     # save gap lengths and start points
     results = {'gaps': gaps, 'gaps_ts': gaps_ts}
-    gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
-    dump(results, save_dir + gap_filename, compress=3)
+    dump(results, save_dir, compress=3)
 
-    return gap_filename
 
 
 def extract_TTL_trial_start_times(session_path, gap_filename, DIO_port, save_dir):
