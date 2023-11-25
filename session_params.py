@@ -118,7 +118,7 @@ def insert_value_into_metadata_csv(rat, session_date, column, value):
     ephys_df.to_csv(ephys_metadata_file, index=False)
 
 
-def get_session_path(metadata):
+def get_session_path(metadata, use_local_data):
     rat = metadata['rat_name']
     session = metadata['trodes_datetime']
 
@@ -130,8 +130,14 @@ def get_session_path(metadata):
     except:
         if 'R' in rat:
             rat = rat.split('R')[-1]
-        session_paths['rec_dir'] = f'/media/ottlab/data/{rat}/ephys/{session}.rec/'
-        session_paths['behav_dir'] = f'/media/ottlab/data/{rat}/bpod_session/{metadata["behav_datetime"]}/'
+        if use_local_data:
+            print('USING LOCAL DATA FOR TESTING!!!')
+            main_dir = '/home/mud/Workspace/ott_neuropix_data/'
+            session_paths['rec_dir'] = main_dir + f'{rat}/{metadata["date"]}/'
+            session_paths['behav_dir'] = main_dir + f'{rat}/{metadata["date"]}/'
+        else:
+            session_paths['rec_dir'] = f'/media/ottlab/data/{rat}/ephys/{session}.rec/'
+            session_paths['behav_dir'] = f'/media/ottlab/data/{rat}/bpod_session/{metadata["behav_datetime"]}/'
         assert path.exists(session_paths['rec_dir'])
 
     session_paths['probe_dir'] = session_paths['rec_dir'] + f'{session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/'
