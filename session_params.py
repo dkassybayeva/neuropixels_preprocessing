@@ -127,23 +127,28 @@ def insert_value_into_metadata_csv(rat, session_date, column, value):
     ephys_df.to_csv(ephys_metadata_file, index=False)
 
 
-def get_session_path(metadata, data_root):
+def get_session_path(metadata, data_root, is_ephys_session):
     rat = metadata['rat_name']
     if data_root=='server' and 'R' in rat:
         rat = rat.split('R')[-1]
-    e_session = metadata['trodes_datetime']
 
     root_path = get_root_path(data_root)
-    rec_dir = root_path + f'{rat}/ephys/{e_session}.rec/',
 
-    session_paths = dict(
-        rec_dir = rec_dir,
-        probe_dir = rec_dir + f'{e_session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/',
-        preprocess_dir = rec_dir + 'preprocessing_output/',
-        timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
-        behav_dir = root_path + f'{rat}/bpod_session/{metadata["behav_datetime"]}/',
-    )
-    for path_i in session_paths:
+    if is_ephys_session:
+        e_session = metadata['trodes_datetime']
+        rec_dir = root_path + f'{rat}/ephys/{e_session}.rec/',
+        session_paths = dict(
+            rec_dir = rec_dir,
+            probe_dir = rec_dir + f'{e_session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/',
+            preprocess_dir = rec_dir + 'preprocessing_output/',
+            timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
+        )
+    else:
+        session_paths = dict()
+
+    session_paths['behav_dir'] = root_path + f'{rat}/bpod_session/{metadata["behav_datetime"]}/'
+
+    for path_i in session_paths.values():
         assert path.exists(path_i)
     return session_paths
 
