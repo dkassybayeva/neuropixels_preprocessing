@@ -19,14 +19,23 @@ sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of a
 spike_mat_str_indiv = f'spike_mat_in_ms.npy'
 # ----------------------------------------------------------------------- #
 
+def get_root_path(data_root):
+    if data_root=='server':
+        data_root='O:data/'
+        if ~path.exists(data_root):
+            data_root='/media/ottlab/data/'
+    elif data_root=='local':
+        print('USING LOCAL DATA FOR TESTING!!!')
+        data_root = '/home/mud/Workspace/ott_neuropix_data/'
+    else:
+        data_root = data_root + 'Neurodata/'
+    return data_root
+
 
 def save_directory_helper():
-    try:
-        DATA_DIR = f'/media/ottlab/share/ephys/'
-        assert path.exists(DATA_DIR)
-    except:
+    DATA_DIR = f'/media/ottlab/share/ephys/'
+    if ~path.exists(DATA_DIR):
         DATA_DIR = 'O:share/ephys/'
-        assert path.exists(DATA_DIR)
     return DATA_DIR
 
 
@@ -117,33 +126,24 @@ def insert_value_into_metadata_csv(rat, session_date, column, value):
     ephys_df.to_csv(ephys_metadata_file, index=False)
 
 
-def get_session_path(metadata, use_local_data):
+def get_session_path(metadata, data_root):
     rat = metadata['rat_name']
-    session = metadata['trodes_datetime']
+    if data_root=='server' and 'R' in rat:
+        rat = rat.split('R')[-1]
+    e_session = metadata['trodes_datetime']
 
-    session_paths = dict()
-    try:
-        session_paths['rec_dir'] = f'O:data/{rat}/ephys/{session}.rec/'
-        session_paths['behav_dir'] = f'O:data/{rat}/bpod_session/{metadata["behav_datetime"]}/'
-        assert path.exists(session_paths['rec_dir'])
-    except:
-        if 'R' in rat:
-            rat = rat.split('R')[-1]
-        if use_local_data:
-            print('USING LOCAL DATA FOR TESTING!!!')
-            main_dir = '/home/mud/Workspace/ott_neuropix_data/'
-            session_paths['rec_dir'] = main_dir + f'{rat}/{metadata["date"]}/'
-            session_paths['behav_dir'] = main_dir + f'{rat}/{metadata["date"]}/'
-        else:
-            session_paths['rec_dir'] = f'/media/ottlab/data/{rat}/ephys/{session}.rec/'
-            session_paths['behav_dir'] = f'/media/ottlab/data/{rat}/bpod_session/{metadata["behav_datetime"]}/'
-        assert path.exists(session_paths['rec_dir'])
+    root_path = get_root_path(data_root)
+    rec_dir = root_path + f'{rat}/ephys/{e_session}.rec/',
 
-    session_paths['probe_dir'] = session_paths['rec_dir'] + f'{session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/'
-    session_paths['preprocess_dir'] = session_paths['rec_dir'] + 'preprocessing_output/'
-
-    # location of Trodes timestamps (in the kilosort folder of first probe)
-    session_paths['timestamps_dat'] = session_paths['rec_dir'] + f'{session}.kilosort/{session}.timestamps.dat'
+    session_paths = dict(
+        rec_dir = rec_dir,
+        probe_dir = rec_dir + f'{e_session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/',
+        preprocess_dir = rec_dir + 'preprocessing_output/',
+        timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
+        behav_dir = root_path + f'{rat}/bpod_session/{metadata["behav_datetime"]}/',
+    )
+    for path_i in session_paths:
+        assert path.exists(path_i)
     return session_paths
 
 
