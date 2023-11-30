@@ -70,7 +70,7 @@ if not TOY_DATA:
             tu.create_spike_mat(session_paths['probe_dir'], spike_dir, session_paths['timestamps_dat'], metadata, fs,
                                 save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
 
-        gap_filename = tu.find_recording_gaps(session_paths['timestamps_dat'], fs, max_ISI, preprocess_dir)
+        tu.find_recording_gaps(session_paths['timestamps_dat'], fs, max_ISI, preprocess_dir + gap_filename)
 
         if metadata['ott_lab']:
             tu.extract_TTL_trial_start_times(session_paths['probe_dir'], gap_filename, metadata['DIO_port_num'], save_dir=preprocess_dir)

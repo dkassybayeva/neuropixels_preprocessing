@@ -17,6 +17,7 @@ sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of a
 
 # ---------file names---------- #
 spike_mat_str_indiv = f'spike_mat_in_ms.npy'
+gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
 # ----------------------------------------------------------------------- #
 
 def get_root_path(data_root):
