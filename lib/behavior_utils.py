@@ -6,28 +6,36 @@ from joblib import load, dump
 import matplotlib.pyplot as plt
 
 
-def filter_valid_time_investment_trials(behav_data, minimum_wait_time=2.0):
+def filter_valid_time_investment_trials(behav_data, task, minimum_wait_time=2.0):
     """
 
     :param behav_data:
     :param minimum_wait_time: [seconds] Lower cut-off for a valid 'waiting-time'
     :return:
     """
-    # CatchTrial
-    assert ~np.any([x in np.where(behav_data['Rewarded'])[0] for x in np.where(behav_data['CatchTrial'])[0]])
-    assert ~np.any([x in np.where(behav_data['Rewarded'])[0] for x in np.where(behav_data['ErrorChoice'])[0]])
+    if task=='time-investment':
+        # CatchTrial
+        assert ~np.any([x in np.where(behav_data['Rewarded'])[0] for x in np.where(behav_data['CatchTrial'])[0]])
+        assert ~np.any([x in np.where(behav_data['Rewarded'])[0] for x in np.where(behav_data['ErrorChoice'])[0]])
 
-    # Correct catch trials (unrewarded -> the animal had to leave of its own volition)
-    behav_data['CorrectCatch'] = behav_data['CorrectChoice'] & behav_data['CatchTrial']
-    behav_data['SkippedReward'] = (behav_data['CorrectChoice'] & ~behav_data['CatchTrial']) & \
-                                  (behav_data['CorrectChoice'] & ~behav_data['Rewarded'])
+        # Correct catch trials (unrewarded -> the animal had to leave of its own volition)
+        behav_data['CorrectCatch'] = behav_data['CorrectChoice'] & behav_data['CatchTrial']
+        behav_data['SkippedReward'] = (behav_data['CorrectChoice'] & ~behav_data['CatchTrial']) & \
+                                      (behav_data['CorrectChoice'] & ~behav_data['Rewarded'])
 
-    assert behav_data['CorrectCatch'].sum() + behav_data['SkippedReward'].sum() + behav_data['Rewarded'].sum() == \
-           behav_data['CorrectChoice'].sum()
+        assert behav_data['CorrectCatch'].sum() + behav_data['SkippedReward'].sum() + behav_data['Rewarded'].sum() == \
+               behav_data['CorrectChoice'].sum()
 
-    # These are all the waiting time trials (correct catch and incorrect trials)
-    behav_data['ChoiceNoFeedback'] = behav_data['CorrectCatch'] | behav_data['ErrorChoice'] | behav_data['SkippedReward']
-    assert behav_data['ChoiceNoFeedback'].sum() + behav_data['Rewarded'].sum() == behav_data['MadeChoice'].sum()
+        # These are all the waiting time trials (correct catch and incorrect trials)
+        behav_data['ChoiceNoFeedback'] = behav_data['CorrectCatch'] | behav_data['ErrorChoice'] | behav_data['SkippedReward']
+        assert behav_data['ChoiceNoFeedback'].sum() + behav_data['Rewarded'].sum() == behav_data['MadeChoice'].sum()
+    elif task=='matching':
+        behav_data['ChoiceNoFeedback'] = (~behav_data['BaitedLeft'] & (behav_data['ChoseLeft'])) | \
+                                 (behav_data['BaitedLeft'] & (behav_data['ChoseLeft']) & (~behav_data['Rewarded'])) | \
+                                 (~behav_data['BaitedRight'] & (behav_data['ChoseRight'])) | \
+                                 (behav_data['BaitedRight'] & (behav_data['ChoseRight']) & (~behav_data['Rewarded']))
+    else:
+        raise NotImplementedError
 
     # Valid waiting-time trials are those in which the rat made a choice, but received no Feedback from the system
     # e.g., no reward and no indication that the trial ended (handled by setting Catch or Error time-ups to 20s).
