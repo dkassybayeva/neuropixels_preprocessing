@@ -270,6 +270,11 @@ def from_pickle(data_path, obj_class, use_stable=False):
     with open(data_path + "behav_df.pkl", 'rb') as f:
         behav_df = pickle.load(f)
 
+    for red_flag in ['no_matching_TTL_start_time', 'large_TTL_gap_after_start']:
+        if red_flag in behav_df.keys() and behav_df[red_flag].sum()>0:
+            print('Trials with' + red_flag + '!!!')
+
+
     with open(data_path + "persistent_info.pkl", 'rb') as f:
         kwargs = pickle.load(f)
 

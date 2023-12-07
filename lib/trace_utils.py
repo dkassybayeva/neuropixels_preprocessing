@@ -24,15 +24,10 @@ def align_spikes_to_event(event_name, prebuffer, postbuffer, behav_df, traces, m
     returns: array [int] of spiking activity [n_neurons x n_trials x pre_event + post_event]
     where pre_event and post_event are prebuffer and postbuffer (in seconds) converted to samples
     """
-    if metadata['ott_lab']:
-        trialstart_str = 'recorded_TTL_trial_start_time'
-    else:
-        trialstart_str = 'TrialStartAligned'
-
-    behav_df = behav_df[~np.isnan(behav_df[trialstart_str])]
+    behav_df = behav_df[~np.isnan(behav_df['TTLTrialStartTime'])]
 
     # trial start in bins (index) in the recording system timeframe
-    t_starts_ms = np.round(sps * behav_df[trialstart_str]).astype('int')
+    t_starts_ms = np.round(sps * behav_df['TTLTrialStartTime']).astype('int')
     event_time_after_start = np.round(sps*behav_df[event_name]).astype('int')
     assert len(event_time_after_start) == len(t_starts_ms)
     event_time = t_starts_ms + event_time_after_start
@@ -50,18 +45,19 @@ def align_spikes_to_event(event_name, prebuffer, postbuffer, behav_df, traces, m
 
 
 def trial_start_align(behav_df, traces, metadata, sps, max_allowable_len=36000):
+    for red_flag in ['no_matching_TTL_start_time', 'large_TTL_gap_after_start']:
+        if red_flag in behav_df.keys() and behav_df[red_flag].sum()>0:
+            print('Trials with' + red_flag + '!!!')
 
-    if metadata['ott_lab']:
-        trialstart_str = 'recorded_TTL_trial_start_time'
-    else:
-        trialstart_str = 'TrialStartAligned'
-    behav_df = behav_df[~np.isnan(behav_df[trialstart_str])]
+    if np.isnan(behav_df['TTLTrialStartTime']).sum():
+        print('Removing trials without TTL start times.')
+        behav_df = behav_df[~np.isnan(behav_df['TTLTrialStartTime'])]
 
     # ----------------------------------------------------------------------- #
     # Find longest trial, so that all trials can be zero padded to same len
     # ----------------------------------------------------------------------- #
     # number of bins in a trial
-    trial_len = np.ceil(sps*(behav_df['trial_len']).to_numpy()).astype('int')
+    trial_len = np.ceil(sps*(behav_df['TrialLength']).to_numpy()).astype('int')
 
     longest_trial = max(trial_len)
 
@@ -84,12 +80,12 @@ def trial_start_align(behav_df, traces, metadata, sps, max_allowable_len=36000):
         longest_trial = max_allowable_len
         trial_len[trial_len > max_allowable_len] = longest_trial
         
-        long_idx = (sps * behav_df['trial_len']) > max_allowable_len
-        behav_df.loc[long_idx, 'trial_len'] = longest_trial / sps  # store in s
+        long_idx = (sps * behav_df['TrialLength']) > max_allowable_len
+        behav_df.loc[long_idx, 'TrialLength'] = longest_trial / sps  # store in s
     # ----------------------------------------------------------------------- #
 
     # trial start in bins (index) in the recording system timeframe
-    t_starts = np.round(sps*behav_df[trialstart_str]).astype('int')
+    t_starts = np.round(sps*behav_df['TTLTrialStartTime']).astype('int')
 
     n_trials = len(behav_df)
     n_neurons = traces.shape[0]
@@ -145,7 +141,7 @@ def create_traces_np(behav_df, traces, metadata,
     assert trial_number.size == n_trials
     print(f'Check: the trial number in the spike and behavioral data match: {trial_number.size}, {n_trials}')
 
-    trial_len_arr = behav_df['trial_len'].to_numpy()
+    trial_len_arr = behav_df['TrialLength'].to_numpy()
 
     # -------------------------------------------------------------------- #
     #                     Trial events of interest                         #

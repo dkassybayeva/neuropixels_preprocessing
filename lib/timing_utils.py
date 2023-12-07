@@ -801,12 +801,9 @@ def align_trialwise_spike_times_to_start(metadata, datapath, downsample_dt, TOY_
         # make pandas behavior dataframe
         behav_df = load(datapath + 'behav_df')
 
-    # format entries of dataframe for analysis (e.g., int->bool)
-    cbehav_df = bu.convert_df(behav_df, metadata, session_type="SessionData", trim_last_trial=~TOY_DATA)
-
     # align spike times to behavioral data timeframe
     # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
-    trialwise_spike_mat_start_aligned, _ = trace_utils.trial_start_align(cbehav_df, spike_mat, metadata, sps=1000)
+    trialwise_spike_mat_start_aligned, _ = trace_utils.trial_start_align(behav_df, spike_mat, metadata, sps=1000)
 
     # subsample (bin) data:
     # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
