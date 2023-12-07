@@ -239,8 +239,9 @@ def calc_event_outcomes(behav_data, metadata):
         assert np.all(_sd['DV'] == (_sd['NLeftClicks'] - _sd['NRightClicks']) / (_sd['NLeftClicks'] + _sd['NRightClicks']))
         _sd['RatioDiscri'] = np.log10(_sd['NRightClicks'] / _sd['NLeftClicks'])
     # ---------------------------------------------------------------------- #
-
-    return _sd
+    
+    _sd = _sd[:-1]  # Last trial is invalid
+    return _sd 
 
 
 def create_behavioral_dataframe(output_dir, metadata):

@@ -217,7 +217,7 @@ def create_traces_np(behav_df, traces, metadata,
                            pad_width=[(0, 0), (0, 0), (prepad, postpad)],
                            mode='constant', constant_values=np.nan
                           )
-    if not np.all(padded_traces == traces):
+    if padded_traces.shape != traces.shape:
         print('Traces padded.')
     # --------------------------------------------------------------------- #
 
