@@ -17,7 +17,7 @@ TOY_DATA = 0  # for testing
 # The information in the metadata block of session_params needs to be
 # filled out and updated for each recording session.
 #----------------------------------------------------------------------#
-DATA_ROOT = 'local'
+DATA_ROOT = 'server'  # ['local', 'server', 'X:', etc.]
 SPIKES_AND_TTL = False
 BEHAVIOR = False
 
@@ -95,5 +95,5 @@ for probe_i in range(1, metadata['n_probes']+1):
     data_objs.create_experiment_data_object(preprocess_dir + f"probe{probe_i}/", metadata, trialwise_binned_mat, cbehav_df)
 
 if WRITE_METADATA:
-    insert_value_into_metadata_csv(rat, date, 'n_good_units', n_neurons)
-    insert_value_into_metadata_csv(rat, date, 'n_trials', n_trials)
+    insert_value_into_metadata_csv(DATA_ROOT, rat, date, 'n_good_units', n_neurons)
+    insert_value_into_metadata_csv(DATA_ROOT, rat, date, 'n_trials', n_trials)

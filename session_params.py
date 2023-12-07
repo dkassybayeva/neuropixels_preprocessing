@@ -23,7 +23,7 @@ gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
 def get_root_path(data_root):
     if data_root=='server':
         data_root='O:data/'
-        if ~path.exists(data_root):
+        if not path.exists(data_root):
             data_root='/media/ottlab/data/'
     elif data_root=='local':
         print('USING LOCAL DATA FOR TESTING!!!')
@@ -36,7 +36,7 @@ def get_root_path(data_root):
 def save_directory_helper(data_root):
     if data_root=='server':
         data_root = 'O:share/ephys/'
-        if ~path.exists(data_root):
+        if not path.exists(data_root):
             data_root = '/media/ottlab/share/ephys/'
     elif data_root == 'local':
         data_root = '/home/mud/Workspace/ott_neuropix_data/'
@@ -120,8 +120,8 @@ def load_session_metadata_from_csv(data_root, rat, session_date):
     return ephys_df[rat_idx & date_idx].iloc[0].to_dict()
 
 
-def insert_value_into_metadata_csv(rat, session_date, column, value):
-    DATA_DIR = save_directory_helper()
+def insert_value_into_metadata_csv(data_root, rat, session_date, column, value):
+    DATA_DIR = save_directory_helper(data_root)
     ephys_metadata_file = DATA_DIR + 'ephys_sessions_metadata.csv'
     ephys_df = pd.read_csv(ephys_metadata_file)
 
