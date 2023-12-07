@@ -79,8 +79,7 @@ if not TOY_DATA:
             tu.convert_TTL_timestamps_to_nbit_events(rec_dir, gap_filename, save_dir=preprocess_dir)
             tu.add_TTL_trial_start_times_to_behav_data(rec_dir, preprocess_dir, behavior_mat_file)
     if BEHAVIOR:
-        bu.calc_event_outcomes(preprocess_dir, metadata)
-        bu.create_behavioral_dataframe(preprocess_dir)
+        bu.create_behavioral_dataframe(preprocess_dir, metadata)
 
 n_neurons = 0
 for probe_i in range(1, metadata['n_probes']+1):
