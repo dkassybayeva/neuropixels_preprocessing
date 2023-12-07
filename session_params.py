@@ -33,11 +33,14 @@ def get_root_path(data_root):
     return data_root
 
 
-def save_directory_helper():
-    DATA_DIR = f'/media/ottlab/share/ephys/'
-    if ~path.exists(DATA_DIR):
-        DATA_DIR = 'O:share/ephys/'
-    return DATA_DIR
+def save_directory_helper(data_root):
+    if data_root=='server':
+        data_root = 'O:share/ephys/'
+        if ~path.exists(data_root):
+            data_root = '/media/ottlab/share/ephys/'
+    elif data_root == 'local':
+        data_root = '/home/mud/Workspace/ott_neuropix_data/'
+    return data_root
 
 
 def write_session_metadata_to_csv():
@@ -107,8 +110,8 @@ def write_session_metadata_to_csv():
     return metadata
 
 
-def load_session_metadata_from_csv(rat, session_date):
-    DATA_DIR = save_directory_helper()
+def load_session_metadata_from_csv(data_root, rat, session_date):
+    DATA_DIR = save_directory_helper(data_root)
     ephys_metadata_file = DATA_DIR + 'ephys_sessions_metadata.csv'
     ephys_df = pd.read_csv(ephys_metadata_file)
 
@@ -136,20 +139,20 @@ def get_session_path(metadata, data_root, is_ephys_session):
 
     if is_ephys_session:
         e_session = metadata['trodes_datetime']
-        rec_dir = root_path + f'{rat}/ephys/{e_session}.rec/',
+        rec_dir = root_path + f'{rat}/ephys/{e_session}.rec/'
         session_paths = dict(
             rec_dir = rec_dir,
             probe_dir = rec_dir + f'{e_session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/',
             preprocess_dir = rec_dir + 'preprocessing_output/',
             timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
         )
+        assert path.exists(session_paths['rec_dir'])
     else:
         session_paths = dict()
 
     session_paths['behav_dir'] = root_path + f'{rat}/bpod_session/{metadata["behav_datetime"]}/'
+    assert path.exists(session_paths['behav_dir'])
 
-    for path_i in session_paths.values():
-        assert path.exists(path_i)
     return session_paths
 
 

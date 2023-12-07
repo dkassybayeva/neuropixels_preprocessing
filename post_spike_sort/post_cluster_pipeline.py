@@ -17,14 +17,15 @@ TOY_DATA = 0  # for testing
 # The information in the metadata block of session_params needs to be
 # filled out and updated for each recording session.
 #----------------------------------------------------------------------#
+DATA_ROOT = 'local'
 SPIKES_AND_TTL = False
 BEHAVIOR = False
 
 SAVE_INDIVIDUAL_SPIKETRAINS = True
 WRITE_METADATA = False
 if not WRITE_METADATA:
-    rat = 'R1'
-    date = '20230507'
+    rat = 'Nina2'
+    date = '20210623'
 #----------------------------------------------------------------------#
 
 
@@ -39,11 +40,11 @@ else:
     if WRITE_METADATA:
         metadata = write_session_metadata_to_csv()
     else:
-        metadata = load_session_metadata_from_csv(rat, date)
+        metadata = load_session_metadata_from_csv(DATA_ROOT, rat, date)
     
     # all probes share same behav & timestamp data, so just set probe_num=1
     metadata['probe_num'] = 1
-    session_paths = get_session_path(metadata)
+    session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
     preprocess_dir = session_paths['preprocess_dir']
     ou.make_dir_if_nonexistent(preprocess_dir)
     rec_dir = session_paths['rec_dir']
