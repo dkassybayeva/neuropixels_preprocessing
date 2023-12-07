@@ -44,14 +44,14 @@ def separate_waiting_durations(_sd):
     assert ~np.any([x in np.where(midlong_idx)[0] for x in np.where(midshort_idx)[0]])
     assert ~np.any([x in np.where(midshort_idx)[0] for x in np.where(short_idx)[0]])
 
-    _sd['WaitingTimeSplit'][_sd['WaitingTimeTrial'] & short_idx] = 'short'
-    _sd['WaitingTimeSplit'][_sd['WaitingTimeTrial'] & midshort_idx] = 'mid_short'
-    _sd['WaitingTimeSplit'][_sd['WaitingTimeTrial'] & midlong_idx] = 'mid_long'
-    _sd['WaitingTimeSplit'][_sd['WaitingTimeTrial'] & long_idx] = 'long'
+    _sd.loc[(_sd['WaitingTimeTrial'] & short_idx), 'WaitingTimeSplit'] = 'short'
+    _sd.loc[(_sd['WaitingTimeTrial'] & midshort_idx), 'WaitingTimeSplit'] = 'mid_short'
+    _sd.loc[(_sd['WaitingTimeTrial'] & midlong_idx), 'WaitingTimeSplit'] = 'mid_long'
+    _sd.loc[(_sd['WaitingTimeTrial'] & long_idx), 'WaitingTimeSplit'] = 'long'
     return _sd
 
 
-def calc_event_outcomes(_sd, metadata):
+def calc_event_outcomes(behav_data, metadata):
     """
     Creates additional useful fields in the session data (trial events).
 
@@ -62,8 +62,10 @@ def calc_event_outcomes(_sd, metadata):
 
     WT_low_threshold = 2.0  # [seconds] Lower cut-off for a valid 'waiting-time'
 
-    n_trials = _sd['nTrials'] - 1  # throw out last trial (may be incomplete)
-    _sd['nTrials'] = n_trials
+    n_trials = behav_data['nTrials']
+
+    # create new session dataframe for trialwise data in which we are interested
+    _sd = pd.DataFrame()
     _sd['TrialNumber'] = np.arange(n_trials)
 
     def one_zero_idx(data_obj):
@@ -72,9 +74,9 @@ def calc_event_outcomes(_sd, metadata):
         return one_choice_idx, zero_choice_idx
 
     if OTT_LAB_DATA:
-        _sd_custom = _sd['Custom']['TrialData']
+        _sd_custom = behav_data['Custom']['TrialData']
     else:
-        _sd_custom = _sd['Custom']
+        _sd_custom = behav_data['Custom']
 
     # Chosen direction (1=left, 2=right, -1=nan)
     choice_left = _sd_custom['ChoiceLeft'][:n_trials]
@@ -83,6 +85,10 @@ def calc_event_outcomes(_sd, metadata):
     _sd['ChoseRight'] = right_choice_idx
     _sd['MadeChoice'] = left_choice_idx | right_choice_idx
     _sd['NoChoice'] = np.isnan(choice_left)
+    _sd['ChoiceSide'] = ''
+    _sd.loc[_sd.ChoseLeft, 'ChoiceSide'] = 'Left'
+    _sd.loc[_sd.ChoseRight, 'ChoiceSide'] = 'Right'
+
     assert np.all((_sd['ChoseLeft'] | _sd['ChoseRight']) == ~_sd['NoChoice'])
     assert np.all(_sd['MadeChoice'] == ~_sd['NoChoice'])
 
@@ -215,20 +221,20 @@ def calc_event_outcomes(_sd, metadata):
     # ------------------------------------------------------------------------ #
 
     for nt in range(n_trials):
-        nt_states = _sd['RawEvents']['Trial'][nt]['States']
+        nt_states = behav_data['RawEvents']['Trial'][nt]['States']
 
-        _sd['PokeCenterStart'][nt] = nt_states[Cin_str][0]
-        _sd['StimulusOnset'][nt] = nt_states[StimOn_str][0]
+        _sd.loc[nt, 'PokeCenterStart'] = nt_states[Cin_str][0]
+        _sd.loc[nt, 'StimulusOnset'] = nt_states[StimOn_str][0]
 
         if ~np.isnan(nt_states[Rin_str][0]):
-            _sd['ResponseStart'][nt] = nt_states[Rin_str][0]
-            _sd['ResponseEnd'][nt] = nt_states[Rin_str][0] + _sd_custom[Feedback_str][nt]
+            _sd.loc[nt,'ResponseStart'] = nt_states[Rin_str][0]
+            _sd.loc[nt,'ResponseEnd'] = nt_states[Rin_str][0] + _sd_custom[Feedback_str][nt]
         elif ~np.isnan(nt_states[Lin_str][0]):
-            _sd['ResponseStart'][nt] = nt_states[Lin_str][0]
-            _sd['ResponseEnd'][nt] = nt_states[Lin_str][0] + _sd_custom[Feedback_str][nt]
+            _sd.loc[nt,'ResponseStart'] = nt_states[Lin_str][0]
+            _sd.loc[nt,'ResponseEnd'] = nt_states[Lin_str][0] + _sd_custom[Feedback_str][nt]
         else:
-            _sd['ResponseStart'][nt] = np.nan
-            _sd['ResponseEnd'][nt] = np.nan
+            _sd.loc[nt,'ResponseStart'] = np.nan
+            _sd.loc[nt,'ResponseEnd'] = np.nan
         # ------------------------------------------------------------------------ #
 
         # if not OTT_LAB_DATA:
@@ -248,19 +254,19 @@ def calc_event_outcomes(_sd, metadata):
     _sd['StimulusOffset'] = _sd['StimulusOnset'] + _sd['SamplingDuration']
     # ------------------------------------------------------------------------ #
 
-    _sd['TrialStartTimestamp'] = _sd['TrialStartTimestamp'][:n_trials]
+    _sd['TrialStartTimestamp'] = behav_data['TrialStartTimestamp'][:n_trials]
     if 'TrialEndTimestamp' in _sd.keys():
-        _sd['TrialEndTimestamp'] = _sd['TrialEndTimestamp'][:n_trials]
+        _sd['TrialEndTimestamp'] = behav_data['TrialEndTimestamp'][:n_trials]
     if 'TrialTypes' in _sd.keys():
-        _sd['TrialTypes'] = _sd['TrialTypes'][:n_trials]
-    _sd['TrialSettings'] = _sd['TrialSettings'][:n_trials]
+        _sd['TrialTypes'] = behav_data['TrialTypes'][:n_trials]
+    # _sd['TrialSettings'] = behav_data['TrialSettings'][:n_trials]
 
     if OTT_LAB_DATA:
-        _sd['recorded_TTL_trial_start_time'] = _sd['recorded_TTL_trial_start_time'][:n_trials]
-        _sd['no_matching_TTL_start_time'] = _sd['no_matching_TTL_start_time'][:n_trials]
-        _sd['large_TTL_gap_after_start'] = _sd['large_TTL_gap_after_start'][:n_trials]
+        _sd['recorded_TTL_trial_start_time'] = behav_data['recorded_TTL_trial_start_time'][:n_trials]
+        _sd['no_matching_TTL_start_time'] = behav_data['no_matching_TTL_start_time'][:n_trials]
+        _sd['large_TTL_gap_after_start'] = behav_data['large_TTL_gap_after_start'][:n_trials]
     else:
-        _sd['TrialStartAligned'] = _sd['TrialStartAligned'][:n_trials]
+        _sd['TrialStartAligned'] = behav_data['TrialStartAligned'][:n_trials]
     # ------------------------------------------------------------------------ #
 
         # laser trials
@@ -303,15 +309,15 @@ def calc_event_outcomes(_sd, metadata):
         for trial_i in range(n_trials):
             rct = _sd_custom['RightClickTrain'][trial_i]
             if type(rct) == np.ndarray:
-                _sd['NRightClicks'][trial_i] = len(rct)
+                _sd.loc[trial_i, 'NRightClicks'] = len(rct)
             else:
-                _sd['NRightClicks'][trial_i] = 1
+                _sd.loc[trial_i, 'NRightClicks'] = 1
 
             lct = _sd_custom['LeftClickTrain'][trial_i]
             if type(lct) == np.ndarray:
-                _sd['NLeftClicks'][trial_i] = len(lct)
+                _sd.loc[trial_i, 'NLeftClicks'] = len(lct)
             else:
-                _sd['NLeftClicks'][trial_i] = 1
+                _sd.loc[trial_i, 'NLeftClicks'] = 1
         assert np.all(_sd['DV'] == (_sd['NLeftClicks'] - _sd['NRightClicks']) / (_sd['NLeftClicks'] + _sd['NRightClicks']))
         _sd['RatioDiscri'] = np.log10(_sd['NRightClicks'] / _sd['NLeftClicks'])
         # BetaDiscri is just -DV, right?
@@ -335,11 +341,11 @@ def calc_event_outcomes(_sd, metadata):
         _sd['RewardMagnitudeR'] = _sd_custom['RewardMagnitudeR'][:n_trials]
     else:
         if 'RewardMagnitude' in _sd_custom.keys():
-            _sd['RewardMagnitudeL'] = _sd['RewardMagnitude'][:n_trials, 0].astype('int')
-            _sd['RewardMagnitudeR'] = _sd['RewardMagnitude'][:n_trials, 1].astype('int')
+            _sd['RewardMagnitudeL'] = _sd_custom['RewardMagnitude'][:n_trials, 0].astype('int')
+            _sd['RewardMagnitudeR'] = _sd_custom['RewardMagnitude'][:n_trials, 1].astype('int')
     _sd['RewardMagnitudeCorrect'] = np.full(n_trials, np.nan)
-    _sd['RewardMagnitudeCorrect'][_sd['ChoseLeft'] & _sd['CorrectChoice']] = _sd['RewardMagnitudeL'][_sd['ChoseLeft'] & _sd['CorrectChoice']]
-    _sd['RewardMagnitudeCorrect'][_sd['ChoseRight'] & _sd['CorrectChoice']] = _sd['RewardMagnitudeR'][_sd['ChoseRight'] & _sd['CorrectChoice']]
+    _sd.loc[(_sd['ChoseLeft'] & _sd['CorrectChoice']), 'RewardMagnitudeCorrect'] = _sd['RewardMagnitudeL'][_sd['ChoseLeft'] & _sd['CorrectChoice']]
+    _sd.loc[(_sd['ChoseRight'] & _sd['CorrectChoice']), 'RewardMagnitudeCorrect'] = _sd['RewardMagnitudeR'][_sd['ChoseRight'] & _sd['CorrectChoice']]
     assert np.isnan(_sd['RewardMagnitudeCorrect']).sum() == (_sd['ErrorChoice'].sum() + _sd['NoChoice'].sum())
     _sd['RelativeReward'] = _sd['RewardMagnitudeL'] - _sd['RewardMagnitudeR']
 
@@ -353,32 +359,7 @@ def create_behavioral_dataframe(output_dir, metadata):
 
     # Load the session data in TrialEvents.npy
     event_dict = load(output_dir + 'TrialEvents.npy')
-    outcome_dict = calc_event_outcomes(event_dict, metadata)
-
-    # Remove keys no longer needed for spiking data alignment
-    n_keys_start = len(outcome_dict.keys())
-
-    print('Creating behavioral dataframe')
-    print('Removing fields that are not trialwise...', end='')
-    non_trialwise_items = ['Custom', 'RawEvents', 'nTrials', 'TrialSettings', 'Settings', 'Info', 'SettingsFile',
-                           'RawData', 'RewardMagnitude', 'CompletedChosenDirection', 'ModReward', 'SideReward',
-                           'CompletedWTLaserTrial']
-
-    for ntw_item in non_trialwise_items:
-        if ntw_item in outcome_dict.keys():
-            outcome_dict.pop(ntw_item)
-
-    print(f"{n_keys_start - len(outcome_dict.keys())} fields removed.")
-
-    # Convert to dataframe and save
-    behav_dict = {key: np.array(outcome_dict[key]).squeeze() for key in outcome_dict if '__' not in key and key != 'Settings'}
-    behav_df = pd.DataFrame.from_dict(behav_dict)
-
-    # so that we can use this code for session data that doesnt have catch trials!
-    if 'CatchTrial' in behav_df.keys():
-        behav_df.CatchTrial = behav_df.CatchTrial.astype('bool')
-    # if 'MadeChoice' in behav_df.keys():
-    #     behav_df.CompletedTrial = behav_df.CompletedTrial.astype('bool')
+    behav_df = calc_event_outcomes(event_dict, metadata)
 
     dump(behav_df, output_dir + "behav_df", compress=3)
 
