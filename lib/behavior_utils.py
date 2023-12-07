@@ -61,7 +61,7 @@ def separate_waiting_durations(_sd):
     return _sd
 
 
-def calc_event_outcomes(behav_data, metadata):
+def calc_event_outcomes(behav_data, metadata, ephys=True):
     """
     Creates additional useful fields in the session data (trial events).
 
@@ -87,7 +87,7 @@ def calc_event_outcomes(behav_data, metadata):
     # --------------------------------------------------------------------- #
     #  new session dataframe for trialwise data in which we are interested
     # --------------------------------------------------------------------- #
-    n_trials = behav_data['nTrials']
+    n_trials = behav_data['nTrials'] - 1
     _sd = pd.DataFrame()
     _sd['TrialNumber'] = np.arange(n_trials)
     # --------------------------------------------------------------------- #
@@ -129,11 +129,15 @@ def calc_event_outcomes(behav_data, metadata):
         if 'RewardMagnitude' in _sd_custom.keys():
             _sd['RewardMagnitudeL'] = _sd_custom['RewardMagnitude'][:n_trials, 0].astype('int')
             _sd['RewardMagnitudeR'] = _sd_custom['RewardMagnitude'][:n_trials, 1].astype('int')
-    _sd['RewardMagnitudeCorrect'] = np.full(n_trials, np.nan)
-    _sd.loc[(_sd['ChoseLeft'] & _sd['CorrectChoice']), 'RewardMagnitudeCorrect'] = _sd['RewardMagnitudeL'][_sd['ChoseLeft'] & _sd['CorrectChoice']]
-    _sd.loc[(_sd['ChoseRight'] & _sd['CorrectChoice']), 'RewardMagnitudeCorrect'] = _sd['RewardMagnitudeR'][_sd['ChoseRight'] & _sd['CorrectChoice']]
-    assert np.isnan(_sd['RewardMagnitudeCorrect']).sum() == (_sd['ErrorChoice'].sum() + _sd['NoChoice'].sum())
     _sd['RelativeReward'] = _sd['RewardMagnitudeL'] - _sd['RewardMagnitudeR']
+
+    if metadata['task'] == 'matching':
+        _sd['RewardProbLeft'] = _sd_custom['RewardProb'][0, :n_trials]
+    else:
+        _sd['RewardMagnitudeCorrect'] = np.full(n_trials, np.nan)
+        _sd.loc[(_sd['ChoseLeft'] & _sd['CorrectChoice']), 'RewardMagnitudeCorrect'] = _sd['RewardMagnitudeL'][_sd['ChoseLeft'] & _sd['CorrectChoice']]
+        _sd.loc[(_sd['ChoseRight'] & _sd['CorrectChoice']), 'RewardMagnitudeCorrect'] = _sd['RewardMagnitudeR'][_sd['ChoseRight'] & _sd['CorrectChoice']]
+        assert np.isnan(_sd['RewardMagnitudeCorrect']).sum() == (_sd['ErrorChoice'].sum() + _sd['NoChoice'].sum())
     # --------------------------------------------------------------------- #
 
 
@@ -142,12 +146,23 @@ def calc_event_outcomes(behav_data, metadata):
     # --------------------------------------------------------------------- #
     _sd['EarlyWithdrawal'] = _sd_custom['EarlyWithdrawal'][:n_trials] == 1
     if metadata['task'] == 'matching':
+        _sd['NoTrialStart'] = _sd_custom['NoTrialStart'][:n_trials]
+        _sd['BrokeFixation'] = _sd_custom['BrokeFixation'][:n_trials]
+        _sd['NoDecision'] = _sd_custom['NoDecision'][:n_trials]
+        _sd['SkippedFeedback'] = _sd_custom['SkippedFeedback'][:n_trials]
         _sd['WaitingTime'] = _sd_custom['FeedbackWaitingTime'][:n_trials]
+        _sd['BaitedLeft'] = _sd_custom['Baited'][0, :n_trials]
+        _sd['BaitedRight'] = _sd_custom['Baited'][1, :n_trials]
     else:
+        _sd['FixBroke'] = _sd_custom['FixBroke'][:n_trials] == 1
+        if metadata['ott_lab']:
+            _sd['NoTrialStart'] = (_sd_custom['Initiated'] != 1)[:n_trials]
+            _sd['NoDecision'] = (~_sd['NoTrialStart']) & (~_sd['FixBroke']) & (~_sd['EarlyWithdrawal']) & _sd[ 'NoChoice']
+
         _sd['CatchTrial'] = _sd_custom['CatchTrial'][:n_trials] == 1
         _sd['WaitingTime'] = _sd_custom['FeedbackTime'][:n_trials]
-        _sd = filter_valid_time_investment_trials(_sd)
 
+    _sd = filter_valid_time_investment_trials(_sd, task=metadata['task'])
     _sd = separate_waiting_durations(_sd)
     # --------------------------------------------------------------------- #
 
@@ -168,6 +183,7 @@ def calc_event_outcomes(behav_data, metadata):
         Lin_str = 'StartLIn'
         Feedback_str = 'FeedbackWaitingTime'  # Time spent in the choice port before leaving or reward
         Sample_str = 'SampleTime'
+        DV_str = None
     else:
         Cin_str = 'stay_Cin'
         StimOn_str = 'stimulus_delivery_min'
@@ -204,16 +220,17 @@ def calc_event_outcomes(behav_data, metadata):
     if 'TrialTypes' in _sd.keys():
         _sd['TrialTypes'] = behav_data['TrialTypes'][:n_trials]
 
-    if OTT_LAB_DATA:
-        _sd['TTLTrialStartTime'] = behav_data['recorded_TTL_trial_start_time'][:n_trials]
-        _sd['no_matching_TTL_start_time'] = behav_data['no_matching_TTL_start_time'][:n_trials]
-        _sd['large_TTL_gap_after_start'] = behav_data['large_TTL_gap_after_start'][:n_trials]
+    if ephys:
+        if OTT_LAB_DATA:
+            _sd['TTLTrialStartTime'] = behav_data['recorded_TTL_trial_start_time'][:n_trials]
+            _sd['no_matching_TTL_start_time'] = behav_data['no_matching_TTL_start_time'][:n_trials]
+            _sd['large_TTL_gap_after_start'] = behav_data['large_TTL_gap_after_start'][:n_trials]
 
-    else:
-        _sd['TTLTrialStartTime'] = behav_data['TrialStartAligned'][:n_trials]
+        else:
+            _sd['TTLTrialStartTime'] = behav_data['TrialStartAligned'][:n_trials]
 
-    _sd['NextTrialStart'] = _sd['TTLTrialStartTime'].shift(-1).to_numpy()
-    _sd['TrialLength'] = (_sd['NextTrialStart'] - _sd['TTLTrialStartTime']).to_numpy()
+        _sd['NextTrialStart'] = _sd['TTLTrialStartTime'].shift(-1).to_numpy()
+        _sd['TrialLength'] = (_sd['NextTrialStart'] - _sd['TTLTrialStartTime']).to_numpy()
     # ------------------------------------------------------------------------ #
 
 
