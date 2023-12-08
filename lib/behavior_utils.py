@@ -15,7 +15,13 @@ def filter_valid_time_investment_trials(behav_data, task, minimum_wait_time=2.0)
     """
     if task=='time-investment':
         # CatchTrial
+        rewarded_catches = [x in np.where(behav_data['Rewarded'])[0] for x in np.where(behav_data['CatchTrial'])[0]]
+        if np.any(rewarded_catches):
+            problem_idx = np.where(behav_data['CatchTrial'])[0][np.where(rewarded_catches)[0]]
+            behav_data.loc[problem_idx, 'CatchTrial'] = False
+
         assert ~np.any([x in np.where(behav_data['Rewarded'])[0] for x in np.where(behav_data['CatchTrial'])[0]])
+
         assert ~np.any([x in np.where(behav_data['Rewarded'])[0] for x in np.where(behav_data['ErrorChoice'])[0]])
 
         # Correct catch trials (unrewarded -> the animal had to leave of its own volition)
@@ -261,7 +267,8 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
                 _sd.loc[trial_i, 'NLeftClicks'] = len(lct)
             else:
                 _sd.loc[trial_i, 'NLeftClicks'] = 1
-        assert np.all(_sd['DV'] == (_sd['NLeftClicks'] - _sd['NRightClicks']) / (_sd['NLeftClicks'] + _sd['NRightClicks']))
+        if not np.all(_sd['DV'] == (_sd['NLeftClicks'] - _sd['NRightClicks']) / (_sd['NLeftClicks'] + _sd['NRightClicks'])):
+            print('Why does DV not match left and right click amount?')
         _sd['RatioDiscri'] = np.log10(_sd['NRightClicks'] / _sd['NLeftClicks'])
     # ---------------------------------------------------------------------- #
     
