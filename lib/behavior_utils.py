@@ -168,8 +168,11 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
         _sd['CatchTrial'] = _sd_custom['CatchTrial'][:n_trials] == 1
         _sd['WaitingTime'] = _sd_custom['FeedbackTime'][:n_trials]
 
-    _sd = filter_valid_time_investment_trials(_sd, task=metadata['task'])
-    _sd = separate_waiting_durations(_sd)
+    if metadata['task'] == 'reward-bias':
+        _sd['SkippedReward'] = _sd['CorrectChoice'] & (~_sd['Rewarded'])
+    else:
+        _sd = filter_valid_time_investment_trials(_sd, task=metadata['task'])
+        _sd = separate_waiting_durations(_sd)
     # --------------------------------------------------------------------- #
 
 
