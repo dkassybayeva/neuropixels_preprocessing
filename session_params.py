@@ -156,9 +156,9 @@ def get_session_path(metadata, data_root, is_ephys_session):
     return session_paths
 
 
-def get_stitched_session_paths(sesh_1_metadata, sesh_2_metadata):
-    session1_paths = get_session_path(sesh_1_metadata)
-    session2_paths = get_session_path(sesh_2_metadata)
+def get_stitched_session_paths(data_root, sesh_1_metadata, sesh_2_metadata):
+    session1_paths = get_session_path(sesh_1_metadata, data_root, is_ephys_session=True)
+    session2_paths = get_session_path(sesh_2_metadata, data_root, is_ephys_session=True)
     rat = sesh_1_metadata['rat_name']
 
     stitch_paths = dict()
