@@ -32,14 +32,21 @@ def filter_valid_time_investment_trials(behav_data, task, minimum_wait_time=2.0)
         assert behav_data['CorrectCatch'].sum() + behav_data['SkippedReward'].sum() + behav_data['Rewarded'].sum() == \
                behav_data['CorrectChoice'].sum()
 
-        # These are all the waiting time trials (correct catch and incorrect trials)
-        behav_data['ChoiceNoFeedback'] = behav_data['CorrectCatch'] | behav_data['ErrorChoice'] | behav_data['SkippedReward']
+        """
+        These are all the waiting time trials (correct catch and incorrect trials)
+        DON'T USE behav_data['SkippedReward'] for ChoiceNoFeedback.  This may encode some other latent confounding variable
+        """
+        behav_data['ChoiceNoFeedback'] = behav_data['CorrectCatch'] | behav_data['ErrorChoice'] 
         assert behav_data['ChoiceNoFeedback'].sum() + behav_data['Rewarded'].sum() == behav_data['MadeChoice'].sum()
     elif task=='matching':
+        """
+        Similar to above: DON'T USE trials in which the agent chose a baited side, but left before getting the reward
+        (behav_data['BaitedLeft'] & (behav_data['ChoseLeft']) & (~behav_data['Rewarded'])) | \
+        (behav_data['BaitedRight'] & (behav_data['ChoseRight']) & (~behav_data['Rewarded']))
+        """
         behav_data['ChoiceNoFeedback'] = (~behav_data['BaitedLeft'] & (behav_data['ChoseLeft'])) | \
-                                 (behav_data['BaitedLeft'] & (behav_data['ChoseLeft']) & (~behav_data['Rewarded'])) | \
-                                 (~behav_data['BaitedRight'] & (behav_data['ChoseRight'])) | \
-                                 (behav_data['BaitedRight'] & (behav_data['ChoseRight']) & (~behav_data['Rewarded']))
+                                         (~behav_data['BaitedRight'] & (behav_data['ChoseRight']))
+                                         
     else:
         raise NotImplementedError
 
