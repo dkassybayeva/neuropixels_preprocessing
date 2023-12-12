@@ -89,6 +89,8 @@ for probe_i in range(1, metadata['n_probes']+1):
 
     n_probe_neurons, n_trials, _ = trialwise_binned_mat.shape
     n_neurons += n_probe_neurons
+    
+    print(n_neurons, ' neurons with ', n_trials, ' trials.')
 
     cbehav_df['session'] = metadata['recording_session_id']
     
