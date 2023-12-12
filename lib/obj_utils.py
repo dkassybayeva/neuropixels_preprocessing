@@ -20,20 +20,17 @@ def make_dir_if_nonexistent(path):
         print(f"{path} already exists.", flush=True)
 
 
-def combine_session_data_objects(rat_name_l, date_l, subdir=''):
+def combine_session_data_objects(data_root, rat_name_l, date_l, subdir=''):
     if subdir:
         print('Using subdir', subdir)
     data_obj_l = []
     for sesh_i in range(len(date_l)):
-        _metadata = load_session_metadata_from_csv(rat=rat_name_l[sesh_i], session_date=date_l[sesh_i])
+        _metadata = load_session_metadata_from_csv(data_root, rat=rat_name_l[sesh_i], session_date=date_l[sesh_i])
         for probe_i in range(1, _metadata['n_probes']+1):
             _metadata['probe_num'] = probe_i
-            _paths = get_session_path(_metadata)
+            _paths = get_session_path(_metadata, data_root, is_ephys_session=True)
 
-            # @TODO: uncomment next line and delete the following 2 once ready to run on server
             _obj = from_pickle(_paths['preprocess_dir'] + f"probe{probe_i}/" + subdir, TwoAFC)
-            # DATA_DIR = f'/home/mud/Workspace/ott_neuropix_data/Nina2/20210625/preprocessing_output/probe{probe_i}/'
-            # _obj = from_pickle(DATA_DIR, TwoAFC)
             print(_obj, 'loaded.')
 
             _obj.behavior_mat_path = _paths['behav_dir'] + _metadata['behavior_mat_file']

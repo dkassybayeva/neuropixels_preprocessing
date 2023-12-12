@@ -255,17 +255,18 @@ class DataContainer:
         return feature_df
 
 
-def from_pickle(data_path, obj_class, use_stable=False):
+def from_pickle(data_path, obj_class):
     # always load original traces (only 1 copy)
     with open(data_path + "traces_dict.pkl", 'rb') as f:
         traces_dict = pickle.load(f)
 
-    # Then check whether an evolved data object exists
-    # If it does, then load the behavior and persistent info from there,
-    # because this may have changed in analysis
-    if use_stable and os.path.exists(data_path + 'stable_clusters/'):
-        print('Stable cluster data found. ', end='')
-        data_path += 'stable_clusters/'
+    """Then check whether an evolved data object exists
+      If it does, then load the behavior and persistent info from there,
+      because this may have changed in analysis
+    """
+    # if use_stable and os.path.exists(data_path + 'stable_clusters/'):
+    #     print('Stable cluster data found. ', end='')
+    #     data_path += 'stable_clusters/'
 
     with open(data_path + "behav_df.pkl", 'rb') as f:
         behav_df = pickle.load(f)
