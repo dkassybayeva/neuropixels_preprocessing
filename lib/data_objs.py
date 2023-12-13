@@ -157,20 +157,20 @@ class DataContainer:
                 tr = self[ :, self.stable_neurons[self.cluster_labels == c], phase_indexer]
                 yield tr
 
-    def to_pickle(self, remove_old=False):
-        print('Saving...', end='')
+    def to_pickle(self, save_traces=True):
+        print('Saving to ' + self.data_path + '..', end='')
         # ------------------------------------------------------------- #
         # original data or not, check whether current data path exists
         if not os.path.isdir(self.data_path):
             os.mkdir(self.data_path)
+            print('folder created...', end='')
         # ------------------------------------------------------------- #
-        evolved_obj = True if self.data_path.split('/')[-2]=='stable_clusters' else False
-        if remove_old and evolved_obj:  # Don't remove original preprocess data
-            df_files = glob.glob(self.data_path + "*behav_df.pkl")
-            [os.remove(f) for f in df_files]
+        # if remove_old:  # Don't remove original preprocess data
+        #     df_files = glob.glob(self.data_path + "*behav_df.pkl")
+        #     [os.remove(f) for f in df_files]
 
-            info_files = glob.glob(self.data_path + "persistent_info.pkl")
-            [os.remove(f) for f in info_files]
+        #     info_files = glob.glob(self.data_path + "persistent_info.pkl")
+        #     [os.remove(f) for f in info_files]
 
             # feature_files = glob.glob(self.data_path + "*feature_df*.pkl")
             # [os.remove(f) for f in feature_files]
@@ -191,7 +191,7 @@ class DataContainer:
             pickle.dump(persistent_info, f)
         # ------------------------------------------------------------- #
         # only write traces the first time, b/c they shouldn't change
-        if not evolved_obj:
+        if save_traces:
             with open(self.data_path + 'traces_dict.pkl', 'wb') as f:
                 pickle.dump(self.traces_dict, f)
         # ------------------------------------------------------------- #
@@ -255,20 +255,16 @@ class DataContainer:
         return feature_df
 
 
-def from_pickle(data_path, obj_class):
+def from_pickle(data_path, obj_class, sub_dir=''):
     # always load original traces (only 1 copy)
     with open(data_path + "traces_dict.pkl", 'rb') as f:
         traces_dict = pickle.load(f)
 
-    """Then check whether an evolved data object exists
-      If it does, then load the behavior and persistent info from there,
-      because this may have changed in analysis
     """
-    # if use_stable and os.path.exists(data_path + 'stable_clusters/'):
-    #     print('Stable cluster data found. ', end='')
-    #     data_path += 'stable_clusters/'
-
-    with open(data_path + "behav_df.pkl", 'rb') as f:
+      If a subdirectory was passed, load the behavior and persistent info from 
+      there, because these data structures may have changed in analysis.
+    """
+    with open(data_path + sub_dir + "behav_df.pkl", 'rb') as f:
         behav_df = pickle.load(f)
 
     for red_flag in ['no_matching_TTL_start_time', 'large_TTL_gap_after_start']:
@@ -276,10 +272,10 @@ def from_pickle(data_path, obj_class):
             print('Trials with' + red_flag + '!!!')
 
 
-    with open(data_path + "persistent_info.pkl", 'rb') as f:
+    with open(data_path + sub_dir + "persistent_info.pkl", 'rb') as f:
         kwargs = pickle.load(f)
 
-    return obj_class(data_path, behav_df=behav_df, traces_dict=traces_dict, **kwargs)
+    return obj_class(data_path + sub_dir, behav_df=behav_df, traces_dict=traces_dict, **kwargs)
 
 
 class TwoAFC(DataContainer):
