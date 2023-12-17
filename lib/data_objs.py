@@ -80,8 +80,6 @@ class DataContainer:
         else:
             self.neuron_mask_df = neuron_mask_df
 
-
-
     def __getitem__(self, item):
         """
         :param item:
@@ -157,8 +155,18 @@ class DataContainer:
                 tr = self[ :, self.stable_neurons[self.cluster_labels == c], phase_indexer]
                 yield tr
 
+    def get_alignment_index(self, alignment):
+        if alignment == 'stimulus':
+            return self.stim_ind
+        elif alignment == 'response':
+            return self.response_ind
+        elif alignment == 'reward':
+            return self.reward_ind
+        elif alignment == 'interp':
+            return self.interp_inds
+
     def to_pickle(self, save_traces=True):
-        print('Saving to ' + self.data_path + '..', end='')
+        print('Saving to ' + self.data_path + '...', end='')
         # ------------------------------------------------------------- #
         # original data or not, check whether current data path exists
         if not os.path.isdir(self.data_path):
