@@ -31,6 +31,7 @@ def combine_session_data_objects(data_root, rat_name_l, date_l, subdir=''):
             _paths = get_session_path(_metadata, data_root, is_ephys_session=True)
 
             _obj = from_pickle(_paths['preprocess_dir'] + f"probe{probe_i}/", TwoAFC, subdir)
+            _obj.probe_dir = _paths['preprocess_dir'] + f"probe{probe_i}/"
             print(_obj, 'loaded from ', _obj.data_path)
 
             _obj.behavior_mat_path = _paths['behav_dir'] + _metadata['behavior_mat_file']
