@@ -93,8 +93,10 @@ for probe_i in range(1, metadata['n_probes']+1):
     print(n_neurons, ' neurons with ', n_trials, ' trials.')
 
     cbehav_df['session'] = metadata['recording_session_id']
-    
-    data_objs.create_experiment_data_object(preprocess_dir + f"probe{probe_i}/", metadata, trialwise_binned_mat, cbehav_df)
+
+    nrn_phy_ids = load(preprocess_dir + f"probe{probe_i}/spike_mat_in_ms.npy")['row_cluster_id']
+
+    data_objs.create_experiment_data_object(preprocess_dir + f"probe{probe_i}/", metadata, nrn_phy_ids, trialwise_binned_mat, cbehav_df)
 
 if WRITE_METADATA:
     insert_value_into_metadata_csv(DATA_ROOT, rat, date, 'n_good_units', n_neurons)

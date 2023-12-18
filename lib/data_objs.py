@@ -19,7 +19,7 @@ import neuropixels_preprocessing.lib.trace_utils as trace_utils
 import neuropixels_preprocessing.lib.behavior_utils as bu
 
 class DataContainer:
-    def __init__(self, data_path, behav_df, metadata, traces_dict,
+    def __init__(self, data_path, behav_df, metadata, nrn_phy_ids, traces_dict,
                  stable_neurons=[], cluster_labels=[], neuron_mask_df=None,
                  feature_df_cache=[], feature_df_keys=[]):
 
@@ -32,6 +32,7 @@ class DataContainer:
         self.objID = f"{metadata['rat_name']}_{metadata['date']}_{metadata['task']}_probe{metadata['probe_num']}"
 
         if traces_dict is not None:
+            self.nrn_phy_ids = nrn_phy_ids
             # -------------------------------------------- #
             self.traces_dict = traces_dict
             self.sa_traces = traces_dict['stim_aligned']
@@ -48,6 +49,7 @@ class DataContainer:
             # -------------------------------------------- #
             self.n_trials, self.n_neurons, _ = self.sa_traces.shape
             assert self.n_trials == self.metadata['n_trials']
+            assert self.n_neurons == len(self.nrn_phy_ids)
 
         self.stable_neurons = stable_neurons
         self.cluster_labels = cluster_labels
@@ -189,6 +191,7 @@ class DataContainer:
 
         with open(self.data_path + "persistent_info.pkl", 'wb') as f:
             persistent_info = {'metadata': self.metadata,
+                               'nrn_phy_ids': self.nrn_phy_ids,
                                'cluster_labels':self.cluster_labels,
                                'stable_neurons':self.stable_neurons,
                                'neuron_mask_df':self.neuron_mask_df,
@@ -287,13 +290,13 @@ def from_pickle(data_path, obj_class, sub_dir=''):
 
 
 class TwoAFC(DataContainer):
-    def __init__(self, data_path, behav_df, metadata, traces_dict,
+    def __init__(self, data_path, behav_df, metadata, nrn_phy_ids, traces_dict,
                  stable_neurons=[], cluster_labels=[], neuron_mask_df=None, feature_df_cache=[], feature_df_keys=[]):
-        super().__init__(data_path, behav_df, metadata, traces_dict,
+        super().__init__(data_path, behav_df, metadata, nrn_phy_ids, traces_dict,
                          stable_neurons, cluster_labels, neuron_mask_df, feature_df_cache, feature_df_keys)
 
 
-def create_experiment_data_object(data_path, metadata, trialwise_binned_mat, cbehav_df):
+def create_experiment_data_object(data_path, metadata, nrn_phy_ids, trialwise_binned_mat, cbehav_df):
     traces_dict = trace_utils.create_traces_np(cbehav_df,
                                                trialwise_binned_mat,
                                                metadata,
@@ -302,7 +305,7 @@ def create_experiment_data_object(data_path, metadata, trialwise_binned_mat, cbe
                                                traces_aligned="TrialStart")
     print('Creating data object...', end='')
     # create and save data object
-    TwoAFC(data_path, cbehav_df, metadata, traces_dict=traces_dict).to_pickle(remove_old=False)
+    TwoAFC(data_path, cbehav_df, metadata, nrn_phy_ids, traces_dict=traces_dict).to_pickle(remove_old=False)
 
 
 # class Multiday_2AFC(DataContainer):
