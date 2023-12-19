@@ -4,6 +4,8 @@ Created on Thu Dec  8 10:33:50 2022
 
 @author: Greg Knoll
 """
+import joblib
+
 import neuropixels_preprocessing.lib.timing_utils as tu
 import neuropixels_preprocessing.lib.obj_utils as ou
 import neuropixels_preprocessing.lib.behavior_utils as bu
@@ -94,7 +96,7 @@ for probe_i in range(1, metadata['n_probes']+1):
 
     cbehav_df['session'] = metadata['recording_session_id']
 
-    nrn_phy_ids = load(preprocess_dir + f"probe{probe_i}/spike_mat_in_ms.npy")['row_cluster_id']
+    nrn_phy_ids = joblib.load(preprocess_dir + f"probe{probe_i}/spike_mat_in_ms.npy")['row_cluster_id']
 
     data_objs.create_experiment_data_object(preprocess_dir + f"probe{probe_i}/", metadata, nrn_phy_ids, trialwise_binned_mat, cbehav_df)
 

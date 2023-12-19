@@ -305,7 +305,7 @@ def create_experiment_data_object(data_path, metadata, nrn_phy_ids, trialwise_bi
                                                traces_aligned="TrialStart")
     print('Creating data object...', end='')
     # create and save data object
-    TwoAFC(data_path, cbehav_df, metadata, nrn_phy_ids, traces_dict=traces_dict).to_pickle(remove_old=False)
+    TwoAFC(data_path, cbehav_df, metadata, nrn_phy_ids, traces_dict=traces_dict).to_pickle()
 
 
 # class Multiday_2AFC(DataContainer):
