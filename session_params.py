@@ -12,7 +12,7 @@ n_active_electrodes = 384
 
 # -------analysis bins--------- #
 max_ISI = 0.001  # max intersample interval (ISI), above which the period is considered a "gap" in the recording
-trace_subsample_bin_size_ms = 25  # sample period in ms
+trace_subsample_bin_size_ms = 10  # sample period in ms
 sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of aligned traces
 
 # ---------file names---------- #

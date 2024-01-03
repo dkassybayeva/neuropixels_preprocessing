@@ -37,7 +37,8 @@ def filter_valid_time_investment_trials(behav_data, task, minimum_wait_time=2.0)
         DON'T USE behav_data['SkippedReward'] for ChoiceNoFeedback.  This may encode some other latent confounding variable
         """
         behav_data['ChoiceNoFeedback'] = behav_data['CorrectCatch'] | behav_data['ErrorChoice'] 
-        assert behav_data['ChoiceNoFeedback'].sum() + behav_data['Rewarded'].sum() == behav_data['MadeChoice'].sum()
+        assert behav_data['ChoiceNoFeedback'].sum() + behav_data['Rewarded'].sum() + behav_data['SkippedReward'].sum()\
+               == behav_data['MadeChoice'].sum()
     elif task=='matching':
         """
         Similar to above: DON'T USE trials in which the agent chose a baited side, but left before getting the reward
