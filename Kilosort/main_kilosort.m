@@ -22,7 +22,7 @@ clc
 delete_previous_KS_run = false;
 remove_duplicates = true;
 
-combined_session = true;
+combined_session = false;
 
 if combined_session
     session_rec = '20230506_20230507';
@@ -30,12 +30,15 @@ else
     session_rec = '20230507_123146.rec';
 end
 
+BASE_DATA_DIR = 'D:\TQ03\ephys\';
+probenum = '1';
+
 % the raw data binary file is in this folder CANT HAVE TRAILING SLASH
-raw_data_dir = strcat('D:\Neurodata\R1\', session_rec);
+raw_data_dir = strcat(BASE_DATA_DIR, session_rec);
 
 % path to temporary binary file (same size as data, should be on fast SSD)
-output_base = strcat('D:\Neurodata\R1\', session_rec);
-probenum = '1';
+output_base = strcat(BASE_DATA_DIR, session_rec);
+
 % ---------------------------------------------------------------------- %
 
 
