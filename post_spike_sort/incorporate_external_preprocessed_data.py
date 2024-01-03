@@ -5,18 +5,22 @@ from neuropixels_preprocessing.lib.behavior_utils import calc_event_outcomes
 from neuropixels_preprocessing.lib.data_objs import create_experiment_data_object
 from neuropixels_preprocessing.lib.obj_utils import make_dir_if_nonexistent
 
-rat_date = 'Nina2_210623'
-input_data = rat_date + 'a_ms_PSTH.mat'
+rat = 'Nina2'
+date = '210623'
+input_data = f'{rat}_{date}a_ms_PSTH.mat'
 trace_subsample_bin_size_ms = 10  # sample period in ms
 
 metadata = dict(
+    rat_name = rat,
+    date = date,
+    probe_num = 1,
     ott_lab=False,
     task='time-investment',
     sps = 1000 / trace_subsample_bin_size_ms,  # (samples per second) resolution of aligned traces
 )
 
-DATA_DIR = '/home/mud/Workspace/ott_neuropix_data/Neuropixels_dataset/'
-OUTPUT_DIR = DATA_DIR+rat_date+'/'
+DATA_DIR = 'O:/data/Nina2/ephys/20210623_121426.rec/preprocessing_output/Torben_preprocess/'
+OUTPUT_DIR = DATA_DIR + f'{rat}_{date}/'
 make_dir_if_nonexistent(OUTPUT_DIR)
 
 session_data = loadmat(DATA_DIR+input_data, simplify_cells=True)
@@ -26,7 +30,7 @@ n_neurons, n_trials, T = session_data['PopulationPSTH_dims']
 spike_times = session_data['SPIKEIDX']
 
 spike_mat = np.zeros(int(n_neurons) * int(n_trials) * int(T), dtype='uint8')
-spike_mat[spike_times.astype(int)] = 1
+spike_mat[spike_times.astype('uint')] = 1
 spike_mat = spike_mat.reshape(n_neurons, n_trials, T)
 assert spike_mat.sum() == len(spike_times)
 assert n_trials == len(event_dict['TrialStartAligned'])
