@@ -103,7 +103,7 @@ def trial_start_align(behav_df, traces, sps, max_allowable_len=36000):
     return spikes, behav_df
 
 
-def create_traces_np(behav_df, trialwise_start_align_spike_mat_in_ms, downsample_dt, metadata, save_dir,
+def create_traces_np(behav_df, trialwise_start_align_spike_mat_in_ms, downsample_dt, save_dir,
                      traces_aligned='ResponseStart',
                      aligned_ind=40,
                      filter_by_trial_num=False,

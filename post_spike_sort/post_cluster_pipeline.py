@@ -37,8 +37,7 @@ else:
 #----------------------------------------------------------------------#
 #                           PATHS
 #----------------------------------------------------------------------#
-# all probes share same behav & timestamp data, so just set probe_num=1
-metadata['probe_num'] = 1
+metadata['probe_num'] = '' # don't need probe dir for now
 session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
 preprocess_dir = session_paths['preprocess_dir']
 ou.make_dir_if_nonexistent(preprocess_dir)
@@ -50,13 +49,12 @@ behavior_mat_file = session_paths['behav_dir'] + metadata['behavior_mat_file']
 #----------------------------------------------------------------------#
 #                           PIPELINE                                   #
 #----------------------------------------------------------------------#
-
 if SPIKES_AND_TTL:
     for probe_i in range(1, metadata['n_probes']+1):
         metadata['probe_num'] = probe_i
 
         # load/create ephys-specific (probe-specific) paths
-        session_paths = get_session_path(metadata)
+        session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
         spike_dir = preprocess_dir + f'probe{probe_i}/'
         ou.make_dir_if_nonexistent(spike_dir)
         if SAVE_INDIVIDUAL_SPIKETRAINS:
@@ -74,11 +72,16 @@ if SPIKES_AND_TTL:
     else:
         tu.convert_TTL_timestamps_to_nbit_events(rec_dir, gap_filename, save_dir=preprocess_dir)
         tu.add_TTL_trial_start_times_to_behav_data(rec_dir, preprocess_dir, behavior_mat_file)
+
+
 if BEHAVIOR:
     bu.create_behavioral_dataframe(preprocess_dir, metadata)
 
+
 n_neurons = 0
 for probe_i in range(1, metadata['n_probes']+1):
+    metadata['probe_num'] = probe_i
+    
     # -------------------------------------------------------- #
     # Chop neuron activity into trials and align to trial start
     # -------------------------------------------------------- #
@@ -93,15 +96,14 @@ for probe_i in range(1, metadata['n_probes']+1):
     # ------------------------------------------------------------------------- #
     # Downsample spiking activity, create alignment traces, and save separately
     # ------------------------------------------------------------------------- #
-    metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
-    
-    _ = trace_utils.create_traces_np(cbehav_df, trialwise_binned_mat, trace_subsample_bin_size_ms, metadata, probe_save_dir,
+    _ = trace_utils.create_traces_np(cbehav_df, trialwise_binned_mat, trace_subsample_bin_size_ms, probe_save_dir,
                                      aligned_ind=0, filter_by_trial_num=False, traces_aligned="TrialStart")
     
     # -------------------------------------------------------- #
     # Save datapath, behavioral and metadata to data object
     # -------------------------------------------------------- #
     print('Creating data object...', end='')
+    metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
     data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
 
 if WRITE_METADATA:
