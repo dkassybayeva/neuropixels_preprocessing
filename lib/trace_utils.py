@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from imblearn.under_sampling import RandomUnderSampler
 import tqdm
+import joblib
 
 import matplotlib.pyplot as plt
 from scipy import stats
@@ -44,7 +45,7 @@ def align_spikes_to_event(event_name, prebuffer, postbuffer, behav_df, traces, m
     return spikes
 
 
-def trial_start_align(behav_df, traces, metadata, sps, max_allowable_len=36000):
+def trial_start_align(behav_df, traces, sps, max_allowable_len=36000):
     for red_flag in ['no_matching_TTL_start_time', 'large_TTL_gap_after_start']:
         if red_flag in behav_df.keys() and behav_df[red_flag].sum()>0:
             print('Trials with' + red_flag + '!!!')
@@ -102,7 +103,7 @@ def trial_start_align(behav_df, traces, metadata, sps, max_allowable_len=36000):
     return spikes, behav_df
 
 
-def create_traces_np(behav_df, traces, metadata,
+def create_traces_np(behav_df, trialwise_start_align_spike_mat_in_ms, downsample_dt, metadata, save_dir,
                      traces_aligned='ResponseStart',
                      aligned_ind=40,
                      filter_by_trial_num=False,
@@ -129,8 +130,20 @@ def create_traces_np(behav_df, traces, metadata,
     time_interp
 
     '''
-    sps = metadata['sps']
-    n_neurons, n_trials, n_time_bins  = traces.shape
+    
+    # subsample (bin) data:
+    # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
+    # then sum over the dt bins
+    n_neurons = trialwise_start_align_spike_mat_in_ms.shape[0]
+    n_trials = trialwise_start_align_spike_mat_in_ms.shape[1]
+    traces = trialwise_start_align_spike_mat_in_ms.reshape(n_neurons, n_trials, -1, downsample_dt)
+    traces = traces.sum(axis=-1)  # sum over bins
+    
+    n_time_bins  = traces.shape[-1]
+    
+    assert traces.shape[0] == n_neurons and traces.shape[1] == n_trials
+    
+    sps = 1000 / downsample_dt  # (samples per second) resolution of aligned traces
 
     # only sending in completed trials now
     if filter_by_trial_num:
@@ -269,7 +282,7 @@ def create_traces_np(behav_df, traces, metadata,
     stim_frame_end = stim_on_idx + int(0.5*sps) #np.minimum(stim_off_idx + int(.15*sps), stim_on_idx + int(.6*sps))
 
     stim_aligned, stim_point = align_helper(stim_frame_begin, stim_frame_end, stim_on_idx, trace_len_bins=int(2.5*sps))
-    
+    joblib.dump(dict(traces=stim_aligned, ind=stim_point), save_dir + f'stimulus_aligned_traces_{downsample_dt}ms_bins', compress=5)
     
     # -----------------------Response-aligned frame------------------------------- #
     # resp_frame_begin = np.maximum(stim_frame_end, response_start_idx - int(sps))
@@ -277,14 +290,14 @@ def create_traces_np(behav_df, traces, metadata,
     resp_frame_end = response_start_idx + int(3.1*sps)  # np.minimum(response_start_idx + int(10*sps), resp_end_idx + int(2.1*sps))
 
     response_aligned, response_point = align_helper(resp_frame_begin, resp_frame_end, response_start_idx, trace_len_bins=int(13.5*sps))
-
+    joblib.dump(dict(traces=response_aligned, ind=response_point), save_dir + f'response_aligned_traces_{downsample_dt}ms_bins', compress=5)
 
     # -----------------------Reward-aligned frame--------------------------------- #
     reward_frame_begin = np.maximum(response_start_idx, resp_end_idx - int(6.1*sps))
     reward_frame_end = resp_end_idx + int(2.1*sps)  # np.minimum(resp_end_idx + int(2.1*sps), trial_len_in_bins)
     
     reward_aligned, reward_point = align_helper(reward_frame_begin, reward_frame_end, resp_end_idx, trace_len_bins=int(10.1*sps))
-
+    joblib.dump(dict(traces=reward_aligned, ind=reward_point), save_dir + f'reward_aligned_traces_{downsample_dt}ms_bins', compress=5)
 
     # -----------------------Interpolated----------------------------------- #
     # AKA time warping [see Williams et al., (2020), Neuron 105, 246–259 for a description of the problem]
@@ -324,7 +337,7 @@ def create_traces_np(behav_df, traces, metadata,
 
     interp_traces = np.array(interp_traces)
     assert interp_traces.shape == (n_trials, n_neurons, sum(interp_lens))
-    
+    joblib.dump(dict(traces=interp_traces, ind=interp_lens), save_dir + f'interp_aligned_traces_{downsample_dt}ms_bins', compress=5)
 
     # ---------------------------------------------------------------------- #
     # Save traces and important variables used to create them

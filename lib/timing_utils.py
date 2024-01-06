@@ -790,33 +790,20 @@ def shorten_session_data(session_data, n_trials):
 
 
 # ---------------------------------------------------------------------------------------- #
-def align_trialwise_spike_times_to_start(metadata, datapath, downsample_dt, TOY_DATA):
-    if TOY_DATA:
-        spike_mat = load(datapath + "toy_spikes.npy")
-        behav_df = load(datapath + 'toy_behav_df')
-    else:
-        # load neural data: [number of neurons x time bins in ms]
-        spike_mat = load(datapath + f"probe{metadata['probe_num']}/spike_mat_in_ms.npy")['spike_mat']
+def align_trialwise_spike_times_to_start(datapath, probe_datapath):
+    # load neural data: [number of neurons x time bins in ms]
+    spike_mat = load(probe_datapath + 'spike_mat_in_ms.npy')['spike_mat']
 
-        # make pandas behavior dataframe
-        behav_df = load(datapath + 'behav_df')
+    # make pandas behavior dataframe
+    behav_df = load(datapath + 'behav_df')
 
     cbehav_df = behav_df[behav_df['MadeChoice']].reset_index(drop=True)
     # align spike times to behavioral data timeframe
     # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
-    trialwise_spike_mat_start_aligned, _ = trace_utils.trial_start_align(cbehav_df, spike_mat, metadata, sps=1000)
-    assert trialwise_spike_mat_start_aligned.shape[1] == len(cbehav_df)
+    trialwise_start_align_spike_mat_in_ms, _ = trace_utils.trial_start_align(cbehav_df, spike_mat, sps=1000)
+    assert trialwise_start_align_spike_mat_in_ms.shape[1] == len(cbehav_df)
+    
+    dump(trialwise_start_align_spike_mat_in_ms, probe_datapath + 'trialwise_start_align_spike_mat_in_ms', compress=3)
 
-    # subsample (bin) data:
-    # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
-    # then sum over the dt bins
-    n_neurons = trialwise_spike_mat_start_aligned.shape[0]
-    n_trials = trialwise_spike_mat_start_aligned.shape[1]
-    trial_binned_mat_start_align = trialwise_spike_mat_start_aligned.reshape(n_neurons, n_trials, -1, downsample_dt)
-    trial_binned_mat_start_align = trial_binned_mat_start_align.sum(axis=-1)  # sum over bins
-
-    results = {'binned_mat': trial_binned_mat_start_align, 'downsample_dt': downsample_dt}
-    dump(results, datapath + f"probe{metadata['probe_num']}/trial_binned_mat_start_align.npy", compress=3)
-
-    return trial_binned_mat_start_align, cbehav_df
+    return trialwise_start_align_spike_mat_in_ms, cbehav_df
 
