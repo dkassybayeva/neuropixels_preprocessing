@@ -13,74 +13,48 @@ import numpy as np
 from scipy.ndimage import gaussian_filter1d
 import os
 import glob
-from joblib import load
+import joblib
 
 import neuropixels_preprocessing.lib.trace_utils as trace_utils
 import neuropixels_preprocessing.lib.behavior_utils as bu
 
 class DataContainer:
-    def __init__(self, data_path, behav_df, metadata, nrn_phy_ids, traces_dict,
-                 stable_neurons=[], cluster_labels=[], neuron_mask_df=None,
-                 feature_df_cache=[], feature_df_keys=[]):
-
+    def __init__(self, data_path, behav_df, metadata):
         self.data_path = data_path
         self.behav_df = behav_df
         self.metadata = metadata
-        self.feature_df_cache = feature_df_cache
-        self.feature_df_keys = feature_df_keys
-
         self.objID = f"{metadata['rat_name']}_{metadata['date']}_{metadata['task']}_probe{metadata['probe_num']}"
-
-        if traces_dict is not None:
-            self.nrn_phy_ids = nrn_phy_ids
-            # -------------------------------------------- #
-            self.traces_dict = traces_dict
-            self.sa_traces = traces_dict['stim_aligned']
-            self.ca_traces = traces_dict['response_aligned']
-            self.ra_traces = traces_dict['reward_aligned']
-            self.interp_traces = traces_dict['interp_traces']
-            # -------------------------------------------- #
-            self.interp_inds = traces_dict['interp_inds']
+            
+    def load_cluster_info(self, cluster_filename):
+        cluster_dict = joblib.load(self.data_path + cluster_filename)
+        self.cluster_neurons = cluster_dict['neurons']
+        self.cluster_labels = cluster_dict['labels']
+    
+    def neurons_of_cluster(self, clust_i):
+       return self.cluster_neurons[self.cluster_labels == clust_i]
+        
+    def load_traces(self, trace_type, downsample_dt):
+        trace_dict = joblib.load(self.data_path + f'{trace_type}_aligned_traces_{downsample_dt}ms_bins')
+        self.n_trials, self.n_neurons, _ = trace_dict['traces'].shape
+        assert self.n_trials == len(self.behav_df)
+        assert self.n_neurons == len(self.metadata['nrn_phy_ids'])
+        
+        if trace_type=='stimulus':        
+            self.stimulus_traces = trace_dict['traces']
+            self.stimulus_ind = trace_dict['ind']
+        elif trace_type=='response':
+            self.response_traces = trace_dict['traces']
+            self.response_ind =  trace_dict['ind']
+        elif trace_type=='reward':
+            self.reward_traces = trace_dict['traces']
+            self.reward_ind = trace_dict['ind']
+        elif trace_type=='interp':
+            self.interp_traces = trace_dict['traces']
+            self.interp_inds = trace_dict['ind']
             if type(self.interp_inds) ==  list:
                 self.interp_inds = [np.sum(self.interp_inds[0:i]) for i in np.arange(1, len(self.interp_inds) + 1)]
-            self.response_ind = traces_dict['response_ind']
-            self.reward_ind = traces_dict['reward_ind']
-            self.stim_ind = traces_dict['stim_ind']
-            # -------------------------------------------- #
-            self.n_trials, self.n_neurons, _ = self.sa_traces.shape
-            assert self.n_trials == self.metadata['n_trials']
-            assert self.n_neurons == len(self.nrn_phy_ids)
-
-        self.stable_neurons = stable_neurons
-        self.cluster_labels = cluster_labels
-
-        if neuron_mask_df is None:
-            neurons = np.arange(0, self.n_neurons)
-            df_dict = {'neurons':neurons}
-            # if len(stable_neurons) > 0:
-            #     stability_mask = np.zeros_like(neurons)
-            #     stability_mask[stable_neurons] = 1
-            #     df_dict['stability_mask'] = stability_mask
-            # else:
-            #     df_dict['stability_mask'] = np.full(shape=self.n_neurons, fill_value=np.nan)
-            #
-            # if len(cluster_labels) > 0:
-            #     cluster_mask = np.zeros_like(neurons)*np.nan
-            #     if len(cluster_labels) == self.n_neurons:
-            #         cluster_mask = cluster_labels
-            #     elif len(cluster_labels) == len(self.stable_neurons):
-            #         cluster_mask[self.stable_neurons] == cluster_labels
-            #     else:
-            #         raise("number of cluster labels is not the same as either "
-            #               "total number of neurons or number of stable neurons")
-            #     df_dict['cluster_mask'] = cluster_mask
-            # else:
-            #     df_dict['cluster_mask'] = np.full(shape=self.n_neurons, fill_value=np.nan)
-            df_dict['stability_mask'] = np.full(shape=self.n_neurons, fill_value=np.nan)
-            df_dict['cluster_mask'] = np.full(shape=self.n_neurons, fill_value=np.nan)
-            self.neuron_mask_df = pd.DataFrame(df_dict, index=df_dict["neurons"], columns=["cluster_mask", "stability_mask"])
         else:
-            self.neuron_mask_df = neuron_mask_df
+            raise NotImplementedError()
 
     def __getitem__(self, item):
         """
@@ -127,11 +101,11 @@ class DataContainer:
         elif phase_indexer == "interp":
             traces = self.interp_traces
         elif phase_indexer == "response":
-            traces = self.ca_traces
+            traces = self.response_traces
         elif phase_indexer == "stimulus":
-            traces = self.sa_traces
+            traces = self.stimulus_traces
         elif phase_indexer == 'reward':
-            traces = self.ra_traces
+            traces = self.reward_traces
         else:
             raise "Not Implemented"
         if traces is None:
@@ -167,51 +141,10 @@ class DataContainer:
         elif alignment == 'interp':
             return self.interp_inds
 
-    def to_pickle(self, save_traces=True):
-        print('Saving to ' + self.data_path + '...', end='')
-        # ------------------------------------------------------------- #
-        # original data or not, check whether current data path exists
-        if not os.path.isdir(self.data_path):
-            os.mkdir(self.data_path)
-            print('folder created...', end='')
-        # ------------------------------------------------------------- #
-        # if remove_old:  # Don't remove original preprocess data
-        #     df_files = glob.glob(self.data_path + "*behav_df.pkl")
-        #     [os.remove(f) for f in df_files]
-
-        #     info_files = glob.glob(self.data_path + "persistent_info.pkl")
-        #     [os.remove(f) for f in info_files]
-
-            # feature_files = glob.glob(self.data_path + "*feature_df*.pkl")
-            # [os.remove(f) for f in feature_files]
-        # ------------------------------------------------------------- #
-        # always write behav df and persist info (e.g., metadata)
-        with open(self.data_path + "behav_df.pkl", 'wb') as f:
-            pickle.dump(self.behav_df, f)
-
-        with open(self.data_path + "persistent_info.pkl", 'wb') as f:
-            persistent_info = {'metadata': self.metadata,
-                               'nrn_phy_ids': self.nrn_phy_ids,
-                               'cluster_labels':self.cluster_labels,
-                               'stable_neurons':self.stable_neurons,
-                               'neuron_mask_df':self.neuron_mask_df,
-                               'feature_df_cache':self.feature_df_cache,
-                               'feature_df_keys':self.feature_df_keys,
-                               }
-
-            pickle.dump(persistent_info, f)
-        # ------------------------------------------------------------- #
-        # only write traces the first time, b/c they shouldn't change
-        if save_traces:
-            with open(self.data_path + 'traces_dict.pkl', 'wb') as f:
-                pickle.dump(self.traces_dict, f)
-        # ------------------------------------------------------------- #
-        print('Done.')
-
     def get_feature_df(self, alignment='reward',
                              variables=['rewarded'],
                              force_new=False,
-                             apply_Gauss_filter_to_traces=False,
+                             Gauss_filter_traces=[False, 40],
                              selected_neurons=[],
                              save=True):
         """
@@ -227,85 +160,87 @@ class DataContainer:
         :return: [pandas Dataframe] see docstring of get_trace_feature_df() in trace_utils.py
         """
 
-        matches = [(cache[0] == alignment) & (cache[1] == variables) for cache in self.feature_df_keys]
-        if (sum(matches) > 0) and not force_new:
-            cache_ind = np.where(matches)[0]
-            print(cache_ind[0])
-            feature_df = pickle.load(open(self.feature_df_cache[int(cache_ind[0])], 'rb'))
-            print('loaded a cached feature df')
-        else:
-            # Get all traces from all neurons that match the prescribed alignment
-            traces = self[:, :, alignment]
-            if apply_Gauss_filter_to_traces:
-                traces = gaussian_filter1d(traces, sigma=1, axis=2)
+        # matches = [(cache[0] == alignment) & (cache[1] == variables) for cache in self.feature_df_keys]
+        # if (sum(matches) > 0) and not force_new:
+        #     cache_ind = np.where(matches)[0]
+        #     print(cache_ind[0])
+        #     feature_df = pickle.load(open(self.feature_df_cache[int(cache_ind[0])], 'rb'))
+        #     print('loaded a cached feature df')
+        # else:
+            
+        # Get all traces from all neurons that match the prescribed alignment
+        traces = self[:, :, alignment]
+        if Gauss_filter_traces[0]:
+            traces = gaussian_filter1d(traces, sigma=Gauss_filter_traces[1], axis=2)
 
-            # the given list of selected neurons will be used, unless it is empty or if 'stable' is passed instead
-            if type(selected_neurons)==str and selected_neurons=='stable':
-                selected_neurons = self.stable_neurons
-            elif not len(selected_neurons):
-                selected_neurons = np.arange(self.n_neurons)
+        # the given list of selected neurons will be used, unless it is empty or if 'stable' is passed instead
+        if type(selected_neurons)==str and selected_neurons=='stable':
+            selected_neurons = self.stable_neurons
+        elif not len(selected_neurons):
+            selected_neurons = np.arange(self.n_neurons)
 
-            feature_df = trace_utils.get_trace_feature_df(behav_df=self.behav_df,
-                                                          selected_neurons=selected_neurons,
-                                                          traces=traces,
-                                                          rat_name=self.metadata['rat_name'],
-                                                          session_date=self.metadata['date'],
-                                                          probe_num=self.metadata['probe_num'],
-                                                          behavior_variables=variables)
+        feature_df = trace_utils.get_trace_feature_df(behav_df=self.behav_df,
+                                                      selected_neurons=selected_neurons,
+                                                      traces=traces,
+                                                      rat_name=self.metadata['rat_name'],
+                                                      session_date=self.metadata['date'],
+                                                      probe_num=self.metadata['probe_num'],
+                                                      behavior_variables=variables)
 
-            # print("Created new feature df.")
-            if save:
-                self.feature_df_keys.append([alignment, variables])
-                fname = self.data_path + '_feature_df_' + str(len(self.feature_df_keys)) + '.pkl'
-                with open (fname, 'wb') as f:
-                    pickle.dump(feature_df, f)
+        # print("Created new feature df.")
+        # if save:
+        #     self.feature_df_keys.append([alignment, variables])
+        #     fname = self.data_path + '_feature_df_' + str(len(self.feature_df_keys)) + '.pkl'
+        #     with open (fname, 'wb') as f:
+        #         pickle.dump(feature_df, f)
 
-                print("New feature df cached.")
-                self.feature_df_cache.append(fname)
+        #     print("New feature df cached.")
+        #     self.feature_df_cache.append(fname)
 
         return feature_df
+    
+    
+    def to_pickle(self, save_traces=True):
+        print('Saving to ' + self.data_path + '...', end='')
+        
+        # ------------------------------------------------------------- #
+        if not os.path.isdir(self.data_path):
+            os.mkdir(self.data_path)
+            print('folder created...', end='')
+        # ------------------------------------------------------------- #
+
+        joblib.dump(self.behav_df, self.data_path + 'behav_df', compress=5)
+        joblib.dump(self.metadata, self.data_path + 'metadata', compress=5)
+        
+        print('Done.')
 
 
 def from_pickle(data_path, obj_class, sub_dir=''):
-    # always load original traces (only 1 copy)
-    with open(data_path + "traces_dict.pkl", 'rb') as f:
-        traces_dict = pickle.load(f)
-
-    """
-      If a subdirectory was passed, load the behavior and persistent info from 
-      there, because these data structures may have changed in analysis.
-    """
-    with open(data_path + sub_dir + "behav_df.pkl", 'rb') as f:
-        behav_df = pickle.load(f)
-
+    metadata = joblib.load(data_path + 'metadata')
+    behav_df =joblib.load(data_path + 'behav_df')
+    
     for red_flag in ['no_matching_TTL_start_time', 'large_TTL_gap_after_start']:
         if red_flag in behav_df.keys() and behav_df[red_flag].sum()>0:
             print('Trials with' + red_flag + '!!!')
 
-
-    with open(data_path + sub_dir + "persistent_info.pkl", 'rb') as f:
-        kwargs = pickle.load(f)
-
-    return obj_class(data_path + sub_dir, behav_df=behav_df, traces_dict=traces_dict, **kwargs)
+    return obj_class(data_path, behav_df=behav_df, metadata=metadata)
 
 
 class TwoAFC(DataContainer):
-    def __init__(self, data_path, behav_df, metadata, nrn_phy_ids, traces_dict,
-                 stable_neurons=[], cluster_labels=[], neuron_mask_df=None, feature_df_cache=[], feature_df_keys=[]):
-        super().__init__(data_path, behav_df, metadata, nrn_phy_ids, traces_dict,
-                         stable_neurons, cluster_labels, neuron_mask_df, feature_df_cache, feature_df_keys)
+    def __init__(self, data_path, behav_df, metadata):
+        super().__init__(data_path, behav_df, metadata)
 
 
-def create_experiment_data_object(data_path, metadata, nrn_phy_ids, trialwise_binned_mat, cbehav_df):
-    traces_dict = trace_utils.create_traces_np(cbehav_df,
-                                               trialwise_binned_mat,
-                                               metadata,
-                                               aligned_ind=0,
-                                               filter_by_trial_num=False,
-                                               traces_aligned="TrialStart")
-    print('Creating data object...', end='')
-    # create and save data object
-    TwoAFC(data_path, cbehav_df, metadata, nrn_phy_ids, traces_dict=traces_dict).to_pickle()
+# def create_experiment_data_object(data_path, metadata, nrn_phy_ids, trialwise_binned_mat, cbehav_df):
+#     traces_dict = trace_utils.create_traces_np(cbehav_df,
+#                                                trialwise_binned_mat,
+#                                                metadata,
+#                                                aligned_ind=0,
+#                                                filter_by_trial_num=False,
+#                                                traces_aligned="TrialStart")
+#     print('Creating data object...', end='')
+#     # create and save data object
+#     TwoAFC(data_path, cbehav_df, metadata).to_pickle()
 
 
 # class Multiday_2AFC(DataContainer):
