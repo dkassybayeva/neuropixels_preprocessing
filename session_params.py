@@ -43,60 +43,36 @@ def save_directory_helper(data_root):
     return data_root
 
 
-def write_session_metadata_to_csv():
-    columns = ['ott_lab', 'rat_name', 'date', 'trodes_datetime', 
-               'trodes_logfile', 'task', 'behav_datetime',
-               'region', 'n_probes', 'trodes_config', 'recording_type', 'DIO_port_num',
-               'time_investment', 'reward_bias', 'behavior_mat_file',
-               'sps', 'kilosort_ver', 'experimenter',
-               'linking_group', 'recording_session_id', 'prior', 'experiment_id', 'stimulus', 'behavior_phase']
+def write_session_metadata_to_csv(data_root):
+    columns = ['ott_lab', 'rat_name', 'date', 'experimenter', 'region',
+               'trodes_datetime', 'trodes_logfile', 'trodes_config', 'recording_type',
+               'n_probes', 'DIO_port_num', 'kilosort_ver',
+               'behav_datetime', 'task', 'behavior_mat_file']
 
-    metadata = {'ott_lab': False,
-                'rat_name': 'Nina2',
-                'date': '20210625',
-                # ----------------------------------- #
-                'trodes_datetime': '20210625_114657',
-                'trodes_logfile': 'Trodes_extraction_log.txt',
-                'trodes_config': '',
-                'recording_type': 'neuropixels_1.0',
-                'n_probes': 2,
-                'DIO_port_num': 6,
-                # ----------------------------------- #
-                'behav_datetime': '20210625',
-                'task': 'reward-bias', # ['matching', 'reward-bias', 'time-investment']
-                'time_investment': False,
-                'reward_bias': True,
-                # ----------------------------------- #
-                'prior': False,  # Could possibly be Amy's code for a task type that was previously used
-                'experiment_id': 'learning_uncertainty',
-                'linking_group': None, #'Nina2',
-                'recording_session_id': 0,
-                'kilosort_ver': 2.5,
-                'sps': sps
-    }
+    metadata = dict(
+        ott_lab = False,
+        rat_name = 'Nina2',
+        date = '20210623',
+        experimenter = 'Amy',
+        region = 'lOFC',
+        # ----------------------------------- #
+        trodes_datetime = '20210623_121426',
+        trodes_logfile = '',
+        trodes_config = '',
+        recording_type = 'neuropixels_1.0',
+        n_probes = 2,
+        DIO_port_num = 6,
+        kilosort_ver = 2.5,
+        # ----------------------------------- #
+        behav_datetime = '20210623',
+        task = 'time-investment', # ['matching', 'reward-bias', 'time-investment']
+        # ----------------------------------- #
+    )
 
     task_type = 'TwoArmBanditVariant' if metadata['task'] == 'matching' else 'DiscriminationConfidence'
     metadata['behavior_mat_file'] = f'{metadata["rat_name"]}_{task_type}_{metadata["behav_datetime"]}.mat'
-    metadata['experimenter'] = 'Gregory Knoll' if metadata['ott_lab'] else 'Amy'
-    metadata['region'] = 'lmPFC' if metadata['ott_lab'] else 'lOFC'
-    # -----------------------------------#
-    # List of stimuli for each experiment:
-    #     'freq' =
-    #     'freq_nat' =
-    #     'nat' =
-    #     'nat_nat' =
-    # -----------------------------------#
-    metadata['stimulus'] = 'freq'
 
-    # -----------------------------------#
-    # Session number code:
-    #     -1 = good performance, no noise (or rare)
-    #      0 = first day with noise
-    #     -2 = poor performance, no noise (<70%)
-    # -----------------------------------#
-    metadata['behavior_phase'] = -1
-
-    DATA_DIR = save_directory_helper()
+    DATA_DIR = save_directory_helper(data_root)
 
     ephys_metadata_file = DATA_DIR + 'ephys_sessions_metadata.csv'
     try:
