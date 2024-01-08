@@ -38,6 +38,7 @@ class DataContainer:
         self.n_trials, self.n_neurons, _ = trace_dict['traces'].shape
         assert self.n_trials == len(self.behav_df)
         assert self.n_neurons == len(self.metadata['nrn_phy_ids'])
+        self.sps = 1000 / downsample_dt
         
         if trace_type=='stimulus':        
             self.stimulus_traces = trace_dict['traces']
