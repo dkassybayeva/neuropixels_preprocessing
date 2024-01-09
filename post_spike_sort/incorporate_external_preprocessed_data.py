@@ -1,6 +1,7 @@
 from os.path import exists
 import numpy as np
 from scipy.io.matlab import loadmat
+import joblib
 
 from session_params import get_root_path 
 from neuropixels_preprocessing.lib.behavior_utils import calc_event_outcomes
@@ -57,6 +58,7 @@ behav_df = calc_event_outcomes(event_dict, metadata)
 # -------------------------------------------------------------- #
 choice_mask = behav_df[behav_df['MadeChoice']].index.to_numpy()
 cbehav_df = behav_df[behav_df['MadeChoice']].reset_index(drop=True)
+joblib.dump(cbehav_df, DATA_DIR + "behav_df", compress=3)
 # -------------------------------------------------------------- #
 
 
