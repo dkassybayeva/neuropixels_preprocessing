@@ -15,6 +15,28 @@ max_ISI = 0.001  # max intersample interval (ISI), above which the period is con
 trace_subsample_bin_size_ms = 10  # sample period in ms
 sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of aligned traces
 
+# -------params for trace interpolation------- #
+"""
+For the source of these numbers, see 'Temporal dynaics clustering' in Hirokawa et al. Nature (2019) in Methods.
+"""
+interpolation_dict = dict(
+    trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
+    aligned_ind=40,  # for ResponseStart
+    trial_event_interpolation_lengths = [
+        int(0.5 * sps),  # ITI->center poke
+        int(0.45 * sps), # center->stim_begin
+        int(.5 * sps),   # stim delivery
+        int(.3 * sps),   # movement to side port
+        int(0.5 * sps),  # first 0.5s of anticipation period
+        int(0.5 * sps),  # second part of anticipation period warped into 0.5s (actually half second in reward-bias)
+        int(1.5 * sps),  # after feedback
+    ],
+    pre_center_interval = int(0.5 * sps),
+    post_response_interval = int(0.5 * sps),
+    downsample_dt=trace_subsample_bin_size_ms,
+)
+
+
 # ---------file names---------- #
 spike_mat_str_indiv = f'spike_mat_in_ms.npy'
 gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
