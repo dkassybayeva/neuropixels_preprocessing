@@ -265,37 +265,37 @@ def align_traces_to_task_events(behav_df,
 # ------------------------------------------------------------------------------------------ #
 def interpolate_traces(behav_df,
                        trialwise_start_align_spike_mat_in_ms,
-                       trial_times_in_reference_to,
-                       aligned_ind,
-                       interp_lens,
-                       pre_center_interval,
-                       post_response_interval,
-                       downsample_dt,
+                       interpolation_param_dict,
                        save_dir,
                        ):
     """
     AKA time warping [see Williams et al., (2020), Neuron 105, 246–259 for a description of the problem]
     will have the biggest effect on the response delay (anticipation) period
     """
-
+    d = interpolation_param_dict
+    
     # -------------------------------------------------------------------- #
     #                           Prepare data                               #
     # -------------------------------------------------------------------- #
-    traces = subsample_spike_mat(trialwise_start_align_spike_mat_in_ms, downsample_dt)
+    traces = subsample_spike_mat(trialwise_start_align_spike_mat_in_ms, d['downsample_dt'])
     n_neurons, n_trials, n_time_bins  = traces.shape
-    sps = 1000 / downsample_dt  # (samples per second) resolution of aligned traces
+    sps = 1000 / d['downsample_dt']  # (samples per second) resolution of aligned traces
 
     print(f'Check: the trial number in the spike and behavioral data match: {len(behav_df)}, {n_trials}')
 
-    event_idx = get_trial_event_indices(trial_times_in_reference_to, behav_df, sps, aligned_ind)
+    event_idx = get_trial_event_indices(d['trial_times_in_reference_to'], behav_df, sps, d['aligned_ind'])
     # -------------------------------------------------------------------- #
 
     interp_traces = []
     for trial_i in range(n_trials):
-        interp_traces.append(interpolate_trial_trace(trial_i, traces, event_idx, interp_lens, pre_center_interval, post_response_interval))
+        interp_traces.append(interpolate_trial_trace(trial_i, traces, event_idx, 
+                                                     d['trial_event_interpolation_lengths'], 
+                                                     d['pre_center_interval'], 
+                                                     d['post_response_interval']))
     interp_traces = np.array(interp_traces)
-    assert interp_traces.shape == (n_trials, n_neurons, sum(interp_lens))
-    joblib.dump(dict(traces=interp_traces, ind=interp_lens), save_dir + f'interp_aligned_traces_{downsample_dt}ms_bins', compress=5)
+    assert interp_traces.shape == (n_trials, n_neurons, sum(d['trial_event_interpolation_lengths']))
+    joblib.dump(dict(traces=interp_traces, ind=d['trial_event_interpolation_lengths'], params=d), 
+                save_dir + f"interpolated_traces_{d['downsample_dt']}ms_bins", compress=5)
 
 
 def interpolate_trial_trace(trial_i, traces, event_idx, interp_lens, pre_center_interval, post_response_interval):
@@ -314,6 +314,8 @@ def interpolate_trial_trace(trial_i, traces, event_idx, interp_lens, pre_center_
     # if (event_idx['stim_off'][trial_i]) - event_idx['stim_on'][trial_i] < 1:
     #     event_idx['stim_off'][trial_i] += 1
 
+    if not post_response_interval:
+        post_response_interval =  int(0.5 * (event_idx['response_end'][trial_i] - event_idx['response_start'][trial_i]))
     # the interpolation frames are delineated by the different events and compose the entire trial
     events_list = [
         event_idx['center_poke'][trial_i] - pre_center_interval,
@@ -325,10 +327,10 @@ def interpolate_trial_trace(trial_i, traces, event_idx, interp_lens, pre_center_
         event_idx['response_end'][trial_i],
         event_idx['trial_len_in_bins'][trial_i],
     ]
+    assert np.all(np.diff(events_list) >= 0)
     interp_frames = [np.arange(beg, end, dtype='int') for beg, end in zip(events_list[:-1], events_list[1:])]
 
-    trace_i = traces[:, trial_i, :].reshape([n_neurons, -1])
-    return create_trial_interp(trace_i, interp_frames=interp_frames, interp_lens=interp_lens)
+    return create_trial_interp(traces[:, trial_i, :], interp_frames=interp_frames, interp_lens=interp_lens)
 
 
 def custom_interp(interp_axis, data_mat):

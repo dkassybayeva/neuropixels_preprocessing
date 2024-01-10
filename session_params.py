@@ -19,7 +19,7 @@ sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of a
 """
 For the source of these numbers, see 'Temporal dynaics clustering' in Hirokawa et al. Nature (2019) in Methods.
 """
-interpolation_dict = dict(
+interpolation_param_dict = dict(
     trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
     aligned_ind=40,  # for ResponseStart
     trial_event_interpolation_lengths = [
@@ -32,7 +32,7 @@ interpolation_dict = dict(
         int(1.5 * sps),  # after feedback
     ],
     pre_center_interval = int(0.5 * sps),
-    post_response_interval = int(0.5 * sps),
+    post_response_interval = None,  # int(0.5 * sps) or None.  If None, then the midpoint between response start and end is used
     downsample_dt=trace_subsample_bin_size_ms,
 )
 
