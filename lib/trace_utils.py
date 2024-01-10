@@ -16,7 +16,6 @@ import os
 import glob
 import pickle
 import scipy.io as sio
-from datetime import date
 from scipy.signal import find_peaks
 
 
@@ -149,7 +148,7 @@ def get_trial_event_indices(in_reference_to, behav_df, sps, aligned_ind):
         stim_on_idx = (aligned_ind - sps * (choice_port_entry - stim_on)).astype('int')
         stim_off_idx = (aligned_ind - sps * (choice_port_entry - stim_off)).astype('int')
 
-        response_start_idx = np.array([int(aligned_ind)] * len(trial_number))
+        response_start_idx = np.array([int(aligned_ind)] * len(behav_df))
 
         # reward is waiting time after choice, which starts at aligned_ind
         # things are already response aligned
@@ -185,8 +184,8 @@ def align_helper(traces, begin_arr, end_arr, index_arr):
 
     """
     trial_len = traces.shape[-1]
-    assert np.all(begin_arr < trace_len)
-    assert np.all(index_arr <= trace_len)
+    assert np.all(begin_arr < trial_len)
+    assert np.all(index_arr <= trial_len)
 
     begin_arr[begin_arr < 0] = 0  # set negative indices to beginning of trace
     len_preceding_arr = index_arr - begin_arr  # bin number of event relative to beginning of frame
@@ -194,7 +193,7 @@ def align_helper(traces, begin_arr, end_arr, index_arr):
     alignment_idx = max(len_preceding_arr)
     offset_arr = alignment_idx - len_preceding_arr
 
-    end_arr[end_arr > trace_len] = trace_len  # set overflow to end of trace
+    end_arr[end_arr > trial_len] = trial_len  # set overflow to end of trace
     len_after_arr = end_arr - index_arr
 
     aligned_arr = np.full([traces.shape[0], traces.shape[1], max(end_arr - begin_arr)], np.nan)
@@ -226,7 +225,6 @@ def align_traces_to_task_events(behav_df,
     print(f'Check: the trial number in the spike and behavioral data match: {len(behav_df)}, {n_trials}')
 
     event_idx = get_trial_event_indices(trial_times_in_reference_to, behav_df, sps, aligned_ind)
-    trial_len_in_bins = event_idx['trial_len_in_bins']
     # ---------------------------------------------------------------------- #
 
     # -----------------------Stimulus-aligned frame------------------------------- #
@@ -290,7 +288,6 @@ def interpolate_traces(behav_df,
     print(f'Check: the trial number in the spike and behavioral data match: {len(behav_df)}, {n_trials}')
 
     event_idx = get_trial_event_indices(trial_times_in_reference_to, behav_df, sps, aligned_ind)
-    trial_len_in_bins = event_idx['trial_len_in_bins']
     # -------------------------------------------------------------------- #
 
     interp_traces = []
@@ -326,7 +323,7 @@ def interpolate_trial_trace(trial_i, traces, event_idx, interp_lens, pre_center_
         event_idx['response_start'][trial_i],
         event_idx['response_start'][trial_i] + post_response_interval,
         event_idx['response_end'][trial_i],
-        trial_len_in_bins[trial_i],
+        event_idx['trial_len_in_bins'][trial_i],
     ]
     interp_frames = [np.arange(beg, end, dtype='int') for beg, end in zip(events_list[:-1], events_list[1:])]
 
@@ -780,7 +777,7 @@ def organize_data(data, binarize=False, frame_rate=10):
     except:
         print('ERROR WHEN REPLACING LEFT RIGHT')
 
-    resp_side = data.response_side.to_list()
+    # resp_side = data.response_side.to_list()
 
     try:
         data['prior_side'] = 1 * (data['prior'] > 0.5)
@@ -798,8 +795,8 @@ def organize_data(data, binarize=False, frame_rate=10):
 
 def bin_coherence_data(data):
     # Bin the continous coherence values
-    # TODO: make this a function, and have binned_signed_noise and binned_noise as extra
-    # TODO: variables
+    # OLD-TODO: make this a function, and have binned_signed_noise and binned_noise as extra
+    # OLD-TODO: variables
     data['raw_signed_noise'] = data['signed_noise']
     data.loc[:, 'signed_noise'] = pd.cut(data['signed_noise'],
                                          [-1.01, -1, -0.81, -0.5, -0.3, -0.1, 0.1, .3, .5, .81, 1.1])
@@ -981,7 +978,7 @@ def compute_d_primes(traces, var_data, n_shuff = 1000, distance = "dprime", bala
         coding_dir.append((d1.mean(axis = 0) - d2.mean(axis = 0))*2/(d1.mean(axis = 0) + d2.mean(axis = 0)))
 
     # now shuffle label and compute
-    n_trials = len(var_data)
+    # n_trials = len(var_data)
     shuf_inds = [np.random.permutation(var_data) for i in range(n_shuff)] #1000, n_trials
 
     # for every row of shuf_inds, we want to get all the interp_traces of one type
