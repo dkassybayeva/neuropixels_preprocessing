@@ -35,9 +35,9 @@ class DataContainer:
         
     def load_traces(self, trace_type, downsample_dt):
         trace_dict = joblib.load(self.data_path + f'{trace_type}_aligned_traces_{downsample_dt}ms_bins')
-        self.n_trials, self.n_neurons, _ = trace_dict['traces'].shape
-        assert self.n_trials == len(self.behav_df)
+        self.n_neurons, self.n_trials, _ = trace_dict['traces'].shape
         assert self.n_neurons == len(self.metadata['nrn_phy_ids'])
+        assert self.n_trials == len(self.behav_df)
         self.sps = 1000 / downsample_dt
         
         if trace_type=='stimulus':        
@@ -114,7 +114,7 @@ class DataContainer:
         # ----------------------------------------------------------------------------- #
 
         # -----Index the traces and return----- #
-        return traces[trial_id][:, neuron_indexer]
+        return traces[neuron_indexer, trial_id]
 
     def __setitem__(self, key, value):
         raise "Not Implemented"
@@ -171,6 +171,7 @@ class DataContainer:
             
         # Get all traces from all neurons that match the prescribed alignment
         traces = self[:, :, alignment]
+        assert traces.shape[:2] == (self.n_neurons, self.n_trials)
         if Gauss_filter_traces[0]:
             traces = gaussian_filter1d(traces, sigma=Gauss_filter_traces[1], axis=2)
 

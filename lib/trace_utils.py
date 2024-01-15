@@ -237,6 +237,7 @@ def align_traces_to_task_events(behav_df,
 
     stim_aligned, stim_point = align_helper(traces, **align_dict)
     joblib.dump(dict(traces=stim_aligned, ind=stim_point), save_dir + f'stimulus_aligned_traces_{downsample_dt}ms_bins', compress=5)
+    assert stim_aligned.shape[:2] == (n_neurons, n_trials)
     
     # -----------------------Response-aligned frame------------------------------- #
     align_dict = dict(
@@ -247,6 +248,7 @@ def align_traces_to_task_events(behav_df,
 
     response_aligned, response_point = align_helper(traces, **align_dict)
     joblib.dump(dict(traces=response_aligned, ind=response_point), save_dir + f'response_aligned_traces_{downsample_dt}ms_bins', compress=5)
+    assert response_aligned.shape[:2] == (n_neurons, n_trials)
 
     # -----------------------Reward-aligned frame--------------------------------- #
     align_dict = dict(
@@ -257,6 +259,7 @@ def align_traces_to_task_events(behav_df,
 
     reward_aligned, reward_point = align_helper(traces, **align_dict)
     joblib.dump(dict(traces=reward_aligned, ind=reward_point), save_dir + f'reward_aligned_traces_{downsample_dt}ms_bins', compress=5)
+    assert reward_aligned.shape[:2] == (n_neurons, n_trials)
 # ------------------------------------------------------------------------------------------ #
 
 
@@ -293,7 +296,8 @@ def interpolate_traces(behav_df,
                                                      d['pre_center_interval'], 
                                                      d['post_response_interval']))
     interp_traces = np.array(interp_traces)
-    assert interp_traces.shape == (n_trials, n_neurons, sum(d['trial_event_interpolation_lengths']))
+    interp_traces = interp_traces.transpose(1, 0, 2)
+    assert interp_traces.shape == (n_neurons, n_trials, sum(d['trial_event_interpolation_lengths']))
     joblib.dump(dict(traces=interp_traces, ind=d['trial_event_interpolation_lengths'], params=d), 
                 save_dir + f"interpolated_traces_{d['downsample_dt']}ms_bins", compress=5)
 
@@ -367,7 +371,7 @@ def get_trace_feature_df(behav_df, selected_neurons, traces, rat_name, session_d
 
     :param behav_df: [pandas Dataframe] with values of behavioral variables from each trial
     :param selected_neurons: [numpy array] of neurons to use
-    :param traces: [numpy array] spiking responses ('activity') with dimensions [#trials x #neurons x #time bins]
+    :param traces: [numpy array] spiking responses ('activity') with dimensions [#neurons x #trials x #time bins]
     :param behavior_variables: [list] names of task variables, such as trial outcome or wait time
     :param rat_name: [string]
     :return: [pandas Dataframe] each row contains the result of a single time bin within a given trial,
@@ -381,7 +385,7 @@ def get_trace_feature_df(behav_df, selected_neurons, traces, rat_name, session_d
     """
     dataframe_list = []
     for nrn in selected_neurons:
-        all_traces = traces[:, nrn, :].astype('float32')  # trials, frame
+        all_traces = traces[nrn].astype('float32')  # trials, frame
         n_trials, n_frames = all_traces.shape
 
         # Concatenate all traces into one long array, with the time axis repeating: [trial 1, trial 2, ...]
