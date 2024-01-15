@@ -36,6 +36,19 @@ interpolation_param_dict = dict(
     downsample_dt=trace_subsample_bin_size_ms,
 )
 
+alignment_param_dict = dict(
+    trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
+    aligned_ind=40,  # for ResponseStart
+    downsample_dt=trace_subsample_bin_size_ms,
+    pre_center_interval = int(0.5 * sps),
+    post_stim_interval = int(0.5*sps),
+    pre_response_interval = int(2.1*sps),
+    post_response_interval = int(3.1*sps),
+    pre_reward_interval = int(6.1*sps),  # but response time start will be used if later than this point
+    post_reward_interval = int(2.1*sps),
+)
+
+
 
 # ---------file names---------- #
 spike_mat_str_indiv = f'spike_mat_in_ms.npy'

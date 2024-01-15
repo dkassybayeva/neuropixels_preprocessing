@@ -3,7 +3,7 @@ import numpy as np
 from scipy.io.matlab import loadmat
 import joblib
 
-from session_params import get_root_path 
+from neuropixels_preprocessing.session_params import get_root_path 
 from neuropixels_preprocessing.lib.behavior_utils import calc_event_outcomes
 import neuropixels_preprocessing.lib.trace_utils as tu
 

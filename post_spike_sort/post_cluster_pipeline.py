@@ -91,13 +91,11 @@ for probe_i in range(1, metadata['n_probes']+1):
     n_probe_neurons, n_trials, _ = trialwise_binned_mat.shape
     n_neurons += n_probe_neurons
     print('Probe', probe_i, 'has', n_probe_neurons, 'neurons with', n_trials, 'trials.')
-    # -------------------------------------------------------- #
     
     # ------------------------------------------------------------------------- #
     # Downsample spiking activity, create alignment traces, and save separately
     # ------------------------------------------------------------------------- #
-    # trace_utils.align_traces_to_task_events(cbehav_df, trialwise_binned_mat, trace_subsample_bin_size_ms, probe_save_dir,
-    #                                         aligned_ind=0, filter_by_trial_num=False, trial_times_in_reference_to="TrialStart")
+    trace_utils.align_traces_to_task_events(cbehav_df, trialwise_binned_mat, alignment_param_dict, save_dir=probe_save_dir)
     trace_utils.interpolate_traces(cbehav_df, trialwise_binned_mat, interpolation_param_dict, save_dir=probe_save_dir)
     
     # -------------------------------------------------------- #
