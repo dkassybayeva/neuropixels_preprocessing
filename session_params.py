@@ -21,7 +21,7 @@ For the source of these numbers, see 'Temporal dynaics clustering' in Hirokawa e
 """
 interpolation_param_dict = dict(
     trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
-    aligned_ind=40,  # for ResponseStart
+    resp_start_align_buffer=None,  # for ResponseStart
     trial_event_interpolation_lengths = [
         int(0.5 * sps),  # ITI->center poke
         int(0.45 * sps), # center->stim_begin
@@ -38,7 +38,7 @@ interpolation_param_dict = dict(
 
 alignment_param_dict = dict(
     trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
-    aligned_ind=40,  # for ResponseStart
+    resp_start_align_buffer=40,  # for ResponseStart
     downsample_dt=trace_subsample_bin_size_ms,
     pre_center_interval = int(0.5 * sps),
     post_stim_interval = int(0.5*sps),

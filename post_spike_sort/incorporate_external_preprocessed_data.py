@@ -63,23 +63,44 @@ joblib.dump(cbehav_df, DATA_DIR + "behav_df", compress=3)
 
 
 # -------------------------------------------------------------- #
-#         Subsample spiking and create aligned traces
+#                   Create aligned traces
 # -------------------------------------------------------------- #
-trialwise_binned_start_align = tu.subsample_spike_mat(spike_mat, trace_subsample_bin_size_ms)
+trialwise_binned_response_align = spike_mat[:, choice_mask, :]
+assert trialwise_binned_response_align.shape[1] == len(cbehav_df)
 
-trialwise_binned_start_align = trialwise_binned_start_align[:, choice_mask, :]
-assert trialwise_binned_start_align.shape[1] == len(cbehav_df)
-
-event_idx = tu.get_trial_event_indices(in_reference_to='TrialStart', behav_df=cbehav_df, sps=sps)
-
-common_save_str = DATA_DIR + '{}' + f'_traces_{trace_subsample_bin_size_ms}ms_bins'
-
-align_dict = dict(
-    # extend the beginning of the frame 0.5s before center poke (e.g., 0.5 s * 100 samples/s = 50bins)
-    begin_arr=event_idx['center_poke'] - int(.5 * sps),
-    index_arr=event_idx['center_poke'],
-    end_arr=event_idx['center_poke'] # no buffer at the end
+alignment_param_dict = dict(
+    trial_times_in_reference_to='ResponseStart',  # ['TrialStart', 'ResponseStart']
+    resp_start_align_buffer=int(2.0 * sps),  # for ResponseStart
+    downsample_dt=trace_subsample_bin_size_ms,
+    pre_center_interval = int(0.5 * sps),
+    post_stim_interval = int(0.5*sps),
+    pre_response_interval = int(2.0*sps),
+    post_response_interval = int(3.0*sps),
+    pre_reward_interval = int(6.0*sps),  # but response time start will be used if later than this point
+    post_reward_interval = int(3.0*sps),
 )
-pre_center_arr, center_bin = tu.align_helper(trialwise_binned_start_align, **align_dict)
 
-joblib.dump(dict(traces=pre_center_arr, ind=center_bin), common_save_str.format('pre_center'), compress=5)
+tu.align_traces_to_task_events(cbehav_df, trialwise_binned_response_align, alignment_param_dict, save_dir=DATA_DIR)
+
+
+# -------------------------------------------------------------- #
+#                   Create interpolated traces
+# -------------------------------------------------------------- #
+interpolation_param_dict = dict(
+    trial_times_in_reference_to='ResponseStart',  # ['TrialStart', 'ResponseStart']
+    resp_start_align_buffer=int(2.0 * sps),  # for ResponseStart
+    trial_event_interpolation_lengths = [
+        int(0.5 * sps),  # ITI->center poke
+        int(0.45 * sps), # center->stim_begin
+        int(.5 * sps),   # stim delivery
+        int(.3 * sps),   # movement to side port
+        int(0.5 * sps),  # first 0.5s of anticipation period
+        int(0.5 * sps),  # second part of anticipation period warped into 0.5s (actually half second in reward-bias)
+        int(1.5 * sps),  # after feedback
+    ],
+    pre_center_interval = int(0.5 * sps),
+    post_response_interval = None,  # int(0.5 * sps) or None.  If None, then the midpoint between response start and end is used
+    downsample_dt=trace_subsample_bin_size_ms,
+)
+
+tu.interpolate_traces(cbehav_df, trialwise_binned_response_align, interpolation_param_dict, save_dir=DATA_DIR)

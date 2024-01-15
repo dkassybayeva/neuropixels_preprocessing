@@ -115,7 +115,7 @@ def subsample_spike_mat(spike_mat_in_ms, downsample_dt):
     return traces
 
 
-def get_trial_event_indices(in_reference_to, behav_df, sps, aligned_ind):
+def get_trial_event_indices(in_reference_to, behav_df, sps, resp_start_align_buffer):
     trial_len_arr = behav_df['TrialLength'].to_numpy()
     center_poke = behav_df['PokeCenterStart'].to_numpy()  # trial start from animal's (not BPod's) perspective
 
@@ -138,21 +138,23 @@ def get_trial_event_indices(in_reference_to, behav_df, sps, aligned_ind):
         response_end_idx = np.round(response_end * sps).astype('int')
     elif in_reference_to == 'ResponseStart':
         # next trial start is trial_len_arr - choice_port_entry
-        trial_len_in_bins = (sps * (trial_len_arr - choice_port_entry) + aligned_ind).astype('int')
+        trial_len_in_bins = (sps * (trial_len_arr - choice_port_entry) + resp_start_align_buffer).astype('int')
 
         # trial start (enters center poke) from animal's perspective but negative
         # because it's relative to the response start
-        center_poke_idx = (aligned_ind - sps * (choice_port_entry - center_poke)).astype('int')
+        center_poke_idx = (resp_start_align_buffer - sps * (choice_port_entry - center_poke)).astype('int')
 
         # stimulus is response time before choice, which starts at aligned ind
-        stim_on_idx = (aligned_ind - sps * (choice_port_entry - stim_on)).astype('int')
-        stim_off_idx = (aligned_ind - sps * (choice_port_entry - stim_off)).astype('int')
+        stim_on_idx = (resp_start_align_buffer - sps * (choice_port_entry - stim_on)).astype('int')
+        stim_off_idx = (resp_start_align_buffer - sps * (choice_port_entry - stim_off)).astype('int')
 
-        response_start_idx = np.array([int(aligned_ind)] * len(behav_df))
+        # All response times occur in the same bin (because they're aligned...duh), which is
+        # resp_start_align_buff bins away from beginning of array.
+        response_start_idx = np.array([int(resp_start_align_buffer)] * len(behav_df))
 
-        # reward is waiting time after choice, which starts at aligned_ind
+        # reward is waiting time after choice, which starts at resp_start_align_buffer
         # things are already response aligned
-        response_end_idx = (sps * (response_end - choice_port_entry) + aligned_ind).astype('int')
+        response_end_idx = (sps * (response_end - choice_port_entry) + resp_start_align_buffer).astype('int')
     return dict(trial_len_in_bins=trial_len_in_bins,
                 center_poke=center_poke_idx,
                 stim_on=stim_on_idx,
@@ -223,7 +225,7 @@ def align_traces_to_task_events(behav_df,
 
     print(f'Check: the trial number in the spike and behavioral data match: {len(behav_df)}, {n_trials}')
 
-    event_idx = get_trial_event_indices(d['trial_times_in_reference_to'], behav_df, sps, d['aligned_ind'])
+    event_idx = get_trial_event_indices(d['trial_times_in_reference_to'], behav_df, sps, d['resp_start_align_buffer'])
     # ---------------------------------------------------------------------- #
 
     # -----------------------Stimulus-aligned frame------------------------------- #
@@ -284,11 +286,14 @@ def interpolate_traces(behav_df,
 
     print(f'Check: the trial number in the spike and behavioral data match: {len(behav_df)}, {n_trials}')
 
-    event_idx = get_trial_event_indices(d['trial_times_in_reference_to'], behav_df, sps, d['aligned_ind'])
+    event_idx = get_trial_event_indices(d['trial_times_in_reference_to'], behav_df, sps, d['resp_start_align_buffer'])
     # -------------------------------------------------------------------- #
+    if np.sum(event_idx['trial_len_in_bins'] > 1200):
+        print(f"{np.sum(event_idx['trial_len_in_bins'] > 1200)} trials longer than traces. Truncating.")
+        event_idx['trial_len_in_bins'][event_idx['trial_len_in_bins'] > 1200] = 1200
 
     interp_traces = []
-    for trial_i in range(n_trials):
+    for trial_i in trange(n_trials):
         interp_traces.append(interpolate_trial_trace(trial_i, traces, event_idx, 
                                                      d['trial_event_interpolation_lengths'], 
                                                      d['pre_center_interval'], 
