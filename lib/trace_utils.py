@@ -199,7 +199,7 @@ def align_helper(traces, begin_arr, end_arr, index_arr):
     aligned_arr = np.full([traces.shape[0], traces.shape[1], max(end_arr - begin_arr)], np.nan)
     for i in trange(traces.shape[1]):
         aligned_arr[:, i, offset_arr[i]:alignment_idx] = traces[:, i, begin_arr[i]:index_arr[i]]
-        aligned_arr[:, i, alignment_idx:len_after_arr[i]] = traces[:, i, index_arr[i]:end_arr[i]]
+        aligned_arr[:, i, alignment_idx:(alignment_idx+len_after_arr[i])] = traces[:, i, index_arr[i]:end_arr[i]]
 
     return aligned_arr, alignment_idx
 
