@@ -72,12 +72,12 @@ alignment_param_dict = dict(
     trial_times_in_reference_to='ResponseStart',  # ['TrialStart', 'ResponseStart']
     resp_start_align_buffer=int(2.0 * sps),  # for ResponseStart
     downsample_dt=trace_subsample_bin_size_ms,
-    pre_center_interval = int(0.5 * sps),
-    post_stim_interval = int(0.5*sps),
-    pre_response_interval = int(2.0*sps),
-    post_response_interval = int(3.0*sps),
-    pre_reward_interval = int(6.0*sps),  # but response time start will be used if later than this point
-    post_reward_interval = int(3.0*sps),
+    pre_stim_interval = int(0.5 * sps),  # truncated at center_poke
+    post_stim_interval = int(0.5*sps),  # truncated at stim_off
+    pre_response_interval = int(3.0*sps),  # truncated at stim_off
+    post_response_interval = int(4.0*sps),  # truncated at response_end
+    pre_reward_interval = int(6.0*sps),  # truncated at response_time
+    post_reward_interval = int(5.0*sps),  # truncated at trial_end
 )
 
 tu.align_traces_to_task_events(cbehav_df, trialwise_binned_response_align, alignment_param_dict, save_dir=DATA_DIR)
@@ -94,8 +94,9 @@ interpolation_param_dict = dict(
         int(0.45 * sps), # center->stim_begin
         int(.5 * sps),   # stim delivery
         int(.3 * sps),   # movement to side port
-        int(0.5 * sps),  # first 0.5s of anticipation period
-        int(0.5 * sps),  # second part of anticipation period warped into 0.5s (actually half second in reward-bias)
+        # int(0.5 * sps),  # first 0.5s of anticipation epoch
+        # int(0.5 * sps),  # second part of anticipation epoch warped into 0.5s (actually half second in reward-bias)
+        int(3.0 * sps),  # anticipation epoch
         int(1.5 * sps),  # after feedback
     ],
     pre_center_interval = int(0.5 * sps),
@@ -104,3 +105,4 @@ interpolation_param_dict = dict(
 )
 
 tu.interpolate_traces(cbehav_df, trialwise_binned_response_align, interpolation_param_dict, save_dir=DATA_DIR)
+
