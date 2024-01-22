@@ -292,9 +292,9 @@ def interpolate_traces(behav_df,
 
     event_idx = get_trial_event_indices(d['trial_times_in_reference_to'], behav_df, sps, d['resp_start_align_buffer'])
     # -------------------------------------------------------------------- #
-    if np.sum(event_idx['trial_len_in_bins'] > 1200):
-        print(f"{np.sum(event_idx['trial_len_in_bins'] > 1200)} trials longer than traces. Truncating.")
-        event_idx['trial_len_in_bins'][event_idx['trial_len_in_bins'] > 1200] = 1200
+    if np.sum(event_idx['trial_len_in_bins'] > n_time_bins):
+        print(f"{np.sum(event_idx['trial_len_in_bins'] > n_time_bins)} trial lengths greater than trace length. Setting to trace length.")
+        event_idx['trial_len_in_bins'][event_idx['trial_len_in_bins'] > n_time_bins] = n_time_bins
 
     interp_traces = []
     for trial_i in trange(n_trials):
