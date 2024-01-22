@@ -163,7 +163,7 @@ def get_trial_event_indices(in_reference_to, behav_df, sps, resp_start_align_buf
                 response_end=response_end_idx)
 
 
-def align_helper(traces, begin_arr, end_arr, index_arr):
+def align_helper(traces, begin_arr, end_arr, index_arr, pre_buffer, post_buffer):
     """
     Given the beginning and end of a certain type of event,
     this function finds the point at which that event is indexed
@@ -178,10 +178,12 @@ def align_helper(traces, begin_arr, end_arr, index_arr):
     begin_arr : [ARRAY] start times.
     end_arr : [ARRAY] end times. :P
     index_arr : [ARRAY] times at which event was registered.
+    pre_buffer : [scalar] length of output trace before alignment index
+    post_buffer : [scalar] length of output trace after alignment index
 
     Returns
     -------
-    aligned_arr : [ARRAY] aligned traces.
+    aligned_arr : [ARRAY] aligned traces: n_neurons x n_trials x (pre_buffer+1+post_buffer)
     alignment_idx : [INT] max delay from beginning, used as reference.
 
     """
@@ -192,13 +194,15 @@ def align_helper(traces, begin_arr, end_arr, index_arr):
     begin_arr[begin_arr < 0] = 0  # set negative indices to beginning of trace
     len_preceding_arr = index_arr - begin_arr  # bin number of event relative to beginning of frame
     assert np.all(len_preceding_arr > 0)
-    alignment_idx = max(len_preceding_arr)
+    alignment_idx = pre_buffer
+    assert max(len_preceding_arr) <= pre_buffer
     offset_arr = alignment_idx - len_preceding_arr
 
     end_arr[end_arr > trial_len] = trial_len  # set overflow to end of trace
     len_after_arr = end_arr - index_arr
+    assert max(len_after_arr) <= post_buffer
 
-    aligned_arr = np.full([traces.shape[0], traces.shape[1], max(end_arr - begin_arr)], np.nan)
+    aligned_arr = np.full([traces.shape[0], traces.shape[1], pre_buffer+1+post_buffer], np.nan)
     for i in trange(traces.shape[1]):
         aligned_arr[:, i, offset_arr[i]:alignment_idx] = traces[:, i, begin_arr[i]:index_arr[i]]
         aligned_arr[:, i, alignment_idx:(alignment_idx+len_after_arr[i])] = traces[:, i, index_arr[i]:end_arr[i]]
