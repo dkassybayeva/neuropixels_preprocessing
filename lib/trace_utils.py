@@ -233,36 +233,36 @@ def align_traces_to_task_events(behav_df,
     # ---------------------------------------------------------------------- #
 
     # -----------------------Stimulus-aligned frame------------------------------- #
-    align_dict = dict(
-    begin_arr = event_idx['center_poke'] - d['pre_center_interval'],
-    index_arr = event_idx['stim_on'],
-    end_arr   = event_idx['stim_on'] + d['post_stim_interval'],
-    )
+    align_dict = dict(index_arr = event_idx['stim_on'])
+    align_dict['begin_arr']   = np.maximum(event_idx['stim_on'] - d['pre_stim_interval'],  event_idx['center_poke'])
+    align_dict['end_arr']     = np.minimum(event_idx['stim_on'] + d['post_stim_interval'], event_idx['stim_off'])
+    align_dict['pre_buffer']  = d['pre_stim_interval']
+    align_dict['post_buffer'] = d['post_stim_interval']
 
     stim_aligned, stim_point = align_helper(traces, **align_dict)
-    assert stim_aligned.shape[:2] == (n_neurons, n_trials)
+    assert stim_aligned.shape == (n_neurons, n_trials, d['pre_stim_interval'] + 1 + d['post_stim_interval'])
     joblib.dump(dict(traces=stim_aligned, ind=stim_point, params=d), save_dir + f'stimulus_aligned_traces_{sub_dt}ms_bins', compress=5)
     
     # -----------------------Response-aligned frame------------------------------- #
-    align_dict = dict(
-        begin_arr = event_idx['response_start'] - d['pre_response_interval'],
-        index_arr = event_idx['response_start'],
-        end_arr   = event_idx['response_start'] + d['post_response_interval'] ,
-    )
+    align_dict = dict(index_arr = event_idx['response_start'])
+    align_dict['begin_arr']   = np.maximum(event_idx['response_start'] - d['pre_response_interval'], event_idx['stim_off'])
+    align_dict['end_arr']     = np.minimum(event_idx['response_start'] + d['post_response_interval'], event_idx['response_end'])
+    align_dict['pre_buffer']  = d['pre_response_interval']
+    align_dict['post_buffer'] = d['post_response_interval']
 
     response_aligned, response_point = align_helper(traces, **align_dict)
-    assert response_aligned.shape[:2] == (n_neurons, n_trials)
+    assert response_aligned.shape == (n_neurons, n_trials, d['pre_response_interval'] + 1 + d['post_response_interval'])
     joblib.dump(dict(traces=response_aligned, ind=response_point), save_dir + f'response_aligned_traces_{sub_dt}ms_bins', compress=5)
 
     # -----------------------Reward-aligned frame--------------------------------- #
-    align_dict = dict(
-        begin_arr = np.maximum(event_idx['response_start'], event_idx['response_end'] - d['pre_reward_interval']),
-        index_arr = event_idx['response_end'],
-        end_arr   = event_idx['response_end'] + d['post_reward_interval'],
-    )
+    align_dict = dict(index_arr = event_idx['response_end'])
+    align_dict['begin_arr']   = np.maximum(event_idx['response_end'] - d['pre_reward_interval'], event_idx['response_start'])
+    align_dict['end_arr']     = np.minimum(event_idx['response_end'] + d['post_reward_interval'], event_idx['trial_len_in_bins'])
+    align_dict['pre_buffer']  = d['pre_reward_interval']
+    align_dict['post_buffer'] = d['post_reward_interval']
 
     reward_aligned, reward_point = align_helper(traces, **align_dict)
-    assert reward_aligned.shape[:2] == (n_neurons, n_trials)
+    assert reward_aligned.shape == (n_neurons, n_trials, d['pre_reward_interval'] + 1 + d['post_reward_interval'])
     joblib.dump(dict(traces=reward_aligned, ind=reward_point), save_dir + f'reward_aligned_traces_{sub_dt}ms_bins', compress=5)
 # ------------------------------------------------------------------------------------------ #
 

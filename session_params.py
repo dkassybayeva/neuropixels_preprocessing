@@ -38,14 +38,14 @@ interpolation_param_dict = dict(
 
 alignment_param_dict = dict(
     trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
-    resp_start_align_buffer=40,  # for ResponseStart
+    resp_start_align_buffer=None,  # for ResponseStart
     downsample_dt=trace_subsample_bin_size_ms,
-    pre_center_interval = int(0.5 * sps),
-    post_stim_interval = int(0.5*sps),
-    pre_response_interval = int(2.1*sps),
-    post_response_interval = int(3.1*sps),
-    pre_reward_interval = int(6.1*sps),  # but response time start will be used if later than this point
-    post_reward_interval = int(2.1*sps),
+    pre_stim_interval = int(0.5 * sps),  # truncated at center_poke
+    post_stim_interval = int(0.5*sps),  # truncated at stim_off
+    pre_response_interval = int(3.0*sps),  # truncated at stim_off
+    post_response_interval = int(4.0*sps),  # truncated at response_end
+    pre_reward_interval = int(6.0*sps),  # truncated at response_time
+    post_reward_interval = int(5.0*sps),  # truncated at trial_end
 )
 
 
