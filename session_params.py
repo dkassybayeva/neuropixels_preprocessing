@@ -27,8 +27,9 @@ interpolation_param_dict = dict(
         int(0.45 * sps), # center->stim_begin
         int(.5 * sps),   # stim delivery
         int(.3 * sps),   # movement to side port
-        int(0.5 * sps),  # first 0.5s of anticipation period
-        int(0.5 * sps),  # second part of anticipation period warped into 0.5s (actually half second in reward-bias)
+        # int(0.5 * sps),  # first 0.5s of anticipation epoch
+        # int(0.5 * sps),  # second part of anticipation epoch warped into 0.5s (actually half second in reward-bias)
+        int(3.0 * sps),  # anticipation epoch
         int(1.5 * sps),  # after feedback
     ],
     pre_center_interval = int(0.5 * sps),

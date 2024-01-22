@@ -334,7 +334,7 @@ def interpolate_trial_trace(trial_i, traces, event_idx, interp_lens, pre_center_
         event_idx['stim_on'][trial_i],
         event_idx['stim_off'][trial_i],
         event_idx['response_start'][trial_i],
-        event_idx['response_start'][trial_i] + post_response_interval,
+        # event_idx['response_start'][trial_i] + post_response_interval,
         event_idx['response_end'][trial_i],
         event_idx['trial_len_in_bins'][trial_i],
     ]
