@@ -2,6 +2,7 @@ from os.path import exists
 import numpy as np
 from scipy.io.matlab import loadmat
 import joblib
+import seaborn as sns
 
 from neuropixels_preprocessing.session_params import get_root_path 
 from neuropixels_preprocessing.lib.behavior_utils import calc_event_outcomes
@@ -12,7 +13,7 @@ import neuropixels_preprocessing.lib.trace_utils as tu
 # -------------------------------------------------------------- #
 DATA_ROOT = 'server'  # ['local', 'server', 'X:', etc.]
 rat = 'Nina2'
-date = '20210623'
+date = '20210622'
 input_data = f'{rat}_{date}a_ms_PSTH.mat'
 
 DATA_DIR = get_root_path(DATA_ROOT) + f'{rat}/ephys/{date}_Torben_preprocess/'
@@ -45,11 +46,24 @@ spike_times = session_data['SPIKEIDX']
 
 spike_mat = np.zeros(int(n_neurons) * int(n_trials) * int(T), dtype='uint8')
 spike_mat[spike_times.astype('uint')] = 1
-spike_mat = spike_mat.reshape(n_neurons, n_trials, T)
+
+"""
+The following is equivalent to:
+spike_mat = spike_mat.reshape(T,  n_trials, n_neurons)
+spike_mat = spike_mat.transpose(2, 1, 0)
+Matlab uses Fortran (column) matrix reordering, whereas numpy defaults to 'C' (row) reordering.
+"""
+spike_mat = spike_mat.reshape(n_neurons, n_trials, T, order='F')
+
 assert spike_mat.sum() == len(spike_times)
 
 assert n_trials == len(event_dict['TrialStartAligned'])
 behav_df = calc_event_outcomes(event_dict, metadata)
+
+unrewarded_idx = (event_dict['Rewarded']==0) & ~np.isnan(event_dict['ChosenDirection'])
+heatmap = np.nanmean(spike_mat[:, unrewarded_idx, :], 1)
+hmax = heatmap.max().round()
+sns.heatmap(heatmap, cmap='vlag', cbar=True, vmin=-hmax, vmax=hmax)
 # -------------------------------------------------------------- #
 
 
@@ -67,6 +81,13 @@ joblib.dump(cbehav_df, DATA_DIR + "behav_df", compress=3)
 # -------------------------------------------------------------- #
 trialwise_binned_response_align = spike_mat[:, choice_mask, :]
 assert trialwise_binned_response_align.shape[1] == len(cbehav_df)
+
+"""
+For testing: this is a good breakpoint, where the data can be loaded instead of recalculated
+every time a new alignment or interpolation is tried.
+"""
+# cbehav_df = joblib.load(DATA_DIR + 'behav_df')
+# trialwise_binned_response_align = joblib.load(DATA_DIR + 'trialwise_binned_response_align_choice_only_ms')
 
 alignment_param_dict = dict(
     trial_times_in_reference_to='ResponseStart',  # ['TrialStart', 'ResponseStart']
