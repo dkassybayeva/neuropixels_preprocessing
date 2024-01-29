@@ -26,9 +26,10 @@ class DataContainer:
         self.objID = f"{metadata['rat_name']}_{metadata['date']}_{metadata['task']}_probe{metadata['probe_num']}"
             
     def load_cluster_info(self, cluster_filename):
-        cluster_dict = joblib.load(self.data_path + cluster_filename)
+        cluster_dict = joblib.load(cluster_filename)[self.objID]
         self.cluster_neurons = cluster_dict['neurons']
         self.cluster_labels = cluster_dict['labels']
+        assert len(self.cluster_neurons) <= len(self.metadata['nrn_phy_ids'])
     
     def neurons_of_cluster(self, clust_i):
        return self.cluster_neurons[self.cluster_labels == clust_i]
