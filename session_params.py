@@ -175,8 +175,8 @@ def get_stitched_session_paths(data_root, sesh_1_metadata, sesh_2_metadata):
 
     stitch_paths = dict()
     combined_session = f"{sesh_1_metadata['date']}_{sesh_2_metadata['date']}"
-    root_path = get_root_path(data_root)
-    stitch_paths['stitch_dir'] = root_path + f'{rat}/ephys/{combined_session}/'
+    root_path = save_directory_helper(data_root)
+    stitch_paths['stitch_dir'] = root_path + f'{rat}/{combined_session}/'
     assert path.exists(stitch_paths['stitch_dir'])
 
     stitch_paths['probe_dir'] = stitch_paths['stitch_dir'] + f"probe{sesh_1_metadata['probe_num']}/kilosort{sesh_1_metadata['kilosort_ver']}/"
