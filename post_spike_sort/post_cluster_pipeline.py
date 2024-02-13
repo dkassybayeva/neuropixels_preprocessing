@@ -9,7 +9,7 @@ import numpy as np
 from tqdm import trange
 import joblib
 
-from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile
+from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile, get_Trodes_timestamps
 import neuropixels_preprocessing.lib.timing_utils as tu
 import neuropixels_preprocessing.lib.obj_utils as ou
 import neuropixels_preprocessing.lib.behavior_utils as bu
@@ -100,20 +100,43 @@ if LFPs:
         # -------------------------------------------------------- #
         metadata['probe_num'] = probe_i
         session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
-        lfp_output_dir = preprocess_dir + f'probe{probe_i}/' + 'LFPs/'
-        ou.make_dir_if_nonexistent(lfp_output_dir)
+        lfp_output_dir = preprocess_dir + f'probe{probe_i}/'
+        # lfp_output_dir = preprocess_dir + f'probe{probe_i}/' + 'LFPs/'
+        # ou.make_dir_if_nonexistent(lfp_output_dir)
 
         # -------------------------------------------------------- #
         #      Export LFP data from channels of good units
         # -------------------------------------------------------- #
         cluster_label_df = pd.read_csv(session_paths['probe_dir'] + 'cluster_info.tsv', sep="\t")
-        good_cluster_channels = np.unique(cluster_label_df.ch[cluster_label_df['group'] == 'good'].to_numpy())
+        good_clusters = cluster_label_df.cluster_id[cluster_label_df['group'] == 'good'].to_numpy()
+        good_cluster_channels = cluster_label_df.ch[cluster_label_df['group'] == 'good'].to_numpy()
+        assert len(good_clusters) == len(good_cluster_channels)
 
-        for chan_i in trange(len(good_cluster_channels)):
+        behav_df = joblib.load(preprocess_dir + 'behav_df')
+        cbehav_df = behav_df[behav_df['MadeChoice']].reset_index(drop=True)
+        trodes_timestamps = get_Trodes_timestamps(session_paths['timestamps_dat'])
+        len_recording_sec = (trodes_timestamps[-1] - trodes_timestamps[0]) / fs
+        ch_lfp_data = readTrodesExtractedDataFile(LFP_dir + LFP_file_str.format(str(1000 * probe_i + good_cluster_channels[0])))['data']
+        lfp_fs = np.round(1 / (len_recording_sec / len(ch_lfp_data)))
+        subsample_bins = int(lfp_fs * 2 / 1000)
+
+        ch_lfp_trialwise_list = []
+
+        for chan_i in trange(len(good_clusters)):
             chan = good_cluster_channels[chan_i]
             ch_lfp_data = readTrodesExtractedDataFile(LFP_dir + LFP_file_str.format(str(1000 * probe_i + chan)))['data']
             ch_lfp_data_arr = np.array([x[0] for x in ch_lfp_data])
-            joblib.dump(ch_lfp_data_arr, lfp_output_dir + f'ch{chan}',compress=5)
+
+            ch_lfp_data_ms_arr = np.repeat(ch_lfp_data_arr, 2).reshape(-1, subsample_bins).mean(axis=1)
+
+            # add neuron axis in order to reuse trial_start_align (can handle spiking data of all neurons at once)
+            ch_lfp_trialwise, temp_df = trace_utils.trial_start_align(cbehav_df, ch_lfp_data_ms_arr[np.newaxis, ...], sps=1000)
+            ch_lfp_trialwise_list.append(ch_lfp_trialwise[0])  # remove the extra neuron axis
+
+        neuron_trialwise_lfp_mat = np.array(ch_lfp_trialwise_list)
+        assert neuron_trialwise_lfp_mat.shape[0] == len(good_clusters)
+        assert neuron_trialwise_lfp_mat.shape[1] == len(cbehav_df)
+        joblib.dump(neuron_trialwise_lfp_mat, lfp_output_dir + 'trialwise_start_align_lfp_mat_in_ms',compress=5)
 
 
 if DATA_OBJECT:
