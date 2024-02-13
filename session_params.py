@@ -1,4 +1,4 @@
-from os import path, makedirs
+from os import path, makedirs, getlogin
 import pandas as pd
 
 # ----------------------------------------------------------------------- #
@@ -63,7 +63,7 @@ def get_root_path(data_root):
             data_root='/media/ottlab/data/'
     elif data_root=='local':
         print('USING LOCAL DATA FOR TESTING!!!')
-        data_root = '/home/mud/Workspace/ott_neuropix_data/'
+        data_root = f'/home/{getlogin()}/Workspace/ott_neuropix_data/'
     else:
         data_root = data_root + 'Neurodata/'
     return data_root
@@ -75,7 +75,7 @@ def save_directory_helper(data_root):
         if not path.exists(data_root):
             data_root = '/media/ottlab/share/ephys/'
     elif data_root == 'local':
-        data_root = '/home/mud/Workspace/ott_neuropix_data/'
+        data_root = f'/home/{getlogin()}/Workspace/ott_neuropix_data/'
     return data_root
 
 
