@@ -165,9 +165,9 @@ if PLOT_BIG_HEATMAPS:
     if FILTER_RAW_BEFORE_SORTING:
         fig, axs = plt.subplots(ncols=3, figsize=(20, 10))
         
-        si.plot_traces(raw_dat, backend='matplotlib', time_range=(4,6),  clim=(-4000, 4000), ax=axs[0])
-        si.plot_traces(rec_hpf, backend='matplotlib', time_range=(4,6),  clim=(-4000, 4000), ax=axs[1])
-        si.plot_traces(recording, backend='matplotlib',  clim=(-4000, 4000), ax=axs[2])
+        si.plot_traces(raw_dat, backend='matplotlib', time_range=(4,5),  clim=(-4000, 4000), ax=axs[0])
+        si.plot_traces(rec_hpf, backend='matplotlib', time_range=(4,5),  clim=(-4000, 4000), ax=axs[1])
+        si.plot_traces(recording, backend='matplotlib', time_range=(4,5), clim=(-4000, 4000), ax=axs[2])
         for i, label in enumerate(('raw', 'filter', 'cmr')):
             axs[i].set_title(label)
     else:
