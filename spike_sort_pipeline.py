@@ -18,15 +18,20 @@ USE_REC = False
 FILTER_RAW_BEFORE_SORTING = True  # applies HPF and CMR
 SAVE_PREPROCESSING = False
 
+RUN_SORTING = False
+RUN_ANALYSIS = False
+FILTER_GOOD_UNITS = False
+
 PLOT_BIG_HEATMAPS = False
 PLOT_SOME_CHANNELS = False
 PLOT_NOISE = False
 PLOT_PEAKS_ON_ELECTRODES = False
 
+job_kwargs = dict(n_jobs=40, chunk_duration='1s', progress_bar=True)
+
 if USE_REC:
     rec_file = base_folder / '20210617_114801.rec'
-    
-    
+
     # stream_names, stream_ids = si.get_neo_streams('spikegadgets', rec_file)
     # print('Available streams', stream_ids)
     
@@ -93,16 +98,28 @@ else:
     # ------------------------------------ #
     #           Read in data
     # ------------------------------------ #
-    binary_file = base_folder / f'TQ03_20210617_combined.probe{probe_num}.dat'
-    raw_dat = si.read_binary(file_paths=binary_file, 
+    # binary_file = base_folder / f'TQ03_20210617_combined.probe{probe_num}.dat'
+    from probeinterface.io import parse_spikegadgets_header
+    rec_file = base_folder.parent / '20210617_114801.rec'
+    spikegadgets_header = parse_spikegadgets_header(rec_file)
+
+    from xml.etree import ElementTree
+    root = ElementTree.fromstring(spikegadgets_header)
+    sconf = root.find("SpikeConfiguration")
+    scaling_from_binary_to_uV = float(sconf[0].attrib['spikeScalingToUv'])
+    binary_file = base_folder / f'20210617_114801.probe{probe_num}.dat'
+    raw_dat = si.read_binary(file_paths=binary_file,
                              sampling_frequency=30_000., 
                              num_channels=384, 
-                             dtype='int16')
+                             dtype='int16',
+                             gain_to_uV=scaling_from_binary_to_uV,
+                             offset_to_uV=0)
     
     # ------------------------------------ #
     #           Construct Probe
     # ------------------------------------ #
-    pad_coords_in_um = readTrodesExtractedDataFile(base_folder / f'TQ03_20210617_combined.channelmap_probe{probe_num}.dat')['data']
+    # pad_coords_in_um = readTrodesExtractedDataFile(base_folder / f'TQ03_20210617_combined.channelmap_probe{probe_num}.dat')['data']
+    pad_coords_in_um = readTrodesExtractedDataFile(base_folder / f'20210617_114801.channelmap_probe{probe_num}.dat')['data']
     pad_coords_in_um = np.vstack([np.array(list(row)) for row in pad_coords_in_um])
     n_chan = pad_coords_in_um.shape[0]
 
@@ -207,7 +224,6 @@ if PLOT_NOISE:
 
 if PLOT_PEAKS_ON_ELECTRODES:
     from spikeinterface.sortingcomponents.peak_detection import detect_peaks
-    job_kwargs = dict(n_jobs=40, chunk_duration='1s', progress_bar=True)
     peaks = detect_peaks(rec_hpf,  method='locally_exclusive', noise_levels=noise_levels_int16, detect_threshold=5, radius_um=50., **job_kwargs)
     print(peaks)
 
@@ -230,101 +246,154 @@ if PLOT_PEAKS_ON_ELECTRODES:
     plt.savefig(base_folder / f'voltage_peaks_on_electrodes_of_probe{probe_num}.png', dpi=100)
 
 
-
 sorting_folder = base_folder / 'spike_interface_kilosort4_output'
 sorting_folder.mkdir(exist_ok=True)
-# check default params for kilosort4
-si.get_default_sorter_params('kilosort4')
 
+if RUN_SORTING:
+    sorter_algorithm = 'kilosort4'
+    si.get_default_sorter_params(sorter_algorithm)
 
-if USE_REC:
-    """For single probes"""
-    # sorting = si.run_sorter('kilosort4', raw_dat, grouping_property='group', output_folder=base_folder / 'kilosort4_output', docker_image=False, verbose=True)
-    # alternative:
-    # sorting = si.run_sorter('kilosort4', raw_dat.split_by('group')[0], output_folder=base_folder / 'kilosort4_output', docker_image=False, verbose=True)
-    # print(sorting)
-    
-    """For multiple probes"""
-    # -----Either split ahead of time
-    
-    # split_preprocessed_recording = raw_dat.split_by("group")
-    # sortings = {}
-    # for group, sub_recording in split_preprocessed_recording.items():
-    #     sorting = si.run_sorter(
-    #         sorter_name='kilosort4',
-    #         recording=split_preprocessed_recording,
-    #         output_folder=f"folder_KS2_group{group}"
-    #         )
-    #     sortings[group] = sorting
-    
-    # -----Or use aggregate sorting
-    aggregate_sorting = si.run_sorter_by_property(
-        sorter_name='kilosort4',
-        recording=recording,
-        grouping_property='group',
-        working_folder=sorting_folder
-    )
-    print(aggregate_sorting)
-    
-    # the results can be read back for futur session
-    sorting = si.read_sorter_folder(sorting_folder)
+    if USE_REC:
+        """For single probes"""
+        # sorting = si.run_sorter('kilosort4', raw_dat, grouping_property='group', output_folder=base_folder / 'kilosort4_output', docker_image=False, verbose=True)
+        # alternative:
+        # sorting = si.run_sorter('kilosort4', raw_dat.split_by('group')[0], output_folder=base_folder / 'kilosort4_output', docker_image=False, verbose=True)
+
+        """For multiple probes"""
+        """-----Either split ahead of time-----"""
+        # split_preprocessed_recording = raw_dat.split_by("group")
+        # sortings = {}
+        # for group, sub_recording in split_preprocessed_recording.items():
+        #     sorting = si.run_sorter(
+        #         sorter_name=sorter_algorithm,
+        #         recording=split_preprocessed_recording,
+        #         output_folder=sorting_folder/f"{group}"
+        #         )
+        #     sortings[group] = sorting
+
+        """-----Or use aggregate sorting-----"""
+        aggregate_sorting = si.run_sorter_by_property(
+            sorter_name=sorter_algorithm,
+            recording=recording,
+            grouping_property='group',
+            working_folder=sorting_folder
+        )
+        print(aggregate_sorting)
+
+    else:
+        sorting = si.run_sorter(sorter_name=sorter_algorithm,
+                                recording=recording,
+                                output_folder=sorting_folder / f'{probe_num-1}',
+                                docker_image=False,
+                                verbose=True)
 else:
-    # from kilosort.utils import download_probes
-    # download_probes()
-    # from kilosort import run_kilosort
-    # # NOTE: 'n_chan_bin' is a required setting, and should reflect the total number
-    # #       of channels in the binary file. For information on other available
-    # #       settings, see `kilosort.run_kilosort.default_settings`.
-    # settings = {'filename':binary_file,'n_chan_bin': 384, 'results_dir': sorting_folder / f'probe{probe_num}'}
+    # The results can be read back for future sessions
+    if USE_REC:
+        sorting = si.read_sorter_folder(sorting_folder)
+    else:
+        sorting = si.read_sorter_folder(sorting_folder / f'{probe_num-1}')
 
-    # ops, st, clu, tF, Wall, similar_templates, is_ref, est_contam_rate = \
-    # run_kilosort(settings=settings, probe_name='neuropixPhase3B1_kilosortChanMap.mat')
-    
-    
-    sorting = si.run_sorter(sorter_name='kilosort4',
-                            recording=recording,
-                            output_folder=sorting_folder / f'probe{probe_num}', 
-                            docker_image=False, 
-                            verbose=True)
-    sorting = si.read_sorter_folder(sorting_folder / f'probe{probe_num}')
+
+if RUN_ANALYSIS:
+    """
+    POST SORTING
+    """
+
+    analyzer = si.create_sorting_analyzer(sorting, recording, sparse=True, format="memory")
+    print(analyzer)
+
+    analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
+    analyzer.compute("waveforms",  ms_before=1.5, ms_after=2., **job_kwargs)
+    analyzer.compute("templates", operators=["average", "median", "std"])
+    analyzer.compute("correlograms")
+
+    analyzer.compute("noise_levels")
+    analyzer.compute("unit_locations")
+    analyzer.compute("spike_amplitudes", **job_kwargs)  # run in parallel using **job_kwargs
+    analyzer.compute("template_similarity")
+
+    # Some metrics are based on PCA (like 'isolation_distance', 'l_ratio', 'd_prime') and require to estimate PCA for their computation. This can be achieved with:
+    analyzer.compute("principal_components")
+    """
+    Equivalent to
+    metric_names=['firing_rate', 'presence_ratio', 'snr', 'isi_violation', 'amplitude_cutoff']
+    metrics = si.compute_quality_metrics(analyzer, metric_names=metric_names)
+    """
+    metrics = analyzer.compute("quality_metrics").get_data()
+    print(metrics)
+
+    save_str = "" if USE_REC else f"{probe_num-1}/"
+    metrics.to_csv(sorting_folder / (save_str + "metrics"))
+
+    # SortingAnalyzer can be saved to disk using save_as() which makes a copy of the analyzer and all computed extensions.
+    analyzer_saved = analyzer.save_as(folder=sorting_folder / (save_str + "analzer"), format="binary_folder", )
+    print(analyzer_saved)
+
+
+
+else:
+    save_str = "" if USE_REC else f"{probe_num-1}/"
+    analyzer = si.load_sorting_analyzer(folder=sorting_folder / (save_str + "analzer"))
+    import pandas as pd
+    metrics = pd.read_csv(sorting_folder / (save_str + "metrics"), index_col=0)
+
+for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff']:
+    metric_df = pd.DataFrame()
+    metric_df['cluster_id'] = metrics.index
+    # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
+    metric_df[metric] = metrics[metric]
+    metric_df.to_csv(sorting_folder / (save_str + "sorter_output") / ('cluster_'+metric+'.tsv'), sep='\t', index=False)
+
+# Curation using metrics
+if FILTER_GOOD_UNITS:
+    #A very common curation approach is to threshold these metrics to select good units:
+
+    amplitude_cutoff_thresh = 0.1
+    isi_violations_ratio_thresh = 1
+    presence_ratio_thresh = 0.9
+
+    our_query = f"(amplitude_cutoff < {amplitude_cutoff_thresh}) & (isi_violations_ratio < {isi_violations_ratio_thresh}) & (presence_ratio > {presence_ratio_thresh})"
+    print(our_query)
+
+    # > (amplitude_cutoff < 0.1) & (isi_violations_ratio < 1) & (presence_ratio > 0.9)
+
+    keep_units = metrics.query(our_query)
+    keep_unit_ids = keep_units.index.values
+    keep_unit_ids
+    print(len(keep_unit_ids))
+
+    # > array([ 7,  8,  9, 10, 12, 14])
+
+
+    """Export final results to disk folder and visulize with sortingview"""
+    # In order to export the final results we need to make a copy of the the waveforms, but only for the selected units (so we can avoid to compute them again).
+    analyzer_clean = analyzer.select_units(keep_unit_ids, folder=sorting_folder / (save_str + 'analyzer_clean'), format='binary_folder')
+    analyzer_clean
+
+    # > SortingAnalyzer: 383 channels - 6 units - 1 segments - binary_folder - sparse - has recording
+    # > Loaded 9 extensions: random_spikes, waveforms, templates, noise_levels, correlograms, unit_locations, spike_amplitudes, template_similarity, quality_metrics
+
+    #Then we export figures to a report folder
+    # export spike sorting report to a folder
+    si.export_report(analyzer_clean, sorting_folder / (save_str + 'report'), format='png')
+else:
+    analyzer_clean = si.load_sorting_analyzer(base_folder / 'analyzer_clean')
+    analyzer_clean
+
+
 
 """
-POST SORTING
+Push the results to sortingview webased viewer
+1. At the conda prompt in the terminal: $ pip install kachery-cloud
+2. Then: $ kachery-cloud-init
+3. Link GitHub account to Kachery Cloud
+4. Run the line below, which will give a URL in the output
 """
-
-analyzer = si.create_sorting_analyzer(folder=sorting_folder / f'probe{probe_num}', sparse=True, format="memory")
-# analyzer = si.create_sorting_analyzer(sorting, recording, sparse=True, format="memory")
-print(analyzer)
-
-analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
-analyzer.compute("waveforms",  ms_before=1.5,ms_after=2., **job_kwargs)
-analyzer.compute("templates", operators=["average", "median", "std"])
-analyzer.compute("noise_levels")
-print(analyzer)
-
-analyzer.compute("correlograms")
-analyzer.compute("unit_locations")
-analyzer.compute("spike_amplitudes", **job_kwargs)  # run in parallel using **job_kwargs
-analyzer.compute("template_similarity")
-print(analyzer)
-
-# SortingAnalyzer can be saved to disk using save_as() which make a copy of the analyzer and all computed extensions.
-analyzer_saved = analyzer.save_as(folder=sorting_folder / "analyzer", format="binary_folder")
-print(analyzer_saved)
+si.plot_sorting_summary(analyzer_clean, backend='sortingview')
 
 
-"""
-Quality Metrics
-"""
-# Some metrics are based on PCA (like 'isolation_distance', 'l_ratio', 'd_prime') and require to estimate PCA for their computation. This can be achieved with:
-analyzer.compute("principal_components")
 
-metrics = analyzer.compute("quality_metrics").get_data()
-# equivalent to
-# metric_names=['firing_rate', 'presence_ratio', 'snr', 'isi_violation', 'amplitude_cutoff']
-# metrics = si.compute_quality_metrics(analyzer, metric_names=metric_names)
-print(metrics)
 
-metrics.to_csv(sorting_folder / "metrics")
+
 
 print('Done.')
