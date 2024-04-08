@@ -12,6 +12,7 @@ from xml.etree import ElementTree
 
 
 base_folder = Path('Y:/NeuroData/TQ03/TQ03_20210617_combined.kilosort/')
+# base_folder = Path('/home/gerg/Workspace/ott_neuropix_data/TQ03/ephys/TQ03_20210617_combined.kilosort')
 
 USE_REC = False
 FILTER_RAW_BEFORE_SORTING = True  # applies HPF and CMR
@@ -19,8 +20,8 @@ SAVE_PREPROCESSING = False
 
 PLOT_BIG_HEATMAPS = False
 PLOT_SOME_CHANNELS = False
-PLOT_NOISE = True
-PLOT_PEAKS_ON_ELECTRODES = True
+PLOT_NOISE = False
+PLOT_PEAKS_ON_ELECTRODES = False
 
 if USE_REC:
     rec_file = base_folder / '20210617_114801.rec'
@@ -109,7 +110,7 @@ else:
     probe = Probe(ndim=2, si_units="um", model_name="Neuropixels 1.0", manufacturer="IMEC")
     probe.set_contacts(
         contact_ids=np.arange(n_chan),
-        positions=pad_coords_in_um[:, [1, 0]],
+        positions=pad_coords_in_um[:, :2],
         shapes="square",
         shank_ids=None,
         shape_params={"width": CONTACT_WIDTH, "height": CONTACT_HEIGHT},
@@ -117,14 +118,32 @@ else:
 
     # Wire it (i.e., point contact/electrode ids to corresponding hardware/channel ids)
     probe.set_device_channel_indices(np.arange(n_chan))
-    
+
+    # Create a nice polygon background when plotting the probes
+    x_min = probe.contact_positions[:, 0].min()
+    x_max = probe.contact_positions[:, 0].max()
+    x_mid = 0.5 * (x_max + x_min)
+    y_min = probe.contact_positions[:, 1].min()
+    y_max = probe.contact_positions[:, 1].max()
+    polygon_default = [
+        (x_min - CONTACT_WIDTH, y_min - CONTACT_HEIGHT / 2),
+        (x_mid, y_min - 5 * CONTACT_HEIGHT),
+        (x_max + CONTACT_WIDTH, y_min - CONTACT_HEIGHT / 2),
+        (x_max + CONTACT_WIDTH, y_max + CONTACT_WIDTH),
+        (x_min - CONTACT_WIDTH, y_max + CONTACT_WIDTH),
+    ]
+    probe.set_planar_contour(polygon_default)
+
     # ------------------------------------ #
     #        Attach Probe to data
     # ------------------------------------ #
     raw_dat.set_probe(probe, in_place=True)
-    
-    
-    
+
+    plot_probe(probe)
+    plt.show()
+
+
+
     
 
 
@@ -208,7 +227,7 @@ if PLOT_PEAKS_ON_ELECTRODES:
     plot_probe_group(raw_dat.get_probegroup(), same_axes=True, ax=ax)
     # ax.set_ylim(-100, 150)
     ax.scatter(peak_locations['x'], peak_locations['y'], color='purple', alpha=0.002)
-
+    plt.savefig(base_folder / f'voltage_peaks_on_electrodes_of_probe{probe_num}.png', dpi=100)
 
 
 
@@ -262,7 +281,8 @@ else:
     # run_kilosort(settings=settings, probe_name='neuropixPhase3B1_kilosortChanMap.mat')
     
     
-    sorting = si.run_sorter('kilosort4', recording, 
+    sorting = si.run_sorter(sorter_name='kilosort4',
+                            recording=recording,
                             output_folder=sorting_folder / f'probe{probe_num}', 
                             docker_image=False, 
                             verbose=True)
