@@ -57,7 +57,10 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
     cluster_spikes_dict = load(session_dir + '.phy/spikes_per_cluster.pkl')
     
     # load KS timestamps (these are indices in reality!) for each spike index
-    spike_times_arr = h5py.File(session_dir + 'spike_times.mat')['spikeTimes'][()][0]
+    #for ks 2.5
+    #spike_times_arr = h5py.File(session_dir + 'spike_times.mat')['spikeTimes'][()][0]
+    #for ks 4.0 I checked and spike-times.mat files have exact same info as spike_times.npy
+    spike_times_arr = np.load(session_dir + 'spike_times.npy')
     #----------------------------------------------------------------------#
     
     
