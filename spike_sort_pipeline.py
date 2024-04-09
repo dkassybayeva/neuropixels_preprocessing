@@ -166,14 +166,17 @@ else:
 
 
 if FILTER_RAW_BEFORE_SORTING:
-    rec_hpf = si.highpass_filter(raw_dat, freq_min=400.)
+    try:
+        rec_phaseshift = si.phase_shift(raw_dat)
+    except:
+        rec_phaseshift = raw_dat
+    rec_hpf = si.highpass_filter(rec_phaseshift, freq_min=400.)
     
     
     # bad_channel_ids, channel_labels = si.detect_bad_channels(rec_hpf)
     # rec_hpf_good = rec_hpf.remove_channels(bad_channel_ids)
     # print('bad_channel_ids', bad_channel_ids)
     
-    # rec_hpf_shift = si.phase_shift(rec_hpf)
     recording = si.common_reference(rec_hpf, operator="median", reference="global")
 else:
     recording = raw_dat
