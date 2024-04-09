@@ -6,6 +6,7 @@ Created on Thu Dec  8 10:33:50 2022
 """
 # %% 
 from joblib import load, dump
+import numpy as np
 
 import neuropixels_preprocessing.lib.timing_utils as tu
 import neuropixels_preprocessing.lib.obj_utils as ou
@@ -87,16 +88,18 @@ if SPIKES_AND_TTL:
   
   
 # %%
-# if BEHAVIOR:
-#     _sd = load(preprocess_dir + 'TrialEvents.npy')
+if BEHAVIOR:
+    _sd = load(preprocess_dir + 'TrialEvents.npy')
     
 
-#     n_trials = _sd['nTrials'] - 1  # throw out last trial (may be incomplete)
+    n_trials = _sd['nTrials'] - 1  # throw out last trial (may be incomplete)
     
     
-#     trialstart_str = 'recorded_TTL_trial_start_time'
-#     trial_len = _sd[trialstart_str][1:] - _sd[trialstart_str][:-1]
-    
+    trialstart_str = 'recorded_TTL_trial_start_time'
+    trial_len = _sd[trialstart_str][1:] - _sd[trialstart_str][:-1]
+    TrialStartTimestamp = _sd['TrialStartTimestamp'][:n_trials]
+    trialstart_df = np.ediff1d(TrialStartTimestamp)
+    max_gap = max(trialstart_df)
 #     behav_dict = dict(
 #     volume = _sd['Custom']['Volume'][:n_trials],
 #     frequency = _sd['Custom']['Frequency'][:n_trials],
