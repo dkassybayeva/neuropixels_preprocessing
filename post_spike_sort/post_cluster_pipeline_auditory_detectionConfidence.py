@@ -106,8 +106,8 @@ if BEHAVIOR:
         signal_volume = _sd['Custom']['TrialData']['SignalVolume'][:n_trials],
         TrialStartTimestamp = _sd['TrialStartTimestamp'][:n_trials],
         TrialEndTimestamp = _sd['TrialEndTimestamp'][:n_trials],
-        recorded_TTL_trial_start_time = _sd[trialstart_str][:n_trials],
-        trial_len = trial_len[:n_trials]
+        TTLTrialStartTime = _sd[trialstart_str][:n_trials],
+        TrialLength = trial_len[:n_trials]
     )
     behav_df = pd.DataFrame.from_dict(behav_dict)
     
@@ -127,10 +127,10 @@ for probe_i in range(1, metadata['n_probes']+1):
     
     # align spike times to behavioral data timeframe
     # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
-    trialwise_spike_mat_start_aligned, _ = trace_utils.trial_start_align(behav_df, spike_mat, metadata, sps=1000)
+    trialwise_spike_mat_start_aligned, _ = trace_utils.trial_start_align(behav_df, spike_mat, metadata, sps)
     
     # subsample (bin) data:
-    # [n_neurons x n_trials x (-1 means numpy calculates: trial_len / dt) x ds]
+    # [n_neurons x n_trials x (-1 means numpy ca lculates: trial_len / dt) x ds]
     # then sum over the dt bins
     n_neurons = trialwise_spike_mat_start_aligned.shape[0]
     n_trials = trialwise_spike_mat_start_aligned.shape[1]
