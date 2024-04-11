@@ -22,7 +22,7 @@ import neuropixels_preprocessing.lib.trace_utils as trace_utils
 # filled out and updated for each recording session.
 #----------------------------------------------------------------------#
 SPIKES_AND_TTL = True
-SAVE_INDIVIDUAL_SPIKETRAINS = True
+SAVE_INDIVIDUAL_SPIKETRAINS = False  # Used for stitching sessions.  Otherwise unnecessary.
 BEHAVIOR = True
 
 
@@ -127,7 +127,7 @@ for probe_i in range(1, metadata['n_probes']+1):
     
     # align spike times to behavioral data timeframe
     # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
-    trialwise_spike_mat_start_aligned, _ = trace_utils.trial_start_align(behav_df, spike_mat, metadata, sps)
+    trialwise_spike_mat_start_aligned, _ = trace_utils.trial_start_align(behav_df, spike_mat, sps=1000)
     
     # subsample (bin) data:
     # [n_neurons x n_trials x (-1 means numpy ca lculates: trial_len / dt) x ds]

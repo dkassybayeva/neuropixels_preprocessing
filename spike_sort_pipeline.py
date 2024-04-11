@@ -11,27 +11,29 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 
-base_folder = Path('Y:/NeuroData/TQ03/TQ03_20210617_combined.kilosort/')
-# base_folder = Path('/home/gerg/Workspace/ott_neuropix_data/TQ03/ephys/TQ03_20210617_combined.kilosort')
+base_folder = Path('X:/R12/20231210_191835.rec')
 
-USE_REC = False
+# ------------------------------------------------------- #
+# ------------------------------------------------------- #
+USE_REC = True
 FILTER_RAW_BEFORE_SORTING = True  # applies HPF and CMR
 SAVE_PREPROCESSING = False
 
-RUN_SORTING = False
-RUN_ANALYSIS = False
-FILTER_GOOD_UNITS = False
-EXPORT_TO_PHY = True
-
-PLOT_BIG_HEATMAPS = False
+RUN_SORTING = True  # To run Kilosort 4
+RUN_ANALYSIS = True  # To calculate quality metrics
+FILTER_GOOD_UNITS = False  # Can filter out bad neurons before Phy
+EXPORT_TO_PHY = True  # Creates new folder (some overlap with KS output folder) which includes quality metrics
+# ------------------------------------------------------- #
+PLOT_BIG_HEATMAPS = True  # Show filtering results
 PLOT_SOME_CHANNELS = False
 PLOT_NOISE = False
 PLOT_PEAKS_ON_ELECTRODES = False
+# ------------------------------------------------------- #
 
 job_kwargs = dict(n_jobs=40, chunk_duration='1s', progress_bar=True)
 
 if USE_REC:
-    rec_file = base_folder / '20210617_114801.rec'
+    rec_file = base_folder / '20231210_191835.rec'
 
     # stream_names, stream_ids = si.get_neo_streams('spikegadgets', rec_file)
     # print('Available streams', stream_ids)
@@ -46,10 +48,10 @@ if USE_REC:
     """
     Check that imported data from SpikeInterface for a single channel is the same as that written by Trodes exporter
     """
-    fs = raw_dat.get_sampling_frequency()
-    n_samples = raw_dat.neo_reader._raw_memmap.shape[0]
-    first_trace = raw_dat.get_traces(segment_index=0, channel_ids=['735'], start_frame=0, end_frame=1000).flatten()
-    first_trace.shape
+    # fs = raw_dat.get_sampling_frequency()
+    # n_samples = raw_dat.neo_reader._raw_memmap.shape[0]
+    # first_trace = raw_dat.get_traces(segment_index=0, channel_ids=['735'], start_frame=0, end_frame=1000).flatten()
+    # first_trace.shape
     
     """
     GK note: each channel in the .dat has a corresponding channel in the raw_dat import.
@@ -61,20 +63,20 @@ if USE_REC:
     'trode2384chan767', 'trode2383chan766', 'trode2382chan703',
     """
     
-    temp = np.fromfile(base_folder / '20210617_114801.kilosort' / '20210617_114801.probe1.dat', dtype='int16').reshape(384, -1, order='F')
-    assert temp.shape[1] == n_samples
-    first_trace_from_dat = temp[383][:1000]  # use Fortran / column reordering (default in numpy is C / row ordering)
-    scaling = 0.018311105685598315
+    # temp = np.fromfile(base_folder / '20210617_114801.kilosort' / '20210617_114801.probe1.dat', dtype='int16').reshape(384, -1, order='F')
+    # assert temp.shape[1] == n_samples
+    # first_trace_from_dat = temp[383][:1000]  # use Fortran / column reordering (default in numpy is C / row ordering)
+    # scaling = 0.018311105685598315
     # assert np.all(first_trace == -1 * first_trace_from_dat)
     # int(temp[0])
     
     # fig, ax = plt.subplots(figsize=(20, 10))
     # si.plot_traces({'pr1-ch1': raw_dat}, backend='matplotlib', mode='line', ax=ax, show_channel_ids=True, channel_ids=raw_dat.channel_ids[[0]], color='k', time_range=[0, 0.33], return_scaled=True)
     # plt.plot(np.linspace(0, 1000/fs, 1000), first_trace * scaling)
-    plt.plot(first_trace * scaling)
-    plt.plot(first_trace_from_dat * -1 * scaling)
-    plt.ylabel('uV')
-    plt.show()
+    # plt.plot(first_trace * scaling)
+    # plt.plot(first_trace_from_dat * -1 * scaling)
+    # plt.ylabel('uV')
+    # plt.show()
     
     
     # probe1_rec = raw_dat.split_by('group')[0]
