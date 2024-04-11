@@ -9,19 +9,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 from xml.etree import ElementTree
+import pandas as pd
 
 
-base_folder = Path('Y:/NeuroData/TQ03/TQ03_20210617_combined.kilosort/')
-# base_folder = Path('/home/gerg/Workspace/ott_neuropix_data/TQ03/ephys/TQ03_20210617_combined.kilosort')
-
-USE_REC = False
+# -------------------------------------------------------------------------- #
+#                         Script Parameters
+# -------------------------------------------------------------------------- #
+USE_REC = True
 FILTER_RAW_BEFORE_SORTING = True  # applies HPF and CMR
 SAVE_PREPROCESSING = False
 
-RUN_SORTING = False
-RUN_ANALYSIS = False
+RUN_SORTING = True
+RUN_ANALYSIS = True
+SORTED_IN_SPIKEINTERFACE = True
+EXPORT_TO_PHY = False
+
 FILTER_GOOD_UNITS = False
-EXPORT_TO_PHY = True
+ONLINE_CURATION = False
 
 PLOT_BIG_HEATMAPS = False
 PLOT_SOME_CHANNELS = False
@@ -29,86 +33,58 @@ PLOT_NOISE = False
 PLOT_PEAKS_ON_ELECTRODES = False
 
 job_kwargs = dict(n_jobs=40, chunk_duration='1s', progress_bar=True)
+# -------------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------------- #
+#                               Paths
+# -------------------------------------------------------------------------- #
+base_folder = Path('Y:/NeuroData/TQ03/TQ03_20210617_combined.kilosort')
+rec_file = base_folder.parent / '20210617_114801.rec/20210617_114801.rec'
+
+sorting_folder = base_folder / '20210617_KS4_probe1_full/probe1'
+
+if not USE_REC:
+    probe_num = 1
+    binary_file = base_folder / f'TQ03_20210617_combined.probe{probe_num}.dat'
+    chan_map_file = base_folder / f'TQ03_20210617_combined.channelmap_probe{probe_num}.dat'
+# -------------------------------------------------------------------------- #
+    
+
 
 if USE_REC:
-    rec_file = base_folder / '20210617_114801.rec'
-
     # stream_names, stream_ids = si.get_neo_streams('spikegadgets', rec_file)
     # print('Available streams', stream_ids)
     
-    # sg_rec = SpikeGadgetsRecordingExtractor(file_path=rec_file, stream_id='trodes')
-    # tvec = sg_rec.get_times()
-    # channels = sg_rec.get_channel_ids()
-    # duration_s = sg_rec.get_total_duration()
-    # sg_rec.get_probe().to_dataframe()
+    
     raw_dat = read_spikegadgets(rec_file)
-    
-    """
-    Check that imported data from SpikeInterface for a single channel is the same as that written by Trodes exporter
-    """
-    fs = raw_dat.get_sampling_frequency()
-    n_samples = raw_dat.neo_reader._raw_memmap.shape[0]
-    first_trace = raw_dat.get_traces(segment_index=0, channel_ids=['735'], start_frame=0, end_frame=1000).flatten()
-    first_trace.shape
-    
-    """
-    GK note: each channel in the .dat has a corresponding channel in the raw_dat import.
-    However, there are two issues:
-    - the channels in the .dat don't seem to have a logical correspondence with those in the header
-    - the .dat is -1 * the values in the .rec
-    
-    'trode1384chan735', 'trode1383chan734', 'trode1382chan671',
-    'trode2384chan767', 'trode2383chan766', 'trode2382chan703',
-    """
-    
-    temp = np.fromfile(base_folder / '20210617_114801.kilosort' / '20210617_114801.probe1.dat', dtype='int16').reshape(384, -1, order='F')
-    assert temp.shape[1] == n_samples
-    first_trace_from_dat = temp[383][:1000]  # use Fortran / column reordering (default in numpy is C / row ordering)
-    scaling = 0.018311105685598315
-    # assert np.all(first_trace == -1 * first_trace_from_dat)
-    # int(temp[0])
-    
-    # fig, ax = plt.subplots(figsize=(20, 10))
-    # si.plot_traces({'pr1-ch1': raw_dat}, backend='matplotlib', mode='line', ax=ax, show_channel_ids=True, channel_ids=raw_dat.channel_ids[[0]], color='k', time_range=[0, 0.33], return_scaled=True)
-    # plt.plot(np.linspace(0, 1000/fs, 1000), first_trace * scaling)
-    plt.plot(first_trace * scaling)
-    plt.plot(first_trace_from_dat * -1 * scaling)
-    plt.ylabel('uV')
-    plt.show()
-    
-    
-    # probe1_rec = raw_dat.split_by('group')[0]
-    # probe1 = raw_dat.get_probes()[0]
-    # assert np.all(probe1_rec.channel_ids == probe1.channel_ids)
-    
-    # probe1.to_dataframe()
-    
-    # plot_probe(probe)
+    # tvec = raw_dat.get_times()
+    # channels = raw_dat.get_channel_ids()
+    # duration_s = raw_dat.get_total_duration()
+    # raw_dat.get_probe().to_dataframe()
+    # fs = raw_dat.get_sampling_frequency()
+
     plot_probe_group(raw_dat.get_probegroup(), same_axes=True)
     plt.show()
-    # plot_probe_group(raw_dat.get_probegroup(), same_axes=False, with_contact_id=True)
-    # plt.show()
 else:
     from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile
     from probeinterface import Probe
+    from probeinterface.io import parse_spikegadgets_header
+    from xml.etree import ElementTree
+    
     CONTACT_WIDTH = 16  # um
     CONTACT_HEIGHT = 20  # um
-    
-    probe_num = 1
     
     # ------------------------------------ #
     #           Read in data
     # ------------------------------------ #
-    # binary_file = base_folder / f'TQ03_20210617_combined.probe{probe_num}.dat'
-    from probeinterface.io import parse_spikegadgets_header
-    rec_file = base_folder.parent / '20210617_114801.rec'
     spikegadgets_header = parse_spikegadgets_header(rec_file)
 
-    from xml.etree import ElementTree
+    
     root = ElementTree.fromstring(spikegadgets_header)
     sconf = root.find("SpikeConfiguration")
     scaling_from_binary_to_uV = float(sconf[0].attrib['spikeScalingToUv'])
-    binary_file = base_folder / f'20210617_114801.probe{probe_num}.dat'
+    
     raw_dat = si.read_binary(file_paths=binary_file,
                              sampling_frequency=30_000., 
                              num_channels=384, 
@@ -119,8 +95,7 @@ else:
     # ------------------------------------ #
     #           Construct Probe
     # ------------------------------------ #
-    # pad_coords_in_um = readTrodesExtractedDataFile(base_folder / f'TQ03_20210617_combined.channelmap_probe{probe_num}.dat')['data']
-    pad_coords_in_um = readTrodesExtractedDataFile(base_folder / f'20210617_114801.channelmap_probe{probe_num}.dat')['data']
+    pad_coords_in_um = readTrodesExtractedDataFile(chan_map_file)['data']
     pad_coords_in_um = np.vstack([np.array(list(row)) for row in pad_coords_in_um])
     n_chan = pad_coords_in_um.shape[0]
 
@@ -159,10 +134,6 @@ else:
 
     plot_probe(probe)
     plt.show()
-
-
-
-    
 
 
 if FILTER_RAW_BEFORE_SORTING:
@@ -250,10 +221,11 @@ if PLOT_PEAKS_ON_ELECTRODES:
     plt.savefig(base_folder / f'voltage_peaks_on_electrodes_of_probe{probe_num}.png', dpi=100)
 
 
-sorting_folder = base_folder / 'spike_interface_kilosort4_output'
-sorting_folder.mkdir(exist_ok=True)
+
+
 
 if RUN_SORTING:
+    sorting_folder.mkdir(exist_ok=True)
     sorter_algorithm = 'kilosort4'
     si.get_default_sorter_params(sorter_algorithm)
 
@@ -291,18 +263,24 @@ if RUN_SORTING:
                                 docker_image=False,
                                 verbose=True)
 else:
-    # The results can be read back for future sessions
-    if USE_REC:
-        sorting = si.read_sorter_folder(sorting_folder)
+    if SORTED_IN_SPIKEINTERFACE:
+        # The results can be read back for future sessions
+        if USE_REC:
+            sorting = si.read_sorter_folder(sorting_folder)
+        else:
+            sorting = si.read_sorter_folder(sorting_folder / f'{probe_num-1}')
     else:
-        sorting = si.read_sorter_folder(sorting_folder / f'{probe_num-1}')
+        print('Loading sorted data...')
+        sorting = si.read_phy(sorting_folder)
+    
+    
 
 
 if RUN_ANALYSIS:
     """
     POST SORTING
     """
-
+    print('Creating analyzer...')
     analyzer = si.create_sorting_analyzer(sorting, recording, sparse=True, format="memory")
     print(analyzer)
 
@@ -345,14 +323,24 @@ if RUN_ANALYSIS:
     # SortingAnalyzer can be saved to disk using save_as() which makes a copy of the analyzer and all computed extensions.
     analyzer_saved = analyzer.save_as(folder=sorting_folder / (save_str + "analzer"), format="binary_folder", )
     print(analyzer_saved)
-
-
-
 else:
     save_str = "" if USE_REC else f"{probe_num-1}/"
     analyzer = si.load_sorting_analyzer(folder=sorting_folder / (save_str + "analzer"))
-    import pandas as pd
     metrics = pd.read_csv(sorting_folder / (save_str + "metrics"), index_col=0)
+
+
+sorter_output_folder = sorting_folder / (save_str + "sorter_output")
+
+if EXPORT_TO_PHY:
+    # the export process is fast because everything is pre-computed
+    si.export_to_phy(analyzer, output_folder=sorter_output_folder / 'phy', copy_binary=False, verbose=True)
+else:
+    for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads']:
+        metric_df = pd.DataFrame()
+        metric_df['cluster_id'] = metrics.index
+        # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
+        metric_df[metric] = metrics[metric]
+        metric_df.to_csv(sorter_output_folder / ('cluster_' + metric + '.tsv'), sep='\t', index=False)
 
 
 # Curation using metrics
@@ -392,18 +380,7 @@ if FILTER_GOOD_UNITS:
     # analyzer_clean
 
 
-if EXPORT_TO_PHY:
-    sorter_output_folder = sorting_folder / (save_str + "sorter_output")
-    for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads']:
-        metric_df = pd.DataFrame()
-        metric_df['cluster_id'] = metrics.index
-        # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
-        metric_df[metric] = metrics[metric]
-        metric_df.to_csv(sorter_output_folder / ('cluster_' + metric + '.tsv'), sep='\t', index=False)
-
-    # the export process is fast because everything is pre-computed
-    si.export_to_phy(analyzer, output_folder=sorter_output_folder / 'phy', copy_binary=False, verbose=True)
-else:
+if ONLINE_CURATION:
     """
     Push the results to sortingview webased viewer
     1. At the conda prompt in the terminal: $ pip install kachery-cloud
@@ -412,10 +389,6 @@ else:
     4. Run the line below, which will give a URL in the output
     """
     si.plot_sorting_summary(analyzer_clean, backend='sortingview')
-
-
-
-
 
 
 print('Done.')
