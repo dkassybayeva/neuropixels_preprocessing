@@ -21,6 +21,7 @@ SAVE_PREPROCESSING = False
 RUN_SORTING = False
 RUN_ANALYSIS = False
 FILTER_GOOD_UNITS = False
+EXPORT_TO_PHY = True
 
 PLOT_BIG_HEATMAPS = False
 PLOT_SOME_CHANNELS = False
@@ -165,14 +166,17 @@ else:
 
 
 if FILTER_RAW_BEFORE_SORTING:
-    rec_hpf = si.highpass_filter(raw_dat, freq_min=400.)
+    try:
+        rec_phaseshift = si.phase_shift(raw_dat)
+    except:
+        rec_phaseshift = raw_dat
+    rec_hpf = si.highpass_filter(rec_phaseshift, freq_min=400.)
     
     
     # bad_channel_ids, channel_labels = si.detect_bad_channels(rec_hpf)
     # rec_hpf_good = rec_hpf.remove_channels(bad_channel_ids)
     # print('bad_channel_ids', bad_channel_ids)
     
-    # rec_hpf_shift = si.phase_shift(rec_hpf)
     recording = si.common_reference(rec_hpf, operator="median", reference="global")
 else:
     recording = raw_dat
@@ -309,8 +313,15 @@ if RUN_ANALYSIS:
 
     analyzer.compute("noise_levels")
     analyzer.compute("unit_locations")
+
     analyzer.compute("spike_amplitudes", **job_kwargs)  # run in parallel using **job_kwargs
     analyzer.compute("template_similarity")
+
+    # It is required to run sorting_analyzer.compute(input="spike_locations") first (if missing, values will be NaN)
+    analyzer.compute("spike_locations")
+    drift_ptps, drift_stds, drift_mads = si.compute_drift_metrics(sorting_analyzer=analyzer)
+    # drift_ptps, drift_stds, and drift_mads are each a dict containing the unit IDs as keys,
+    # and their metrics as values.
 
     # Some metrics are based on PCA (like 'isolation_distance', 'l_ratio', 'd_prime') and require to estimate PCA for their computation. This can be achieved with:
     analyzer.compute("principal_components")
@@ -321,6 +332,12 @@ if RUN_ANALYSIS:
     """
     metrics = analyzer.compute("quality_metrics").get_data()
     print(metrics)
+
+    assert len(drift_ptps) == len(metrics)
+    metrics['drift_ptps'] = [drift_ptps[key] for key in np.arange(len(drift_ptps))]
+    assert metrics['drift_ptps'][0] == drift_ptps[0]
+    metrics['drift_stds'] = [drift_stds[key] for key in np.arange(len(drift_stds))]
+    metrics['drift_mads'] = [drift_mads[key] for key in np.arange(len(drift_mads))]
 
     save_str = "" if USE_REC else f"{probe_num-1}/"
     metrics.to_csv(sorting_folder / (save_str + "metrics"))
@@ -337,12 +354,6 @@ else:
     import pandas as pd
     metrics = pd.read_csv(sorting_folder / (save_str + "metrics"), index_col=0)
 
-for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff']:
-    metric_df = pd.DataFrame()
-    metric_df['cluster_id'] = metrics.index
-    # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
-    metric_df[metric] = metrics[metric]
-    metric_df.to_csv(sorting_folder / (save_str + "sorter_output") / ('cluster_'+metric+'.tsv'), sep='\t', index=False)
 
 # Curation using metrics
 if FILTER_GOOD_UNITS:
@@ -376,20 +387,31 @@ if FILTER_GOOD_UNITS:
     #Then we export figures to a report folder
     # export spike sorting report to a folder
     si.export_report(analyzer_clean, sorting_folder / (save_str + 'report'), format='png')
+
+    # analyzer_clean = si.load_sorting_analyzer(base_folder / 'analyzer_clean')
+    # analyzer_clean
+
+
+if EXPORT_TO_PHY:
+    sorter_output_folder = sorting_folder / (save_str + "sorter_output")
+    for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads']:
+        metric_df = pd.DataFrame()
+        metric_df['cluster_id'] = metrics.index
+        # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
+        metric_df[metric] = metrics[metric]
+        metric_df.to_csv(sorter_output_folder / ('cluster_' + metric + '.tsv'), sep='\t', index=False)
+
+    # the export process is fast because everything is pre-computed
+    si.export_to_phy(analyzer, output_folder=sorter_output_folder / 'phy', copy_binary=False, verbose=True)
 else:
-    analyzer_clean = si.load_sorting_analyzer(base_folder / 'analyzer_clean')
-    analyzer_clean
-
-
-
-"""
-Push the results to sortingview webased viewer
-1. At the conda prompt in the terminal: $ pip install kachery-cloud
-2. Then: $ kachery-cloud-init
-3. Link GitHub account to Kachery Cloud
-4. Run the line below, which will give a URL in the output
-"""
-si.plot_sorting_summary(analyzer_clean, backend='sortingview')
+    """
+    Push the results to sortingview webased viewer
+    1. At the conda prompt in the terminal: $ pip install kachery-cloud
+    2. Then: $ kachery-cloud-init
+    3. Link GitHub account to Kachery Cloud
+    4. Run the line below, which will give a URL in the output
+    """
+    si.plot_sorting_summary(analyzer_clean, backend='sortingview')
 
 
 
