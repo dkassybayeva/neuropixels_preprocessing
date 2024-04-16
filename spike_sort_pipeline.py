@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from xml.etree import ElementTree
 import pandas as pd
+import platform
 
 
 # -------------------------------------------------------------------------- #
@@ -32,17 +33,21 @@ PLOT_SOME_CHANNELS = False
 PLOT_NOISE = False
 PLOT_PEAKS_ON_ELECTRODES = False
 
-job_kwargs = dict(n_jobs=40, chunk_duration='1s', progress_bar=True)
+
+job_kwargs = dict(chunk_duration='1s', progress_bar=True)
+if platform.system() != 'Windows':
+    job_kwargs['n_jobs'] = 40   
+    
 # -------------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------------- #
 #                               Paths
 # -------------------------------------------------------------------------- #
-base_folder = Path('Y:/NeuroData/TQ03/TQ03_20210617_combined.kilosort')
-rec_file = base_folder.parent / '20210617_114801.rec/20210617_114801.rec'
+base_folder = Path('Y:/NeuroData/TQ03/20210616_115352.rec')
+rec_file = base_folder / '20210616_115352.rec'
+sorting_folder = base_folder / 'spike_interface_output'
 
-sorting_folder = base_folder / '20210617_KS4_probe1_full/probe1'
 
 if not USE_REC:
     probe_num = 1
@@ -65,7 +70,7 @@ if USE_REC:
     # fs = raw_dat.get_sampling_frequency()
 
     plot_probe_group(raw_dat.get_probegroup(), same_axes=True)
-    plt.show()
+    plt.savefig(sorting_folder / 'probes.png', dpi=200)
 else:
     from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile
     from probeinterface import Probe
@@ -221,9 +226,6 @@ if PLOT_PEAKS_ON_ELECTRODES:
     plt.savefig(base_folder / f'voltage_peaks_on_electrodes_of_probe{probe_num}.png', dpi=100)
 
 
-
-
-
 if RUN_SORTING:
     sorting_folder.mkdir(exist_ok=True)
     sorter_algorithm = 'kilosort4'
@@ -248,13 +250,13 @@ if RUN_SORTING:
         #     sortings[group] = sorting
 
         """-----Or use aggregate sorting-----"""
-        aggregate_sorting = si.run_sorter_by_property(
+        sorting = si.run_sorter_by_property(
             sorter_name=sorter_algorithm,
             recording=recording,
             grouping_property='group',
             working_folder=sorting_folder
         )
-        print(aggregate_sorting)
+        print(sorting)
 
     else:
         sorting = si.run_sorter(sorter_name=sorter_algorithm,
@@ -262,121 +264,114 @@ if RUN_SORTING:
                                 output_folder=sorting_folder / f'{probe_num-1}',
                                 docker_image=False,
                                 verbose=True)
-else:
-    if SORTED_IN_SPIKEINTERFACE:
-        # The results can be read back for future sessions
-        if USE_REC:
-            sorting = si.read_sorter_folder(sorting_folder)
-        else:
-            sorting = si.read_sorter_folder(sorting_folder / f'{probe_num-1}')
+
+
+for probe_num in range(1, len(recording.get_probes())+1):
+    print('Loading sorted data...')
+    sorting = si.read_sorter_folder(sorting_folder / f'{probe_num-1}')
+
+    if RUN_ANALYSIS:
+        """
+        POST SORTING
+        """
+        print('Creating analyzer...')
+        analyzer = si.create_sorting_analyzer(sorting, recording, sparse=True, format="memory")
+    
+        analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500) # fast
+        analyzer.compute("noise_levels")  # fast
+        
+        analyzer.compute("waveforms",  ms_before=1.5, ms_after=2., **job_kwargs) # slow
+        analyzer.compute("templates", operators=["average", "median", "std"]) # fast, requires waveforms
+        analyzer.compute("unit_locations")  # requires templates, fast
+        analyzer.compute("template_similarity")  # requires templates, fast
+    
+        analyzer.compute("spike_amplitudes", **job_kwargs)  # run in parallel using **job_kwargs
+        analyzer.compute("spike_locations")  # requires templates, very slow
+    
+        # It is required to run sorting_analyzer.compute(input="spike_locations") first (if missing, values will be NaN)
+        drift_ptps, drift_stds, drift_mads = si.compute_drift_metrics(sorting_analyzer=analyzer)  # fast-ish
+        # drift_ptps, drift_stds, and drift_mads are each a dict containing the unit IDs as keys,
+        # and their metrics as values.
+        
+        analyzer.compute("correlograms")  # slow-ish
+    
+        # Some metrics are based on PCA (like 'isolation_distance', 'l_ratio', 'd_prime') and require to estimate PCA for their computation. This can be achieved with:
+        analyzer.compute("principal_components") # medium speed
+        """
+        Equivalent to
+        metric_names=['firing_rate', 'presence_ratio', 'snr', 'isi_violation', 'amplitude_cutoff']
+        metrics = si.compute_quality_metrics(analyzer, metric_names=metric_names)
+        """
+        metrics = analyzer.compute("quality_metrics").get_data()
+        
+        assert len(drift_ptps) == len(metrics)
+        metrics['drift_ptps'] = [drift_ptps[key] for key in np.arange(len(drift_ptps))]
+        assert metrics['drift_ptps'][0] == drift_ptps[0]
+        metrics['drift_stds'] = [drift_stds[key] for key in np.arange(len(drift_stds))]
+        metrics['drift_mads'] = [drift_mads[key] for key in np.arange(len(drift_mads))]
+        
+        print(metrics)
+    
+        save_str = "" if USE_REC else f"{probe_num-1}/"
+        metrics.to_csv(sorting_folder / (save_str + "metrics"))
+    
+        # SortingAnalyzer can be saved to disk using save_as() which makes a copy of the analyzer and all computed extensions.
+        analyzer_saved = analyzer.save_as(folder=sorting_folder / (save_str + "analzer"), format="binary_folder", )
+        print(analyzer_saved)
     else:
-        print('Loading sorted data...')
-        sorting = si.read_phy(sorting_folder)
+        save_str = "" if USE_REC else f"{probe_num-1}/"
+        analyzer = si.load_sorting_analyzer(folder=sorting_folder / (save_str + "analzer"))
+        metrics = pd.read_csv(sorting_folder / (save_str + "metrics"), index_col=0)
     
     
-
-
-if RUN_ANALYSIS:
-    """
-    POST SORTING
-    """
-    print('Creating analyzer...')
-    analyzer = si.create_sorting_analyzer(sorting, recording, sparse=True, format="memory")
-    print(analyzer)
-
-    analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500)
-    analyzer.compute("waveforms",  ms_before=1.5, ms_after=2., **job_kwargs)
-    analyzer.compute("templates", operators=["average", "median", "std"])
-    analyzer.compute("correlograms")
-
-    analyzer.compute("noise_levels")
-    analyzer.compute("unit_locations")
-
-    analyzer.compute("spike_amplitudes", **job_kwargs)  # run in parallel using **job_kwargs
-    analyzer.compute("template_similarity")
-
-    # It is required to run sorting_analyzer.compute(input="spike_locations") first (if missing, values will be NaN)
-    analyzer.compute("spike_locations")
-    drift_ptps, drift_stds, drift_mads = si.compute_drift_metrics(sorting_analyzer=analyzer)
-    # drift_ptps, drift_stds, and drift_mads are each a dict containing the unit IDs as keys,
-    # and their metrics as values.
-
-    # Some metrics are based on PCA (like 'isolation_distance', 'l_ratio', 'd_prime') and require to estimate PCA for their computation. This can be achieved with:
-    analyzer.compute("principal_components")
-    """
-    Equivalent to
-    metric_names=['firing_rate', 'presence_ratio', 'snr', 'isi_violation', 'amplitude_cutoff']
-    metrics = si.compute_quality_metrics(analyzer, metric_names=metric_names)
-    """
-    metrics = analyzer.compute("quality_metrics").get_data()
-    print(metrics)
-
-    assert len(drift_ptps) == len(metrics)
-    metrics['drift_ptps'] = [drift_ptps[key] for key in np.arange(len(drift_ptps))]
-    assert metrics['drift_ptps'][0] == drift_ptps[0]
-    metrics['drift_stds'] = [drift_stds[key] for key in np.arange(len(drift_stds))]
-    metrics['drift_mads'] = [drift_mads[key] for key in np.arange(len(drift_mads))]
-
-    save_str = "" if USE_REC else f"{probe_num-1}/"
-    metrics.to_csv(sorting_folder / (save_str + "metrics"))
-
-    # SortingAnalyzer can be saved to disk using save_as() which makes a copy of the analyzer and all computed extensions.
-    analyzer_saved = analyzer.save_as(folder=sorting_folder / (save_str + "analzer"), format="binary_folder", )
-    print(analyzer_saved)
-else:
-    save_str = "" if USE_REC else f"{probe_num-1}/"
-    analyzer = si.load_sorting_analyzer(folder=sorting_folder / (save_str + "analzer"))
-    metrics = pd.read_csv(sorting_folder / (save_str + "metrics"), index_col=0)
-
-
-sorter_output_folder = sorting_folder / (save_str + "sorter_output")
-
-if EXPORT_TO_PHY:
-    # the export process is fast because everything is pre-computed
-    si.export_to_phy(analyzer, output_folder=sorter_output_folder / 'phy', copy_binary=False, verbose=True)
-else:
-    for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads']:
-        metric_df = pd.DataFrame()
-        metric_df['cluster_id'] = metrics.index
-        # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
-        metric_df[metric] = metrics[metric]
-        metric_df.to_csv(sorter_output_folder / ('cluster_' + metric + '.tsv'), sep='\t', index=False)
-
-
-# Curation using metrics
-if FILTER_GOOD_UNITS:
-    #A very common curation approach is to threshold these metrics to select good units:
-
-    amplitude_cutoff_thresh = 0.1
-    isi_violations_ratio_thresh = 1
-    presence_ratio_thresh = 0.9
-
-    our_query = f"(amplitude_cutoff < {amplitude_cutoff_thresh}) & (isi_violations_ratio < {isi_violations_ratio_thresh}) & (presence_ratio > {presence_ratio_thresh})"
-    print(our_query)
-
-    # > (amplitude_cutoff < 0.1) & (isi_violations_ratio < 1) & (presence_ratio > 0.9)
-
-    keep_units = metrics.query(our_query)
-    keep_unit_ids = keep_units.index.values
-    keep_unit_ids
-    print(len(keep_unit_ids))
-
-    # > array([ 7,  8,  9, 10, 12, 14])
-
-
-    """Export final results to disk folder and visulize with sortingview"""
-    # In order to export the final results we need to make a copy of the the waveforms, but only for the selected units (so we can avoid to compute them again).
-    analyzer_clean = analyzer.select_units(keep_unit_ids, folder=sorting_folder / (save_str + 'analyzer_clean'), format='binary_folder')
-    analyzer_clean
-
-    # > SortingAnalyzer: 383 channels - 6 units - 1 segments - binary_folder - sparse - has recording
-    # > Loaded 9 extensions: random_spikes, waveforms, templates, noise_levels, correlograms, unit_locations, spike_amplitudes, template_similarity, quality_metrics
-
-    #Then we export figures to a report folder
-    # export spike sorting report to a folder
-    si.export_report(analyzer_clean, sorting_folder / (save_str + 'report'), format='png')
-
-    # analyzer_clean = si.load_sorting_analyzer(base_folder / 'analyzer_clean')
+    sorter_output_folder = sorting_folder / (save_str + "sorter_output")
+    
+    if EXPORT_TO_PHY:
+        # the export process is fast because everything is pre-computed
+        si.export_to_phy(analyzer, output_folder=sorter_output_folder / 'phy', copy_binary=False, verbose=True)
+    else:
+        for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads']:
+            metric_df = pd.DataFrame()
+            metric_df['cluster_id'] = metrics.index
+            # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
+            metric_df[metric] = metrics[metric]
+            metric_df.to_csv(sorter_output_folder / ('cluster_' + metric + '.tsv'), sep='\t', index=False)
+    
+    
+    # Curation using metrics
+    if FILTER_GOOD_UNITS:
+        #A very common curation approach is to threshold these metrics to select good units:
+    
+        amplitude_cutoff_thresh = 0.1
+        isi_violations_ratio_thresh = 1
+        presence_ratio_thresh = 0.9
+    
+        our_query = f"(amplitude_cutoff < {amplitude_cutoff_thresh}) & (isi_violations_ratio < {isi_violations_ratio_thresh}) & (presence_ratio > {presence_ratio_thresh})"
+        print(our_query)
+    
+        # > (amplitude_cutoff < 0.1) & (isi_violations_ratio < 1) & (presence_ratio > 0.9)
+    
+        keep_units = metrics.query(our_query)
+        keep_unit_ids = keep_units.index.values
+        keep_unit_ids
+        print(len(keep_unit_ids))
+    
+        # > array([ 7,  8,  9, 10, 12, 14])
+    
+    
+        """Export final results to disk folder and visulize with sortingview"""
+        # In order to export the final results we need to make a copy of the the waveforms, but only for the selected units (so we can avoid to compute them again).
+        analyzer_clean = analyzer.select_units(keep_unit_ids, folder=sorting_folder / (save_str + 'analyzer_clean'), format='binary_folder')
+        analyzer_clean
+    
+        # > SortingAnalyzer: 383 channels - 6 units - 1 segments - binary_folder - sparse - has recording
+        # > Loaded 9 extensions: random_spikes, waveforms, templates, noise_levels, correlograms, unit_locations, spike_amplitudes, template_similarity, quality_metrics
+    
+        #Then we export figures to a report folder
+        # export spike sorting report to a folder
+        si.export_report(analyzer_clean, sorting_folder / (save_str + 'report'), format='png')
+    
+        # analyzer_clean = si.load_sorting_analyzer(base_folder / 'analyzer_clean')
     # analyzer_clean
 
 
