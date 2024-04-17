@@ -8,6 +8,7 @@ from probeinterface.plotting import plot_probe, plot_probe_group
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+import shutil
 from xml.etree import ElementTree
 import pandas as pd
 import platform
@@ -28,6 +29,7 @@ EXPORT_TO_PHY = False
 FILTER_GOOD_UNITS = False
 ONLINE_CURATION = False
 
+PLOT_PROBE = False
 PLOT_BIG_HEATMAPS = False
 PLOT_SOME_CHANNELS = False
 PLOT_NOISE = False
@@ -69,8 +71,9 @@ if USE_REC:
     # raw_dat.get_probe().to_dataframe()
     # fs = raw_dat.get_sampling_frequency()
 
-    plot_probe_group(raw_dat.get_probegroup(), same_axes=True)
-    plt.savefig(sorting_folder / 'probes.png', dpi=200)
+    if PLOT_PROBE:
+        plot_probe_group(raw_dat.get_probegroup(), same_axes=True)
+        plt.show()
 else:
     from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile
     from probeinterface import Probe
@@ -137,8 +140,9 @@ else:
     # ------------------------------------ #
     raw_dat.set_probe(probe, in_place=True)
 
-    plot_probe(probe)
-    plt.show()
+    if PLOT_PROBE:
+        plot_probe(probe)
+        plt.show()
 
 
 if FILTER_RAW_BEFORE_SORTING:
@@ -269,6 +273,7 @@ if RUN_SORTING:
 for probe_num in range(1, len(recording.get_probes())+1):
     print('Loading sorted data...')
     sorting = si.read_sorter_folder(sorting_folder / f'{probe_num-1}')
+    probe_folder = sorting_folder / f'{probe_num - 1}'
 
     if RUN_ANALYSIS:
         """
@@ -276,25 +281,30 @@ for probe_num in range(1, len(recording.get_probes())+1):
         """
         print('Creating analyzer...')
         analyzer = si.create_sorting_analyzer(sorting, recording, sparse=True, format="memory")
-    
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+
         analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500) # fast
         analyzer.compute("noise_levels")  # fast
-        
+
+        shutil.rmtree(probe_folder/ "analyzer")
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+
         analyzer.compute("waveforms",  ms_before=1.5, ms_after=2., **job_kwargs) # slow
         analyzer.compute("templates", operators=["average", "median", "std"]) # fast, requires waveforms
         analyzer.compute("unit_locations")  # requires templates, fast
         analyzer.compute("template_similarity")  # requires templates, fast
-    
+
+        shutil.rmtree(probe_folder/ "analyzer")
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+
         analyzer.compute("spike_amplitudes", **job_kwargs)  # run in parallel using **job_kwargs
         analyzer.compute("spike_locations")  # requires templates, very slow
     
-        # It is required to run sorting_analyzer.compute(input="spike_locations") first (if missing, values will be NaN)
-        drift_ptps, drift_stds, drift_mads = si.compute_drift_metrics(sorting_analyzer=analyzer)  # fast-ish
-        # drift_ptps, drift_stds, and drift_mads are each a dict containing the unit IDs as keys,
-        # and their metrics as values.
         
         analyzer.compute("correlograms")  # slow-ish
-    
+        shutil.rmtree(probe_folder/ "analyzer")
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+
         # Some metrics are based on PCA (like 'isolation_distance', 'l_ratio', 'd_prime') and require to estimate PCA for their computation. This can be achieved with:
         analyzer.compute("principal_components") # medium speed
         """
@@ -303,7 +313,16 @@ for probe_num in range(1, len(recording.get_probes())+1):
         metrics = si.compute_quality_metrics(analyzer, metric_names=metric_names)
         """
         metrics = analyzer.compute("quality_metrics").get_data()
+        # SortingAnalyzer can be saved to disk using save_as() which makes a copy of the analyzer and all computed extensions.
+        shutil.rmtree(probe_folder/ "analyzer")
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+        print(analyzer_saved)
         
+        # It is required to run sorting_analyzer.compute(input="spike_locations") first (if missing, values will be NaN)
+        drift_ptps, drift_stds, drift_mads = si.compute_drift_metrics(sorting_analyzer=analyzer)  # fast-ish
+        # drift_ptps, drift_stds, and drift_mads are each a dict containing the unit IDs as keys,
+        # and their metrics as values.
+
         assert len(drift_ptps) == len(metrics)
         metrics['drift_ptps'] = [drift_ptps[key] for key in np.arange(len(drift_ptps))]
         assert metrics['drift_ptps'][0] == drift_ptps[0]
@@ -312,25 +331,19 @@ for probe_num in range(1, len(recording.get_probes())+1):
         
         print(metrics)
     
-        save_str = "" if USE_REC else f"{probe_num-1}/"
-        metrics.to_csv(sorting_folder / (save_str + "metrics"))
-    
-        # SortingAnalyzer can be saved to disk using save_as() which makes a copy of the analyzer and all computed extensions.
-        analyzer_saved = analyzer.save_as(folder=sorting_folder / (save_str + "analzer"), format="binary_folder", )
-        print(analyzer_saved)
+        metrics.to_csv(probe_folder / "metrics")
     else:
-        save_str = "" if USE_REC else f"{probe_num-1}/"
-        analyzer = si.load_sorting_analyzer(folder=sorting_folder / (save_str + "analzer"))
-        metrics = pd.read_csv(sorting_folder / (save_str + "metrics"), index_col=0)
+        analyzer = si.load_sorting_analyzer(folder=probe_folder / "analyzer")
+        metrics = pd.read_csv(probe_folder / "metrics", index_col=0)
     
     
-    sorter_output_folder = sorting_folder / (save_str + "sorter_output")
+    sorter_output_folder = probe_folder /  "sorter_output"
     
     if EXPORT_TO_PHY:
         # the export process is fast because everything is pre-computed
         si.export_to_phy(analyzer, output_folder=sorter_output_folder / 'phy', copy_binary=False, verbose=True)
     else:
-        for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads']:
+        for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads', 'sliding_rp_violations', 'presence_ratio']:
             metric_df = pd.DataFrame()
             metric_df['cluster_id'] = metrics.index
             # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
