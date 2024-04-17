@@ -336,18 +336,18 @@ for probe_num in range(1, len(recording.get_probes())+1):
     
     
     sorter_output_folder = probe_folder /  "sorter_output"
-    
+    for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds',
+                   'drift_mads', 'sliding_rp_violation', 'presence_ratio']:
+        metric_df = pd.DataFrame()
+        metric_df['cluster_id'] = metrics.index
+        # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
+        metric_df[metric] = metrics[metric]
+        metric_df.to_csv(sorter_output_folder / ('cluster_' + metric + '.tsv'), sep='\t', index=False)
+
     if EXPORT_TO_PHY:
         # the export process is fast because everything is pre-computed
-        si.export_to_phy(analyzer, output_folder=sorter_output_folder / 'phy', copy_binary=False, verbose=True)
-    else:
-        for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads', 'sliding_rp_violation', 'presence_ratio']:
-            metric_df = pd.DataFrame()
-            metric_df['cluster_id'] = metrics.index
-            # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
-            metric_df[metric] = metrics[metric]
-            metric_df.to_csv(sorter_output_folder / ('cluster_' + metric + '.tsv'), sep='\t', index=False)
-    
+        si.export_to_phy(analyzer, output_folder=sorter_output_folder / 'phy', copy_binary=USE_REC, verbose=True)
+
     
     # Curation using metrics
     if FILTER_GOOD_UNITS:
