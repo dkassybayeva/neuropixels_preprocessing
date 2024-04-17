@@ -50,7 +50,6 @@ base_folder = Path('Y:/NeuroData/TQ03/20210616_115352.rec')
 rec_file = base_folder / '20210616_115352.rec'
 sorting_folder = base_folder / 'spike_interface_output'
 
-
 if not USE_REC:
     probe_num = 1
     binary_file = base_folder / f'TQ03_20210617_combined.probe{probe_num}.dat'
@@ -271,7 +270,7 @@ if RUN_SORTING:
 
 
 for probe_num in range(1, len(recording.get_probes())+1):
-    print('Loading sorted data...')
+    print(f'Loading sorted data for probe {probe_num}...')
     sorting = si.read_sorter_folder(sorting_folder / f'{probe_num-1}')
     probe_folder = sorting_folder / f'{probe_num - 1}'
 
@@ -343,7 +342,7 @@ for probe_num in range(1, len(recording.get_probes())+1):
         # the export process is fast because everything is pre-computed
         si.export_to_phy(analyzer, output_folder=sorter_output_folder / 'phy', copy_binary=False, verbose=True)
     else:
-        for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads', 'sliding_rp_violations', 'presence_ratio']:
+        for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads', 'sliding_rp_violation', 'presence_ratio']:
             metric_df = pd.DataFrame()
             metric_df['cluster_id'] = metrics.index
             # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
