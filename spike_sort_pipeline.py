@@ -144,7 +144,7 @@ else:
         plt.show()
 
 
-if FILTER_RAW_BEFORE_SORTING:
+if RUN_SORTING and FILTER_RAW_BEFORE_SORTING:
     try:
         rec_phaseshift = si.phase_shift(raw_dat)
     except:
@@ -280,13 +280,13 @@ for probe_num in range(1, len(recording.get_probes())+1):
         """
         print('Creating analyzer...')
         analyzer = si.create_sorting_analyzer(sorting, recording, sparse=True, format="memory")
-        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder")
 
         analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500) # fast
         analyzer.compute("noise_levels")  # fast
 
         shutil.rmtree(probe_folder/ "analyzer")
-        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder")
 
         analyzer.compute("waveforms",  ms_before=1.5, ms_after=2., **job_kwargs) # slow
         analyzer.compute("templates", operators=["average", "median", "std"]) # fast, requires waveforms
@@ -294,7 +294,7 @@ for probe_num in range(1, len(recording.get_probes())+1):
         analyzer.compute("template_similarity")  # requires templates, fast
 
         shutil.rmtree(probe_folder/ "analyzer")
-        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder")
 
         analyzer.compute("spike_amplitudes", **job_kwargs)  # run in parallel using **job_kwargs
         analyzer.compute("spike_locations")  # requires templates, very slow
@@ -302,7 +302,7 @@ for probe_num in range(1, len(recording.get_probes())+1):
         
         analyzer.compute("correlograms")  # slow-ish
         shutil.rmtree(probe_folder/ "analyzer")
-        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder")
 
         # Some metrics are based on PCA (like 'isolation_distance', 'l_ratio', 'd_prime') and require to estimate PCA for their computation. This can be achieved with:
         analyzer.compute("principal_components") # medium speed
@@ -314,7 +314,7 @@ for probe_num in range(1, len(recording.get_probes())+1):
         metrics = analyzer.compute("quality_metrics").get_data()
         # SortingAnalyzer can be saved to disk using save_as() which makes a copy of the analyzer and all computed extensions.
         shutil.rmtree(probe_folder/ "analyzer")
-        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder")
         print(analyzer_saved)
         
         # It is required to run sorting_analyzer.compute(input="spike_locations") first (if missing, values will be NaN)
@@ -372,7 +372,7 @@ for probe_num in range(1, len(recording.get_probes())+1):
     
         """Export final results to disk folder and visulize with sortingview"""
         # In order to export the final results we need to make a copy of the the waveforms, but only for the selected units (so we can avoid to compute them again).
-        analyzer_clean = analyzer.select_units(keep_unit_ids, folder=sorting_folder / (save_str + 'analyzer_clean'), format='binary_folder')
+        analyzer_clean = analyzer.select_units(keep_unit_ids, folder=probe_folder / 'analyzer_clean', format='binary_folder')
         analyzer_clean
     
         # > SortingAnalyzer: 383 channels - 6 units - 1 segments - binary_folder - sparse - has recording
@@ -380,7 +380,7 @@ for probe_num in range(1, len(recording.get_probes())+1):
     
         #Then we export figures to a report folder
         # export spike sorting report to a folder
-        si.export_report(analyzer_clean, sorting_folder / (save_str + 'report'), format='png')
+        si.export_report(analyzer_clean, probe_folder / 'report', format='png')
     
         # analyzer_clean = si.load_sorting_analyzer(base_folder / 'analyzer_clean')
     # analyzer_clean
