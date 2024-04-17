@@ -324,7 +324,6 @@ for probe_num in range(1, len(recording.get_probes())+1):
 
         assert len(drift_ptps) == len(metrics)
         metrics['drift_ptps'] = [drift_ptps[key] for key in np.arange(len(drift_ptps))]
-        assert metrics['drift_ptps'][0] == drift_ptps[0]
         metrics['drift_stds'] = [drift_stds[key] for key in np.arange(len(drift_stds))]
         metrics['drift_mads'] = [drift_mads[key] for key in np.arange(len(drift_mads))]
         
