@@ -22,8 +22,8 @@ FILTER_RAW_BEFORE_SORTING = True  # applies HPF and CMR
 SAVE_PREPROCESSING = False
 
 RUN_SORTING = True
+AGGREGATE_SORTING = False
 RUN_ANALYSIS = True
-SORTED_IN_SPIKEINTERFACE = True
 EXPORT_TO_PHY = False
 
 FILTER_GOOD_UNITS = False
@@ -64,6 +64,7 @@ if USE_REC:
     
     
     raw_dat = read_spikegadgets(rec_file)
+    
     # tvec = raw_dat.get_times()
     # channels = raw_dat.get_channel_ids()
     # duration_s = raw_dat.get_total_duration()
@@ -235,34 +236,27 @@ if RUN_SORTING:
     si.get_default_sorter_params(sorter_algorithm)
 
     if USE_REC:
-        """For single probes"""
-        # sorting = si.run_sorter('kilosort4', raw_dat, grouping_property='group', output_folder=base_folder / 'kilosort4_output', docker_image=False, verbose=True)
-        # alternative:
-        # sorting = si.run_sorter('kilosort4', raw_dat.split_by('group')[0], output_folder=base_folder / 'kilosort4_output', docker_image=False, verbose=True)
-
-        """For multiple probes"""
-        """-----Either split ahead of time-----"""
-        # split_preprocessed_recording = raw_dat.split_by("group")
-        # sortings = {}
-        # for group, sub_recording in split_preprocessed_recording.items():
-        #     sorting = si.run_sorter(
-        #         sorter_name=sorter_algorithm,
-        #         recording=split_preprocessed_recording,
-        #         output_folder=sorting_folder/f"{group}"
-        #         )
-        #     sortings[group] = sorting
-
-        """-----Or use aggregate sorting-----"""
-        sorting = si.run_sorter_by_property(
-            sorter_name=sorter_algorithm,
-            recording=recording,
-            grouping_property='group',
-            working_folder=sorting_folder
-        )
-        print(sorting)
-
+        if AGGREGATE_SORTING:
+            sorting = si.run_sorter_by_property(
+                sorter_name=sorter_algorithm,
+                recording=recording,
+                grouping_property='group',
+                working_folder=sorting_folder,
+                verbose=True,
+            )
+        else:   
+            split_preprocessed_recording = raw_dat.split_by("group")
+            for group, sub_recording in split_preprocessed_recording.items():
+                sorting = si.run_sorter(
+                    sorter_name=sorter_algorithm,
+                    recording=sub_recording,
+                    output_folder=sorting_folder/f"{group}",
+                    verbose=True,
+                    remove_existing_folder=False,
+                    )
+                si.write_binary_recording(sub_recording, file_paths=sorting_folder/f"{group}"/"sorter_output"/"recording.dat", dtype='int16', **job_kwargs)
     else:
-        sorting = si.run_sorter(sorter_name=sorter_algorithm,
+        si.run_sorter(sorter_name=sorter_algorithm,
                                 recording=recording,
                                 output_folder=sorting_folder / f'{probe_num-1}',
                                 docker_image=False,
