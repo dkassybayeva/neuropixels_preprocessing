@@ -24,15 +24,32 @@ import neuropixels_preprocessing.lib.trace_utils as trace_utils
 SPIKES_AND_TTL = True
 SAVE_INDIVIDUAL_SPIKETRAINS = False  # Used for stitching sessions.  Otherwise unnecessary.
 BEHAVIOR = True
+#TWO_BEH = True
 
-
+# if TWO_BEH:
+#     metadata = dict(
+#         ott_lab = True,
+#         rat_name = 'R13',
+#         date = '20231210',
+#         behavior_mat_file_1 = '12_DetectionConfidence_20231210_183107.mat',
+#         behavior_mat_file_2 = '12_DetectionConfidence_20231210_183107.mat',
+#         trodes_datetime = '20231210_1',
+#         n_probes = 1,
+#         DIO_port_num = 1,
+#         task = 'reward-bias',
+#         sps = sps,
+#         task_type = 'DetectionConfidence',
+#         probe_num = 2,
+#         kilosort_ver = 4
+#     )
+# else:
 metadata = dict(
     ott_lab = True,
-    rat_name = 'R12',
+    rat_name = 'R13',
     date = '20231210',
-    behavior_mat_file = '12_DetectionConfidence_20231210_183107.mat',
-    trodes_datetime = '20231210_191835',
-    n_probes = 2,
+    behavior_mat_file = '13_AuditoryTuning_20231210_181752.mat',
+    trodes_datetime = '20231210_160642',
+    n_probes = 1,
     DIO_port_num = 1,
     task = 'reward-bias',
     sps = sps,
@@ -47,7 +64,7 @@ metadata = dict(
 #                       Set up paths
 #----------------------------------------------------------------------#
 session_paths = dict()
-session_paths['rec_dir'] = rec_dir = f'X:{metadata["rat_name"]}/{metadata["trodes_datetime"]}.rec/'
+session_paths['rec_dir'] = rec_dir = f'Y:{metadata["rat_name"]}/{metadata["trodes_datetime"]}.rec/'
 assert path.exists(session_paths['rec_dir'])
 # session path for ks4
 session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort/{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
@@ -66,28 +83,9 @@ behavior_mat_file = session_paths['rec_dir'] + metadata['behavior_mat_file']
 #----------------------------------------------------------------------#
 #                           PIPELINE                                   #
 #----------------------------------------------------------------------#
-if SPIKES_AND_TTL:
-    for probe_i in range(1, metadata['n_probes']+1):
-        metadata['probe_num'] = probe_i
 
-        # load/create ephys-specific (probe-specific) paths
-        probe_dir = session_paths['probe_dir'].format(probe_i)
-        spike_dir = preprocess_dir + f'probe{probe_i}/'
-        ou.make_dir_if_nonexistent(spike_dir)
-        if SAVE_INDIVIDUAL_SPIKETRAINS:
-            ou.make_dir_if_nonexistent(spike_dir + 'spike_times/')
-
-        # process ephys recordings
-        tu.create_spike_mat(probe_dir, spike_dir, session_paths['timestamps_dat'], metadata, fs, save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
-
-    tu.find_recording_gaps(session_paths['timestamps_dat'], fs, max_ISI, preprocess_dir + gap_filename)
-    tu.extract_TTL_trial_start_times(probe_dir, gap_filename, metadata['DIO_port_num'], save_dir=preprocess_dir)
-    tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file)
-    
-  # %% Cut Recording into Auditory Tuning and Detection Confidence based on TTL
-  
-  
 # %% behavior for Detection Confidence
+#Probably will need a for loop to load two behav files and allign them 
 if BEHAVIOR:
     _sd = load(preprocess_dir + 'TrialEvents.npy')
     
@@ -114,6 +112,48 @@ if BEHAVIOR:
     dump(behav_df, preprocess_dir + "behav_df", compress=3)
 
 downsample_dt = 25  # sample period in ms
+
+  # %% Align start times of TTL and spike_times.npy
+  #----------------------------------------------------------------------#
+
+if SPIKES_AND_TTL:
+    for probe_i in range(1, metadata['n_probes']+1):
+        metadata['probe_num'] = probe_i
+
+        # load/create ephys-specific (probe-specific) paths
+        probe_dir = session_paths['probe_dir'].format(probe_i)
+        spike_dir = preprocess_dir + f'probe{probe_i}/'
+        ou.make_dir_if_nonexistent(spike_dir)
+        if SAVE_INDIVIDUAL_SPIKETRAINS:
+            ou.make_dir_if_nonexistent(spike_dir + 'spike_times/')
+
+        # process ephys recordings
+        tu.create_spike_mat(probe_dir, spike_dir, session_paths['timestamps_dat'], metadata, fs, save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
+
+    tu.find_recording_gaps(session_paths['timestamps_dat'], fs, max_ISI, preprocess_dir + gap_filename)
+    tu.extract_TTL_trial_start_times(probe_dir, gap_filename, metadata['DIO_port_num'], save_dir=preprocess_dir)
+    
+    # @TODO: Find spot to break up TTL based on last trial start time + last trial length + buffer in ms
+    last_TTL_based_on_behav_guess = behav_df['TrialEndTimestamp'][-1:].values[0] + 1000
+    #last TTL based on TTL gaps and timestamps
+    TTL_results = load(preprocess_dir + 'TTL_events.npy')
+
+    # first 0 is before Bpod session, first 1 is first trial, last 0 is end of last trial
+    TTL_timestamps_sec = TTL_results['timestamps'][1:]
+    TTL_code = TTL_results['TTL_code'][1:]
+    gap_lengths = TTL_results['gap_lengths']['gaps']
+    recorded_start_ts = TTL_timestamps_sec[TTL_code == 1]
+    last_TTL_based_on_TTL_events = recorded_start_ts[-1:][0]
+    # @TODO: break up TTL into "halves" for each experiment type
+    behav_detection_confidence = 
+    # @TODO: run reconcile_TTL_and_behav_trial_start_times on both halves
+    # Note: This function doesn't care about absolute Trodes times
+    tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file)
+    
+
+  
+  
+
 # %%
 #----------------------------------------------------------------------#
 # Align the spikes with behavior

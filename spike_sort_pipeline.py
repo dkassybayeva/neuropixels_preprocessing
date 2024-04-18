@@ -24,7 +24,7 @@ SAVE_PREPROCESSING = False
 RUN_SORTING = True  # To run Kilosort 4
 RUN_ANALYSIS = True  # To calculate quality metrics
 SORTED_IN_SPIKEINTERFACE = True
-EXPORT_TO_PHY = True  # Creates new folder (some overlap with KS output folder) which includes quality metrics
+EXPORT_TO_PHY = False  # Creates new folder (some overlap with KS output folder) which includes quality metrics
 
 FILTER_GOOD_UNITS = False  # Can filter out bad neurons before Phy
 ONLINE_CURATION = False
@@ -49,8 +49,8 @@ if platform.system() != 'Windows':
 # -------------------------------------------------------------------------- #
 #                               Paths
 # -------------------------------------------------------------------------- #
-base_folder = Path('X:/R12/20231210_191835.rec')
-rec_file = base_folder / '20231210_191835.rec'
+base_folder = Path('X:/R12/20231212_183552.rec')
+rec_file = base_folder / '20231212_183552.rec'
 sorting_folder = base_folder / 'spike_interface_output'
 
 if not USE_REC:
