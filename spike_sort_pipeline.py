@@ -313,7 +313,7 @@ for probe_num in range(1, len(recording.get_probes())+1):
         Allen uses only isi_violations, amplitude_cutoff, and presence_ratio.
         https://allensdk.readthedocs.io/en/latest/_static/examples/nb/ecephys_quality_metrics.html
         
-        The default bin size for presence_ratio is 60s, which I think is too large.
+        The default bin size for presence_ratio is 60s, which I think is too large and reduced to 1s.
         """
         print('Creating analyzer...')
         analyzer = si.create_sorting_analyzer(sorting, recording, sparse=True, format="memory")
@@ -332,8 +332,11 @@ for probe_num in range(1, len(recording.get_probes())+1):
         analyzer.compute("unit_locations")  # requires templates, fast
         analyzer.compute("template_similarity")  # requires templates, fast
         
-        metric_names = ['firing_rate', 'presence_ratio', 'snr', 'isi_violation', 'amplitude_cutoff', 'sliding_rp_violation']
+        metric_names = ['firing_rate', 'snr', 'isi_violation', 'amplitude_cutoff', 'sliding_rp_violation']
         metrics = si.compute_quality_metrics(analyzer, metric_names=metric_names)
+        
+        presence_ratio = si.compute_presence_ratios(analyzer, bin_duration_s=1)
+        metrics['presence_ratio'] = pd.DataFrame(presence_ratio.values(), columns=['presence_ratio'], index=presence_ratio.keys())
         
         # --------------------------------------------------------------- #
         # shutil.rmtree(probe_folder/ "analyzer")
