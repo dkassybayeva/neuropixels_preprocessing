@@ -21,10 +21,10 @@ USE_REC = True
 FILTER_RAW_BEFORE_SORTING = True  # applies HPF and CMR
 SAVE_PREPROCESSING = False
 
-RUN_SORTING = True  # To run Kilosort 4
-RUN_ANALYSIS = True  # To calculate quality metrics
-SORTED_IN_SPIKEINTERFACE = True
-EXPORT_TO_PHY = False  # Creates new folder (some overlap with KS output folder) which includes quality metrics
+RUN_SORTING = True
+AGGREGATE_SORTING = False
+RUN_ANALYSIS = True
+EXPORT_TO_PHY = False
 
 FILTER_GOOD_UNITS = False  # Can filter out bad neurons before Phy
 ONLINE_CURATION = False
@@ -49,8 +49,8 @@ if platform.system() != 'Windows':
 # -------------------------------------------------------------------------- #
 #                               Paths
 # -------------------------------------------------------------------------- #
-base_folder = Path('X:/R12/20231212_183552.rec')
-rec_file = base_folder / '20231212_183552.rec'
+base_folder = Path('Y:/R13/20231212_153718.rec')
+rec_file = base_folder / '20231212_153718.rec'
 sorting_folder = base_folder / 'spike_interface_output'
 
 if not USE_REC:
@@ -147,7 +147,7 @@ else:
         plt.show()
 
 
-if FILTER_RAW_BEFORE_SORTING:
+if RUN_SORTING and FILTER_RAW_BEFORE_SORTING:
     try:
         rec_phaseshift = si.phase_shift(raw_dat)
     except:
@@ -238,34 +238,27 @@ if RUN_SORTING:
     si.get_default_sorter_params(sorter_algorithm)
 
     if USE_REC:
-        """For single probes"""
-        # sorting = si.run_sorter('kilosort4', raw_dat, grouping_property='group', output_folder=base_folder / 'kilosort4_output', docker_image=False, verbose=True)
-        # alternative:
-        # sorting = si.run_sorter('kilosort4', raw_dat.split_by('group')[0], output_folder=base_folder / 'kilosort4_output', docker_image=False, verbose=True)
-
-        """For multiple probes"""
-        """-----Either split ahead of time-----"""
-        # split_preprocessed_recording = raw_dat.split_by("group")
-        # sortings = {}
-        # for group, sub_recording in split_preprocessed_recording.items():
-        #     sorting = si.run_sorter(
-        #         sorter_name=sorter_algorithm,
-        #         recording=split_preprocessed_recording,
-        #         output_folder=sorting_folder/f"{group}"
-        #         )
-        #     sortings[group] = sorting
-
-        """-----Or use aggregate sorting-----"""
-        sorting = si.run_sorter_by_property(
-            sorter_name=sorter_algorithm,
-            recording=recording,
-            grouping_property='group',
-            working_folder=sorting_folder
-        )
-        print(sorting)
-
+        if AGGREGATE_SORTING:
+            sorting = si.run_sorter_by_property(
+                sorter_name=sorter_algorithm,
+                recording=recording,
+                grouping_property='group',
+                working_folder=sorting_folder,
+                verbose=True,
+            )
+        else:   
+            split_preprocessed_recording = raw_dat.split_by("group")
+            for group, sub_recording in split_preprocessed_recording.items():
+                sorting = si.run_sorter(
+                    sorter_name=sorter_algorithm,
+                    recording=sub_recording,
+                    output_folder=sorting_folder/f"{group}",
+                    verbose=True,
+                    remove_existing_folder=False,
+                    )
+                si.write_binary_recording(sub_recording, file_paths=sorting_folder/f"{group}"/"sorter_output"/"recording.dat", dtype='int16', **job_kwargs)
     else:
-        sorting = si.run_sorter(sorter_name=sorter_algorithm,
+        si.run_sorter(sorter_name=sorter_algorithm,
                                 recording=recording,
                                 output_folder=sorting_folder / f'{probe_num-1}',
                                 docker_image=False,
@@ -273,63 +266,118 @@ if RUN_SORTING:
 
 
 for probe_num in range(1, len(recording.get_probes())+1):
-    print('Loading sorted data...')
+    print(f'Loading sorted data for probe {probe_num}...')
     sorting = si.read_sorter_folder(sorting_folder / f'{probe_num-1}')
     probe_folder = sorting_folder / f'{probe_num - 1}'
 
     if RUN_ANALYSIS:
         """
         POST SORTING
+        https://spikeinterface.readthedocs.io/en/latest/modules/qualitymetrics.html
+        
+        Contamination/'false positive'/'type I' metrics (amount of noise):
+            * ISI violations (Allen default < 0.5): assuming <1.5ms refractory period interval
+                The fraction that this gives means that contaminating spikes are occuring at
+                a rate with that ratio relative to the "true" spikes.
+            - sliding refractory period violations (sliding_rp_violation)
+            - signal-to-noise ratio (SNR): ratio of the maximum amplitude of the mean spike waveform 
+                to the standard deviation of the background noise on one channel.
+                Allen recommend NOT to use it for NPix, because it only uses a single channel.
+                Doesn't account for drift.
+            - Nearest Neighbor hit rate (NN-hit rate; 0-1; e.g. >0.9): 
+                looks at the PCs for one unit and calculates the fraction of their nearest 
+                neighbors that fall within the same cluster. Negatively impacted by drift.
+            
+        Completeness/'false negative'/'type II' metrics (missing spikes):
+            * presence ratio (0-0.99, it shouldn't reach 1, Allen default > 0.9), 
+                  maybe reduce the bin size of presence ratio (default is 60s)
+            * amplitude cutoff: percentage of distribution that is truncated (Allen default < 0.1)
+            - NN-miss rate
+            
+        Drift metrics (changes in waveform due to failed tracking across electrode)
+        
+        PCA metrics:
+            - isolation distance: the size of the PC sphere that includes as many 
+                "other" spikes as are contained in the original unit's cluster.
+                E.g., > 50 (larger means more isolated/less contaminated).
+                Degrades with drift; value depends on #PCs.
+            - L-ratio
+            - D-prime: uses linear discriminant analysis to calculate the separability 
+                of one unit's PC cluster and all of the others.
+                Higher value means better isolation of cluster.
+            - Silhouette score
+            - NN-metrics (hit rate, miss rate, isolation, overlap)
+        
+        Some of these take a very long time, so we should try to only calculate those that we need.
+        
+        ALL measures require calculating the waveforms, templates, noise_levels
+        
+        Allen uses only isi_violations, amplitude_cutoff, and presence_ratio.
+        https://allensdk.readthedocs.io/en/latest/_static/examples/nb/ecephys_quality_metrics.html
+        
+        The default bin size for presence_ratio is 60s, which I think is too large.
         """
         print('Creating analyzer...')
         analyzer = si.create_sorting_analyzer(sorting, recording, sparse=True, format="memory")
-        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+        # analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder")
 
         analyzer.compute("random_spikes", method="uniform", max_spikes_per_unit=500) # fast
         analyzer.compute("noise_levels")  # fast
-
-        shutil.rmtree(probe_folder/ "analyzer")
-        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
-
-        analyzer.compute("waveforms",  ms_before=1.5, ms_after=2., **job_kwargs) # slow
+        analyzer.compute("waveforms",  ms_before=1.5, ms_after=2., **job_kwargs) # slow, requires random_spikes
+        
+            
         analyzer.compute("templates", operators=["average", "median", "std"]) # fast, requires waveforms
+        """"At this point, can calculate 
+        metric_names=['firing_rate', 'presence_ratio', 'amplitude_cutoff', 
+                      'snr', 'isi_violation', 'sliding_rp_violation']
+        """
         analyzer.compute("unit_locations")  # requires templates, fast
         analyzer.compute("template_similarity")  # requires templates, fast
-
-        shutil.rmtree(probe_folder/ "analyzer")
-        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
-
-        analyzer.compute("spike_amplitudes", **job_kwargs)  # run in parallel using **job_kwargs
-        analyzer.compute("spike_locations")  # requires templates, very slow
-    
         
-        analyzer.compute("correlograms")  # slow-ish
-        shutil.rmtree(probe_folder/ "analyzer")
-        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
-
-        # Some metrics are based on PCA (like 'isolation_distance', 'l_ratio', 'd_prime') and require to estimate PCA for their computation. This can be achieved with:
-        analyzer.compute("principal_components") # medium speed
-        """
-        Equivalent to
-        metric_names=['firing_rate', 'presence_ratio', 'snr', 'isi_violation', 'amplitude_cutoff']
+        metric_names = ['firing_rate', 'presence_ratio', 'snr', 'isi_violation', 'amplitude_cutoff', 'sliding_rp_violation']
         metrics = si.compute_quality_metrics(analyzer, metric_names=metric_names)
+        
+        # --------------------------------------------------------------- #
+        # shutil.rmtree(probe_folder/ "analyzer")
+        # analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder")
+        # --------------------------------------------------------------- #
+        
+        """The following are slow. Only uncomment if necessary."""
+        # analyzer.compute("spike_amplitudes", **job_kwargs)  # run in parallel using **job_kwargs
+        # analyzer.compute("spike_locations")  # requires templates, very slow
+        # analyzer.compute("correlograms")  # slow-ish
+
+        # # --------------------------------------------------------------- #
+        # shutil.rmtree(probe_folder/ "analyzer")
+        # analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder")
+        # # --------------------------------------------------------------- #
+
+
         """
-        metrics = analyzer.compute("quality_metrics").get_data()
+        Some metrics are based on PCA (like 'isolation_distance', 'l_ratio', 'd_prime') and 
+        require to estimate PCA for their computation.
+        At the moment, only nearest_neighbor seems attractive, but it is very costly to calculate.
+        Have to first compute PCs, then project the waveforms, then calculate nearest neighbor metrics.
+        """
+        # analyzer.compute("principal_components") # medium speed
+        # metrics = si.compute_quality_metrics(analyzer, metric_names=['nearest_neighbor'])
+        
+        
         # SortingAnalyzer can be saved to disk using save_as() which makes a copy of the analyzer and all computed extensions.
-        shutil.rmtree(probe_folder/ "analyzer")
-        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder", )
+        # shutil.rmtree(probe_folder/ "analyzer")
+        analyzer_saved = analyzer.save_as(folder=probe_folder /  "analyzer", format="binary_folder")
         print(analyzer_saved)
         
         # It is required to run sorting_analyzer.compute(input="spike_locations") first (if missing, values will be NaN)
-        drift_ptps, drift_stds, drift_mads = si.compute_drift_metrics(sorting_analyzer=analyzer)  # fast-ish
+        # drift_ptps, drift_stds, drift_mads = si.compute_drift_metrics(sorting_analyzer=analyzer)  # fast-ish
         # drift_ptps, drift_stds, and drift_mads are each a dict containing the unit IDs as keys,
         # and their metrics as values.
 
-        assert len(drift_ptps) == len(metrics)
-        metrics['drift_ptps'] = [drift_ptps[key] for key in np.arange(len(drift_ptps))]
-        assert metrics['drift_ptps'][0] == drift_ptps[0]
-        metrics['drift_stds'] = [drift_stds[key] for key in np.arange(len(drift_stds))]
-        metrics['drift_mads'] = [drift_mads[key] for key in np.arange(len(drift_mads))]
+        # assert len(drift_ptps) == len(metrics)
+        # metrics['drift_ptps'] = [drift_ptps[key] for key in np.arange(len(drift_ptps))]
+        # # assert metrics['drift_ptps'][0] == drift_ptps[0]
+        # metrics['drift_stds'] = [drift_stds[key] for key in np.arange(len(drift_stds))]
+        # metrics['drift_mads'] = [drift_mads[key] for key in np.arange(len(drift_mads))]
         
         print(metrics)
     
@@ -341,17 +389,17 @@ for probe_num in range(1, len(recording.get_probes())+1):
     
     sorter_output_folder = probe_folder /  "sorter_output"
     
+    for metric in ['firing_rate', 'presence_ratio', 'snr', 'isi_violations_count', 'isi_violations_ratio', 'amplitude_cutoff', 'sliding_rp_violation']:
+        metric_df = pd.DataFrame()
+        metric_df['cluster_id'] = metrics.index
+        metric_df[metric] = metrics[metric]
+        metric_df.to_csv(sorter_output_folder / ('cluster_' + metric + '.tsv'), sep='\t', index=False)
+    
+    
     if EXPORT_TO_PHY:
         # the export process is fast because everything is pre-computed
         si.export_to_phy(analyzer, output_folder=sorter_output_folder / 'phy', copy_binary=False, verbose=True)
-    else:
-        for metric in ['l_ratio', 'isolation_distance', 'rp_violations', 'amplitude_cutoff', 'drift_ptps', 'drift_stds', 'drift_mads', 'sliding_rp_violations', 'presence_ratio']:
-            metric_df = pd.DataFrame()
-            metric_df['cluster_id'] = metrics.index
-            # metricCamel = ''.join([x.capitalize() for x in metric.split('_')])
-            metric_df[metric] = metrics[metric]
-            metric_df.to_csv(sorter_output_folder / ('cluster_' + metric + '.tsv'), sep='\t', index=False)
-    
+        
     
     # Curation using metrics
     if FILTER_GOOD_UNITS:
@@ -376,7 +424,7 @@ for probe_num in range(1, len(recording.get_probes())+1):
     
         """Export final results to disk folder and visulize with sortingview"""
         # In order to export the final results we need to make a copy of the the waveforms, but only for the selected units (so we can avoid to compute them again).
-        analyzer_clean = analyzer.select_units(keep_unit_ids, folder=sorting_folder / (save_str + 'analyzer_clean'), format='binary_folder')
+        analyzer_clean = analyzer.select_units(keep_unit_ids, folder=probe_folder / 'analyzer_clean', format='binary_folder')
         analyzer_clean
     
         # > SortingAnalyzer: 383 channels - 6 units - 1 segments - binary_folder - sparse - has recording
@@ -384,7 +432,7 @@ for probe_num in range(1, len(recording.get_probes())+1):
     
         #Then we export figures to a report folder
         # export spike sorting report to a folder
-        si.export_report(analyzer_clean, sorting_folder / (save_str + 'report'), format='png')
+        si.export_report(analyzer_clean, probe_folder / 'report', format='png')
     
         # analyzer_clean = si.load_sorting_analyzer(base_folder / 'analyzer_clean')
     # analyzer_clean
