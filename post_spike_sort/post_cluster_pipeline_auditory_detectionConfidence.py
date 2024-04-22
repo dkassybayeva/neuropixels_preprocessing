@@ -46,9 +46,9 @@ BEHAVIOR = True
 metadata = dict(
     ott_lab = True,
     rat_name = 'R13',
-    date = '20231210',
-    behavior_mat_file = '13_AuditoryTuning_20231210_181752.mat',
-    trodes_datetime = '20231210_160642',
+    date = '20231212',
+    behavior_mat_file = '13_AuditoryTuning_20231212_153306.mat',
+    trodes_datetime = '20231212_153718',
     n_probes = 1,
     DIO_port_num = 1,
     task = 'reward-bias',
@@ -66,8 +66,10 @@ metadata = dict(
 session_paths = dict()
 session_paths['rec_dir'] = rec_dir = f'Y:{metadata["rat_name"]}/{metadata["trodes_datetime"]}.rec/'
 assert path.exists(session_paths['rec_dir'])
+# session path for spikeinterface with ks4
+#session_paths['probe_dir'] = session_paths['rec_dir'] + f'{spike_interface_output/probe{}/sorter_output'
 # session path for ks4
-session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort/{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
+#session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort/{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
 # session path for ks2.5
 #session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
 
