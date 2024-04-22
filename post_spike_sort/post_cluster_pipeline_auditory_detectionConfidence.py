@@ -47,7 +47,7 @@ metadata = dict(
     ott_lab = True,
     rat_name = 'R13',
     date = '20231212',
-    behavior_mat_file = '13_AuditoryTuning_20231212_153306.mat',
+    behavior_mat_file = ['13_AuditoryTuning_20231212_153306.mat', '13_DetectionConfidence_20231212_155237.mat'],
     trodes_datetime = '20231212_153718',
     n_probes = 1,
     DIO_port_num = 1,
@@ -67,13 +67,13 @@ session_paths = dict()
 session_paths['rec_dir'] = rec_dir = f'Y:{metadata["rat_name"]}/{metadata["trodes_datetime"]}.rec/'
 assert path.exists(session_paths['rec_dir'])
 # session path for spikeinterface with ks4
-#session_paths['probe_dir'] = session_paths['rec_dir'] + f'{spike_interface_output/probe{}/sorter_output'
+session_paths['probe_dir'] = session_paths['rec_dir'] + f'{spike_interface_output/probe{}/sorter_output'
 # session path for ks4
 #session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort/{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
 # session path for ks2.5
 #session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
 
-session_paths['timestamps_dat'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort/{metadata["trodes_datetime"]}.timestamps.dat'
+session_paths['timestamps_dat'] = session_paths['rec_dir'] + f'{spike_interface_output/{metadata["trodes_datetime"]}.timestamps.dat'
 
 session_paths['preprocess_dir'] = preprocess_dir =  session_paths['rec_dir'] + 'preprocessing_output/'
 ou.make_dir_if_nonexistent(preprocess_dir)
@@ -147,11 +147,11 @@ if SPIKES_AND_TTL:
     recorded_start_ts = TTL_timestamps_sec[TTL_code == 1]
     last_TTL_based_on_TTL_events = recorded_start_ts[-1:][0]
     # @TODO: break up TTL into "halves" for each experiment type
-    behav_detection_confidence = 
+    #behav_detection_confidence =
     # @TODO: run reconcile_TTL_and_behav_trial_start_times on both halves
     # Note: This function doesn't care about absolute Trodes times
-    tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file)
-    
+    tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file[0])
+    #tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file[1])
 
   
   
