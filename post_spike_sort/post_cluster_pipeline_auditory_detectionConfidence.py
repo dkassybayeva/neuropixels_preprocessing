@@ -46,9 +46,9 @@ BEHAVIOR = True
 metadata = dict(
     ott_lab = True,
     rat_name = 'R13',
-    date = '20231212',
-    behavior_mat_file = ['13_AuditoryTuning_20231212_153306.mat', '13_DetectionConfidence_20231212_155237.mat'],
-    trodes_datetime = '20231212_153718',
+    date = '20231210',
+    behavior_mat_file = '13_AuditoryTuning_20231210_181752.mat',
+    trodes_datetime = '20231210_160642',
     n_probes = 1,
     DIO_port_num = 1,
     task = 'reward-bias',
@@ -147,11 +147,10 @@ if SPIKES_AND_TTL:
     recorded_start_ts = TTL_timestamps_sec[TTL_code == 1]
     last_TTL_based_on_TTL_events = recorded_start_ts[-1:][0]
     # @TODO: break up TTL into "halves" for each experiment type
-    #behav_detection_confidence =
+    behav_detection_confidence = 
     # @TODO: run reconcile_TTL_and_behav_trial_start_times on both halves
     # Note: This function doesn't care about absolute Trodes times
-    tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file[0])
-    #tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file[1])
+    tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file)
 
   
   

@@ -17,6 +17,8 @@ import platform
 # -------------------------------------------------------------------------- #
 #                         Script Parameters
 # -------------------------------------------------------------------------- #
+base_folder = Path('X:/R12/20231212_183552.rec')
+
 USE_REC = True
 FILTER_RAW_BEFORE_SORTING = True  # applies HPF and CMR
 SAVE_PREPROCESSING = False
