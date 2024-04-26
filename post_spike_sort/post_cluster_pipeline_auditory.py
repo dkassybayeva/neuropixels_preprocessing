@@ -101,6 +101,7 @@ if BEHAVIOR:
     dump(behav_df, preprocess_dir + "behav_df", compress=3)
 
 downsample_dt = 25  # sample period in ms
+
 for probe_i in range(1, metadata['n_probes']+1):
     metadata['probe_num'] = probe_i
     

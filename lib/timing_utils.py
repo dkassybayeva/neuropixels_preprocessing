@@ -187,7 +187,9 @@ def extract_TTL_trial_start_times(session_path, gap_filename, DIO_port, save_dir
     in the directory save_dir
     """
 
-    dio_path = '.'.join(session_path.split('.')[:-2]) + '.DIO/'
+    #for spikeinterface together with Trode extracted DIO files
+    dio_path = session_path + (session_path.split('.')[0]).split('/')[1]+'.DIO/'
+    #dio_path = session_path + '.'.join(session_path.split('.')[:-2]) + '.DIO/'
 
     # each analog MCU input pin will have its own .dat file
     dio_file_list = listdir(dio_path)
@@ -354,7 +356,7 @@ def convert_TTL_timestamps_to_nbit_events(session_path, gap_filename, save_dir):
 # ---------------------------------------------------------------------------------------- #
 #                       Reconcile TTL and Behavior Timestamps
 # ---------------------------------------------------------------------------------------- #
-def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_mat_file):
+def reconcile_TTL_and_behav_trial_start_times(session_dir, TTL_indices_beh, save_dir, behavior_mat_file):
     """
     The recording system (e.g., Trodes) receives information about the behavior via the
     digital input TTL port. It only knows when a trial starts (TTL goes high to 1) or
@@ -377,7 +379,7 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_ma
     # --------------------------------------------------------------------- #
     # Trial start in absolute time from the recording system
     # --------------------------------------------------------------------- #
-    TTL_results = load(save_dir + 'TTL_events.npy')
+    TTL_results = load(session_dir + 'TTL_events.npy')
 
     # first 0 is before Bpod session, first 1 is first trial, last 0 is end of last trial
     TTL_timestamps_sec = TTL_results['timestamps'][1:]
@@ -386,6 +388,14 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, save_dir, behavior_ma
 
     recorded_start_ts = TTL_timestamps_sec[TTL_code == 1]
     assert recorded_start_ts.size == (TTL_code.size - np.sum(TTL_code == -1)) // 2
+    
+    recorded_start_ts = recorded_start_ts[TTL_indices_beh[0]:TTL_indices_beh[1]]
+    
+    # #Find the longest gap between TTL trial start times
+    # index = np.argmax(np.ediff1d(recorded_start_ts))
+    # TTL_biggest_gap = recorded_start_ts[index+1]-recorded_start_ts[index]
+    
+    #I also could stitch first session to the begining of TTL file and last session to the end of TTL file
 
     # --------------------------------------------------------------------- #
     # Trial start in absolute time from the behavior control system
