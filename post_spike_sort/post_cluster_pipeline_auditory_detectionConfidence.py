@@ -227,5 +227,5 @@ if BEHAVIOR:
                 
                 results = {'binned_mat': trial_binned_mat_start_align, 'downsample_dt': downsample_dt}
                 dump(results, preprocess_dir + f"probe{metadata['probe_num']}/trial_binned_mat_start_align_detectionConfidence.npy", compress=3)
-
+print('Process Finished.')
 
