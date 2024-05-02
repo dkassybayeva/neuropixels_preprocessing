@@ -56,6 +56,7 @@ if not USE_REC:
     chan_map_file = base_folder / f'TQ03_20210617_combined.channelmap_probe{probe_num}.dat'
 # -------------------------------------------------------------------------- #
     
+print('Sorting', rec_file)
 
 
 if USE_REC:
@@ -237,6 +238,7 @@ if RUN_SORTING:
 
     if USE_REC:
         if AGGREGATE_SORTING:
+            print('Using aggregate sorting!', flush=True)
             sorting = si.run_sorter_by_property(
                 sorter_name=sorter_algorithm,
                 recording=recording,
@@ -254,7 +256,14 @@ if RUN_SORTING:
                     verbose=True,
                     remove_existing_folder=False,
                     )
-                si.write_binary_recording(sub_recording, file_paths=sorting_folder/f"{group}"/"sorter_output"/"recording.dat", dtype='int16', **job_kwargs)
+                binary_path = sorting_folder/f"{group}"/"sorter_output"
+                si.write_binary_recording(sub_recording, file_paths=binary_path / "recording.dat", dtype='int16', **job_kwargs)
+                with open(binary_path / "params.py", "r") as params_file:
+                    lines = params_file.readlines()
+                lines[0] = "dat_path = 'recording.dat'\n"
+                with open(binary_path / "params.py", "w") as params_file:
+                    params_file.writelines(lines)
+                    
     else:
         si.run_sorter(sorter_name=sorter_algorithm,
                                 recording=recording,
