@@ -862,6 +862,8 @@ def shorten_session_data(session_data, n_trials):
 
 # ---------------------------------------------------------------------------------------- #
 def align_trialwise_spike_times_to_start(datapath, probe_datapath):
+    print('---------------------------------------------------------------------------------')
+    print('Aligning spikes to trial start...')
     # load neural data: [number of neurons x time bins in ms]
     spike_mat = load(probe_datapath + 'spike_mat_in_ms.npy')['spike_mat']
 
@@ -873,8 +875,10 @@ def align_trialwise_spike_times_to_start(datapath, probe_datapath):
     # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
     trialwise_start_align_spike_mat_in_ms, _ = trace_utils.trial_start_align(cbehav_df, spike_mat, sps=1000)
     assert trialwise_start_align_spike_mat_in_ms.shape[1] == len(cbehav_df)
-    
+
     dump(trialwise_start_align_spike_mat_in_ms, probe_datapath + 'trialwise_start_align_spike_mat_in_ms', compress=3)
+    print('Results saved to ', probe_datapath + 'trialwise_start_align_spike_mat_in_ms')
+    print('---------------------------------------------------------------------------------')
 
     return trialwise_start_align_spike_mat_in_ms, cbehav_df
 

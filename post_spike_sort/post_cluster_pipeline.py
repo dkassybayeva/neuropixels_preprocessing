@@ -9,7 +9,8 @@ import numpy as np
 from tqdm import trange
 import joblib
 
-from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile, get_Trodes_timestamps
+from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile
+from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import get_Trodes_timestamps
 import neuropixels_preprocessing.lib.timing_utils as tu
 import neuropixels_preprocessing.lib.obj_utils as ou
 import neuropixels_preprocessing.lib.behavior_utils as bu
@@ -18,11 +19,11 @@ import neuropixels_preprocessing.lib.trace_utils as trace_utils
 from neuropixels_preprocessing.session_params import *
 
 
-#----------------------------------------------------------------------#
+# ---------------------------------------------------------------------- #
 # The information in the metadata block of session_params needs to be
 # filled out and updated for each recording session.
-#----------------------------------------------------------------------#
-DATA_ROOT = 'server'  # ['local', 'server', 'X:', etc.]
+# ---------------------------------------------------------------------- #
+DATA_ROOT = 'Y:'  # ['local', 'server', 'X:', etc.]
 SPIKES_AND_TTL = False
 BEHAVIOR = False
 LFPs = False
@@ -34,41 +35,39 @@ WRITE_METADATA = False
 if WRITE_METADATA:
     metadata = write_session_metadata_to_csv(DATA_ROOT)
 else:
-    rat = 'Nina2'
-    date = '20210623'
+    rat = 'TQ03'
+    date = '20210616'
     metadata = load_session_metadata_from_csv(DATA_ROOT, rat, date)
-#----------------------------------------------------------------------#
+# ---------------------------------------------------------------------- #
 
 
-#----------------------------------------------------------------------#
+# ---------------------------------------------------------------------- #
 #                           PATHS
-#----------------------------------------------------------------------#
-metadata['probe_num'] = '' # don't need probe dir for now
+# ---------------------------------------------------------------------- #
 session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
 preprocess_dir = session_paths['preprocess_dir']
 ou.make_dir_if_nonexistent(preprocess_dir)
 rec_dir = session_paths['rec_dir']
 behavior_mat_file = session_paths['behav_dir'] + metadata['behavior_mat_file']
-#----------------------------------------------------------------------#
+# ---------------------------------------------------------------------- #
 
 
-#----------------------------------------------------------------------#
-#                           PIPELINE                                   #
-#----------------------------------------------------------------------#
+# ---------------------------------------------------------------------- #
+#                           PIPELINE                                     #
+# ---------------------------------------------------------------------- #
 if SPIKES_AND_TTL:
     for probe_i in range(1, metadata['n_probes']+1):
         metadata['probe_num'] = probe_i
 
         # load/create ephys-specific (probe-specific) paths
-        session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
         spike_dir = preprocess_dir + f'probe{probe_i}/'
         ou.make_dir_if_nonexistent(spike_dir)
         if SAVE_INDIVIDUAL_SPIKETRAINS:
             ou.make_dir_if_nonexistent(spike_dir + 'spike_times/')
 
         # process ephys recordings
-        tu.create_spike_mat(session_paths['probe_dir'], spike_dir, session_paths['timestamps_dat'], metadata, fs,
-                            save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
+        tu.create_spike_mat(session_paths['probe_dir'].format(probe_i), spike_dir, session_paths['timestamps_dat'],
+                            metadata, fs, save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
 
     tu.find_recording_gaps(session_paths['timestamps_dat'], fs, max_ISI, preprocess_dir + gap_filename)
 
@@ -77,7 +76,7 @@ if SPIKES_AND_TTL:
         tu.reconcile_TTL_and_behav_trial_start_times(rec_dir, preprocess_dir, behavior_mat_file)
     else:
         tu.convert_TTL_timestamps_to_nbit_events(rec_dir, gap_filename, save_dir=preprocess_dir)
-        tu.add_TTL_trial_start_times_to_behav_data(rec_dir, preprocess_dir, behavior_mat_file)
+        tu.add_TTL_trial_start_times_to_behav_data(rec_dir, preprocess_dir, behavior_mat_file, gap_filename)
 
 
 if BEHAVIOR:
@@ -174,9 +173,10 @@ if DATA_OBJECT:
         # -------------------------------------------------------- #
         # Save datapath, behavioral and metadata to data object
         # -------------------------------------------------------- #
-        print('Creating data object...', end='')
+        print('Creating data object...')
         metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
         data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
+        print('---------------------------------------------------------------------------------')
 
 
 if WRITE_METADATA:

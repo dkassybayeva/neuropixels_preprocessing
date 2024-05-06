@@ -17,7 +17,7 @@ sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of a
 
 # -------params for trace interpolation------- #
 """
-For the source of these numbers, see 'Temporal dynaics clustering' in Hirokawa et al. Nature (2019) in Methods.
+For the source of these numbers, see 'Temporal dynamics clustering' in Hirokawa et al. Nature (2019) in Methods.
 """
 interpolation_param_dict = dict(
     trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
@@ -87,26 +87,25 @@ def write_session_metadata_to_csv(data_root):
 
     metadata = dict(
         ott_lab = False,
-        rat_name = 'Nina2',
-        date = '20210623',
+        rat_name = 'TQ03',
+        date = '20210616',
         experimenter = 'Amy',
         region = 'lOFC',
         # ----------------------------------- #
-        trodes_datetime = '20210623_121426',
+        trodes_datetime = '20210616_115352',
         trodes_logfile = '',
         trodes_config = '',
         recording_type = 'neuropixels_1.0',
         n_probes = 2,
         DIO_port_num = 6,
-        kilosort_ver = 2.5,
+        kilosort_ver = 4,
         # ----------------------------------- #
-        behav_datetime = '20210623',
-        task = 'time-investment', # ['matching', 'reward-bias', 'time-investment']
+        behav_datetime = '20210616',
+        task = 'reward-bias', # ['matching', 'reward-bias', 'time-investment']
         # ----------------------------------- #
     )
 
-    task_type = 'TwoArmBanditVariant' if metadata['task'] == 'matching' else 'DiscriminationConfidence'
-    metadata['behavior_mat_file'] = f'{metadata["rat_name"]}_{task_type}_{metadata["behav_datetime"]}.mat'
+    metadata['behavior_mat_file'] = f'TQ03_reward-bias_Jun16_2021_Session1.mat'
 
     DATA_DIR = save_directory_helper(data_root)
 
@@ -154,7 +153,7 @@ def get_session_path(metadata, data_root, is_ephys_session):
         rec_dir = root_path + f'{rat}/ephys/{e_session}.rec/'
         session_paths = dict(
             rec_dir = rec_dir,
-            probe_dir = rec_dir + f'{e_session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/',
+            probe_dir = rec_dir + 'sorting_output/probe{}/sorter_output/',
             preprocess_dir = rec_dir + 'preprocessing_output/',
             timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
         )
