@@ -193,7 +193,7 @@ def align_helper(traces, begin_arr, end_arr, index_arr, pre_buffer, post_buffer)
 
     begin_arr[begin_arr < 0] = 0  # set negative indices to beginning of trace
     len_preceding_arr = index_arr - begin_arr  # bin number of event relative to beginning of frame
-    assert np.all(len_preceding_arr > 0)
+    assert np.all(len_preceding_arr >= 0)
     alignment_idx = pre_buffer
     assert max(len_preceding_arr) <= pre_buffer
     offset_arr = alignment_idx - len_preceding_arr
@@ -204,8 +204,10 @@ def align_helper(traces, begin_arr, end_arr, index_arr, pre_buffer, post_buffer)
 
     aligned_arr = np.full([traces.shape[0], traces.shape[1], pre_buffer+1+post_buffer], np.nan)
     for i in trange(traces.shape[1]):
-        aligned_arr[:, i, offset_arr[i]:alignment_idx] = traces[:, i, begin_arr[i]:index_arr[i]]
-        aligned_arr[:, i, alignment_idx:(alignment_idx+len_after_arr[i])] = traces[:, i, index_arr[i]:end_arr[i]]
+        if index_arr[i] - begin_arr[i] > 0:
+            aligned_arr[:, i, offset_arr[i]:alignment_idx] = traces[:, i, begin_arr[i]:index_arr[i]]
+        if end_arr[i] - index_arr[i] > 0:
+            aligned_arr[:, i, alignment_idx:(alignment_idx+len_after_arr[i])] = traces[:, i, index_arr[i]:end_arr[i]]
 
     return aligned_arr, alignment_idx
 
