@@ -48,7 +48,7 @@ if platform.system() != 'Windows':
 # -------------------------------------------------------------------------- #
 base_folder = Path('Y:/NeuroData/TQ03/20210616_115352.rec')
 rec_file = base_folder / '20210616_115352.rec'
-sorting_folder = base_folder / 'spike_interface_output'
+sorting_folder = base_folder / 'sorting_output'
 
 if not USE_REC:
     probe_num = 1
@@ -252,11 +252,11 @@ if RUN_SORTING:
                 sorting = si.run_sorter(
                     sorter_name=sorter_algorithm,
                     recording=sub_recording,
-                    output_folder=sorting_folder/f"{group}",
+                    output_folder=sorting_folder/f"probe{group+1}",
                     verbose=True,
                     remove_existing_folder=False,
                     )
-                binary_path = sorting_folder/f"{group}"/"sorter_output"
+                binary_path = sorting_folder/f"probe{group+1}"/"sorter_output"
                 si.write_binary_recording(sub_recording, file_paths=binary_path / "recording.dat", dtype='int16', **job_kwargs)
                 with open(binary_path / "params.py", "r") as params_file:
                     lines = params_file.readlines()
@@ -267,15 +267,16 @@ if RUN_SORTING:
     else:
         si.run_sorter(sorter_name=sorter_algorithm,
                                 recording=recording,
-                                output_folder=sorting_folder / f'{probe_num-1}',
+                                output_folder=sorting_folder / f'probe{probe_num}',
                                 docker_image=False,
                                 verbose=True)
 
 
 for probe_num in range(1, len(recording.get_probes())+1):
     print(f'Loading sorted data for probe {probe_num}...')
-    sorting = si.read_sorter_folder(sorting_folder / f'{probe_num-1}')
-    probe_folder = sorting_folder / f'{probe_num - 1}'
+    probe_folder = sorting_folder / f'probe{probe_num}'
+    sorting = si.read_sorter_folder(probe_folder)
+    
 
     if RUN_ANALYSIS:
         """
