@@ -81,7 +81,18 @@ if SPIKES_AND_TTL:
 
 
 if BEHAVIOR:
+    print('---------------------------------------------------------------------------------')
+    print('Processing behavioral data...')
     bu.create_behavioral_dataframe(preprocess_dir, metadata)
+    print('Removing trials corresponding to or preceding a gap...', flush=True, end='')
+    behav_df = joblib.load(preprocess_dir + 'behav_df')
+    no_matching_TTL_start_time = np.where(behav_df['no_matching_TTL_start_time'])[0]
+    no_matching_TTL_end_time = no_matching_TTL_start_time - 1
+    behav_df.drop(np.hstack([no_matching_TTL_start_time, no_matching_TTL_end_time]), axis=0, inplace=True)
+    assert np.all(behav_df['no_matching_TTL_start_time'] == False)
+    assert np.all(~np.isnan(behav_df['TrialLength']))
+    joblib.dump(behav_df, preprocess_dir + "behav_df", compress=3)
+    print('Done.')
 
 
 if LFPs:

@@ -238,16 +238,13 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
         _sd['TrialTypes'] = behav_data['TrialTypes'][:n_trials]
 
     if ephys:
-        if OTT_LAB_DATA:
-            _sd['TTLTrialStartTime'] = behav_data['recorded_TTL_trial_start_time'][:n_trials]
-            _sd['no_matching_TTL_start_time'] = behav_data['no_matching_TTL_start_time'][:n_trials]
-            _sd['large_TTL_gap_after_start'] = behav_data['large_TTL_gap_after_start'][:n_trials]
-
-        else:
-            _sd['TTLTrialStartTime'] = behav_data['TrialStartAligned'][:n_trials]
+        _sd['TTLTrialStartTime'] = behav_data['recorded_TTL_trial_start_time'][:n_trials]
+        _sd['no_matching_TTL_start_time'] = behav_data['no_matching_TTL_start_time'][:n_trials]
+        _sd['large_TTL_gap_after_start'] = behav_data['large_TTL_gap_after_start'][:n_trials]
 
         _sd['NextTrialStart'] = _sd['TTLTrialStartTime'].shift(-1).to_numpy()
         _sd['TrialLength'] = (_sd['NextTrialStart'] - _sd['TTLTrialStartTime']).to_numpy()
+
     # ------------------------------------------------------------------------ #
 
 
