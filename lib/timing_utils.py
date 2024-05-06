@@ -19,7 +19,7 @@ from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedData
 import neuropixels_preprocessing.lib.trace_utils as trace_utils
 import neuropixels_preprocessing.lib.behavior_utils as bu
 
-def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadata, fs, save_individual_spiketrains):
+def create_spike_mat(probe_sort_dir, preprocess_dir, timestamp_dat, session_metadata, fs, save_individual_spiketrains):
     """
     Make spiking matrix (and optionally individual spike time vectors, or 
     spike trains) for single unit recordings from Neuropixels & Trodes, 
@@ -30,7 +30,7 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
 
     Parameters
     ----------
-    session_dir : TYPE
+    probe_sort_dir : TYPE
         DESCRIPTION.
     timestamp_dat : TYPE
         DESCRIPTION.
@@ -54,10 +54,10 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
     #                   Load Kilosort/Phy Spike Data
     #----------------------------------------------------------------------#
     # Phy's clustering results
-    cluster_spikes_dict = load(session_dir + '.phy/spikes_per_cluster.pkl')
+    cluster_spikes_dict = load(probe_sort_dir + '.phy/spikes_per_cluster.pkl')
     
-    # load KS timestamps (these are indices in reality!) for each spike index
-    spike_times_arr = h5py.File(session_dir + 'spike_times.mat')['spikeTimes'][()][0]
+    # Load Kilosort timestamps (these are indices in reality!) for each spike
+    spike_times_arr = np.load(probe_sort_dir + 'spike_times.npy').flatten()
     #----------------------------------------------------------------------#
     
     
@@ -75,7 +75,7 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
     # Phy curing table (cluster metadata)
     # index corresponds to the key in cluster_spikes_dict, 
     # i.e., cluster_spikes_dict[n].size==cluster_label_df.iloc[n]['n_spikes']
-    cluster_label_df = pd.read_csv(session_dir + 'cluster_info.tsv', sep="\t")
+    cluster_label_df = pd.read_csv(probe_sort_dir + 'cluster_info.tsv', sep="\t")
     
     # Phy cluster_id labelled as 'good'
     good_clusters = cluster_label_df.cluster_id[cluster_label_df['group'] =='good'].to_numpy()
@@ -90,7 +90,8 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
     last_spike_in_sec = trodes_timestamps[-1] / fs
     last_spike_ms = int(np.ceil(last_spike_in_sec * 1000))
     spike_mat = np.zeros((len(good_clusters), last_spike_ms), dtype='uint8')
-    
+
+    print('---------------------------------------------------------------------------------')
     print('Creating spike mat...')
     for i, clust_i in enumerate(good_clusters):
         print(f'{i+1} / {len(good_clusters)}\r', flush=True, end='')
@@ -123,7 +124,7 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
     
     results = {'spike_mat': spike_mat, 'row_cluster_id': good_clusters}
     dump(results, preprocess_dir + 'spike_mat_in_ms.npy', compress=3)
-    print('\nSaved to ' + preprocess_dir)
+    print('Saved to ' + preprocess_dir)
 # ---------------------------------------------------------------------------------------- #
 
 
