@@ -17,7 +17,7 @@ import platform
 # -------------------------------------------------------------------------- #
 #                         Script Parameters
 # -------------------------------------------------------------------------- #
-USE_REC = True
+USE_REC = False
 FILTER_RAW_BEFORE_SORTING = True  # applies HPF and CMR
 SAVE_PREPROCESSING = False
 
@@ -46,14 +46,16 @@ if platform.system() != 'Windows':
 # -------------------------------------------------------------------------- #
 #                               Paths
 # -------------------------------------------------------------------------- #
-base_folder = Path('Y:/NeuroData/TQ03/20210616_115352.rec')
-rec_file = base_folder / '20210616_115352.rec'
+trodes_date = '20210623_121426'
+base_folder = Path(f'X:/Nina2/ephys/{trodes_date}.rec')
+rec_file = Path(f'O:/data/Nina2/ephys/{trodes_date}.rec/{trodes_date}.rec')
 sorting_folder = base_folder / 'sorting_output'
 
 if not USE_REC:
     probe_num = 1
-    binary_file = base_folder / f'TQ03_20210617_combined.probe{probe_num}.dat'
-    chan_map_file = base_folder / f'TQ03_20210617_combined.channelmap_probe{probe_num}.dat'
+    binary_folder = f'{trodes_date}.kilosort/{trodes_date}'
+    binary_file = base_folder / (binary_folder + f'.probe{probe_num}.dat')
+    chan_map_file = base_folder / (binary_folder + f'.channelmap_probe{probe_num}.dat')
 # -------------------------------------------------------------------------- #
     
 print('Sorting', rec_file)
@@ -266,10 +268,10 @@ if RUN_SORTING:
                     
     else:
         si.run_sorter(sorter_name=sorter_algorithm,
-                                recording=recording,
-                                output_folder=sorting_folder / f'probe{probe_num}',
-                                docker_image=False,
-                                verbose=True)
+                      recording=recording,
+                      output_folder=sorting_folder / f'probe{probe_num}',
+                      docker_image=False,
+                      verbose=True)
 
 
 for probe_num in range(1, len(recording.get_probes())+1):
