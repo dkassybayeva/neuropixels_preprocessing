@@ -7,9 +7,9 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 
 2) Open Trodes. From the main menu select Open Playback File, and browse to your desired .rec file.
 
-3) File -> extract -> check dio and kilosort -> “start”. This takes a few hours to run on an SSD and overnight on an HDD.  This will result in new folders in the same directory as the .rec file, one for DIO and another for kilosort, each containing their respective .dat files.  The kilosort folder also contains the channel map .dat for kilosort as well as the timestamps that will be needed to sync the TTL and behavioral times in the post-spike pipeline.
+3) File -> extract -> check dio and kilosort -> “start”. This may take a while to show the progress as a percent.  New folders will be created in the same directory as the .rec file, one for DIO and another for kilosort, each containing their respective .dat files.  The kilosort folder also contains the channel map .dat for kilosort as well as the timestamps that will be needed to sync the TTL and behavioral times in the post-spike pipeline.
 
-4) After double checking the backup of the .rec file is still on the server (and correct size etc.), delete the local copy to save space. The size of the combined kilosort .dat files is approximately the same as the .rec, so this will save about 0.5TB.
+4) After double checking that the original .rec file is still on the server (with the correct size etc.), delete the local copy to save space. The size of the combined kilosort .dat files is approximately the same as the .rec, so this will save about 0.5TB.
 
 ### Spike Sorting
 
@@ -17,15 +17,15 @@ Preprocessing pipeline for Neuropixels recordings using kilosort, additional clu
 
    - At the moment, the preferred method is to use the kilosort .dat files exported from Trodes, as described above in Extracting Traces Using Trodes.
      To use the .dat files, set `USE_REC=False` at the top of spike_sort_pipeline.py.  After that, the bare minimum to run
-     sorting with Kilosort 4 is to set `RUN_SORTING = True` and then update the paths in the PATHS session,
+     sorting with Kilosort 4 is to set `RUN_SORTING = True` and then update the paths in the PATHS section,
      including the `if not USE_REC` block, where the probe number can be given.<br/><br/>
    
      Other variables of interest are:
      - `AGGREGATE_SORTING = False`  Only used for `USE_REC=True`.  At the moment should always be set to False because this causes very slow sorting.
-     - `FILTER_RAW_BEFORE_SORTING = True  # applies HPF and CMR`  Should be set to True.  It just filters the raw data.
-	 - `SAVE_PREPROCESSING = False`  Can be used as intermediate step to save the preprocessing, but the only processing used at the moment 
+     - `FILTER_RAW_BEFORE_SORTING = True`  Should be set to True.  Simply filters the raw data.
+     - `SAVE_PREPROCESSING = False`  Can be used as intermediate step to save the preprocessing, but the only processing used at the moment 
      	is the filtering, and that is very fast.  Therefore, setting this  saves disk space and time.
-	 - `RUN_ANALYSIS = True`  This should be set to True in order to calculate the quality metrics needed for manual curation in Phy.
+     - `RUN_ANALYSIS = True`  This should be set to True in order to calculate the quality metrics needed for manual curation in Phy.
 	   <br/><br/>
    
 	- <b>The sorting output should be saved to an SSD drive, otherwise Phy will be very slow.</b>  The default output path is in the main .rec
