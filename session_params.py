@@ -1,6 +1,33 @@
 from os import path, makedirs, getlogin
 import pandas as pd
 
+
+def read_metadata():
+    metadata = dict(
+        ott_lab = False,
+        rat_name = 'TQ03',
+        date = '20210617',
+        experimenter = 'Amy',
+        region = 'lOFC',
+        # ----------------------------------- #
+        trodes_datetime = '20210617',
+        trodes_logfile = '',
+        trodes_config = '',
+        recording_type = 'neuropixels_1.0',
+        n_probes = 2,
+        DIO_port_num = 6,
+        kilosort_ver = 4,
+        # ----------------------------------- #
+        behav_datetime = '20210617',
+        task = 'time-investment'  # ['matching', 'reward-bias', 'time-investment']
+        # ----------------------------------- #
+    )
+
+    metadata['behavior_mat_file'] = f'TQ03_reward-bias_Jun16_2021_Session1.mat'
+
+    return metadata
+
+
 # ----------------------------------------------------------------------- #
 #                           Constants
 # ----------------------------------------------------------------------- #
@@ -56,6 +83,7 @@ spike_mat_str_indiv = f'spike_mat_in_ms.npy'
 gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
 # ----------------------------------------------------------------------- #
 
+
 def get_root_path(data_root):
     if data_root=='server':
         data_root='O:data/'
@@ -79,46 +107,21 @@ def save_directory_helper(data_root):
     return data_root
 
 
-def write_session_metadata_to_csv(data_root):
-    columns = ['ott_lab', 'rat_name', 'date', 'experimenter', 'region',
-               'trodes_datetime', 'trodes_logfile', 'trodes_config', 'recording_type',
-               'n_probes', 'DIO_port_num', 'kilosort_ver',
-               'behav_datetime', 'task', 'behavior_mat_file']
-
-    metadata = dict(
-        ott_lab = False,
-        rat_name = 'TQ03',
-        date = '20210616',
-        experimenter = 'Amy',
-        region = 'lOFC',
-        # ----------------------------------- #
-        trodes_datetime = '20210616_115352',
-        trodes_logfile = '',
-        trodes_config = '',
-        recording_type = 'neuropixels_1.0',
-        n_probes = 2,
-        DIO_port_num = 6,
-        kilosort_ver = 4,
-        # ----------------------------------- #
-        behav_datetime = '20210616',
-        task = 'reward-bias', # ['matching', 'reward-bias', 'time-investment']
-        # ----------------------------------- #
-    )
-
-    metadata['behavior_mat_file'] = f'TQ03_reward-bias_Jun16_2021_Session1.mat'
-
+def write_session_metadata_to_csv(metadata, data_root):
     DATA_DIR = save_directory_helper(data_root)
-
     ephys_metadata_file = DATA_DIR + 'ephys_sessions_metadata.csv'
+
     try:
         ephys_df = pd.read_csv(ephys_metadata_file)
     except:
+        columns = ['ott_lab', 'rat_name', 'date', 'experimenter', 'region',
+                   'trodes_datetime', 'trodes_logfile', 'trodes_config', 'recording_type',
+                   'n_probes', 'DIO_port_num', 'kilosort_ver',
+                   'behav_datetime', 'task', 'behavior_mat_file']
         ephys_df = pd.DataFrame(columns=columns)
 
     ephys_df.loc[len(ephys_df)] = metadata
     ephys_df.to_csv(ephys_metadata_file, index=False)
-
-    return metadata
 
 
 def load_session_metadata_from_csv(data_root, rat, session_date):

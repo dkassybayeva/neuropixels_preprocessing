@@ -24,26 +24,20 @@ from neuropixels_preprocessing.session_params import *
 # filled out and updated for each recording session.
 # ---------------------------------------------------------------------- #
 DATA_ROOT = 'Y:'  # ['local', 'server', 'X:', etc.]
-SPIKES_AND_TTL = False
-BEHAVIOR = False
+SPIKES_AND_TTL = True
+BEHAVIOR = True
 LFPs = False
-DATA_OBJECT = False
+DATA_OBJECT = True
 
 SAVE_INDIVIDUAL_SPIKETRAINS = True
-WRITE_METADATA = False
-    
-if WRITE_METADATA:
-    metadata = write_session_metadata_to_csv(DATA_ROOT)
-else:
-    rat = 'TQ03'
-    date = '20210616'
-    metadata = load_session_metadata_from_csv(DATA_ROOT, rat, date)
+WRITE_METADATA = True
 # ---------------------------------------------------------------------- #
 
 
 # ---------------------------------------------------------------------- #
 #                           PATHS
 # ---------------------------------------------------------------------- #
+metadata = read_metadata()
 session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
 preprocess_dir = session_paths['preprocess_dir']
 ou.make_dir_if_nonexistent(preprocess_dir)
@@ -179,6 +173,7 @@ if DATA_OBJECT:
         print('---------------------------------------------------------------------------------')
 
 
-if WRITE_METADATA:
-    insert_value_into_metadata_csv(DATA_ROOT, rat, date, 'n_good_units', n_neurons)
-    insert_value_into_metadata_csv(DATA_ROOT, rat, date, 'n_trials', n_trials)
+    if WRITE_METADATA:
+        metadata['n_good_units'] = n_neurons
+        metadata['n_trials'] = n_trials
+        metadata = write_session_metadata_to_csv(metadata, DATA_ROOT)
