@@ -24,8 +24,8 @@ probe_num = '1';
 %                           Output Paths
 % ------------------------------------------------------------------- %
 % Output folder for merged binary (SSD or HDD)
-multi_session_folder = fullfile('X:\Neurodata\TQ03', strjoin(session_dates, '_'));
-combined_dat_folder = fullfile(multi_session_folder, strcat('probe', probe_num, 'test'));
+multi_session_folder = fullfile('X:\NeuroData\TQ02\ephys\', strjoin(session_dates, '_'));
+combined_dat_folder = fullfile(multi_session_folder, strcat('probe', probe_num));
 if ~isfolder(combined_dat_folder), mkdir(combined_dat_folder), end
 % ------------------------------------------------------------------- %
 
