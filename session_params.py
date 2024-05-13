@@ -10,7 +10,7 @@ def read_metadata():
         experimenter = 'Amy',
         region = 'lOFC',
         # ----------------------------------- #
-        trodes_datetime = '20210617',
+        trodes_datetime = '20210617_115450',
         trodes_logfile = '',
         trodes_config = '',
         recording_type = 'neuropixels_1.0',
@@ -23,7 +23,7 @@ def read_metadata():
         # ----------------------------------- #
     )
 
-    metadata['behavior_mat_file'] = f'TQ03_reward-bias_Jun16_2021_Session1.mat'
+    metadata['behavior_mat_file'] = f'TQ03_time-investment_Jun17_2021_Session2.mat'
 
     return metadata
 
