@@ -59,11 +59,10 @@ Scripts for this section are found in the post_spike_sort/ directory.
 - Copy relevant behavior file (BPod session file, e.g., [subject]\_[protocol]\_[monthDay]\_[year]\_Session[#].mat) to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
 - open post\_cluster\_pipeline.py, change the relevant variables and paths up to the PIPELINE heading, and run it.    **--> spike\_mat\_in\_ms.npy**    (\[OPTIONAL\] Set SAVE_INDIVIDUAL_SPIKETRAINS = True when stitching sessions. **--> spike\_times/spike\_times\_in\_sec\_shank=\[PROBE#\]\_clust=\[UNIT#\].npy**)
 
-- \[OPTIONAL\] Run post\_spike\_sort/extract\_waveforms.py. (This step is required to compare neurons when validating stitched sessions.) **--> waveforms/unit\_\[UNIT#\].mat**
-
 
 #### Stitching Sessions
-- [DEPCRECATED] First run Kilosort/combine\_session\_binaries.m after entering the proper input and output paths (to .rec files of the individual sessions).  This will create a combined.mat file in the output directory in a subdirectory named \[Session1\]\_\[Session2\]. Then run Kilsort/main\_kilosort.m with combined\_session=true and session\_rec=\[Session1\]\_\[Session2\].
-- Run sorting on the combined session and curate (at the moment, use Kilosort GUI).
+- Run post\_spike\_sort/extract\_waveforms.m for both individual sessions. (This step is required to compare neurons when validating stitched sessions.) **--> waveforms/unit\_\[UNIT#\].mat**
+- First run misc_utils/combine\_session\_dat_files.m after entering the proper input (to .rec files of the individual sessions) and output paths .  This will create a combined.dat file in the output directory in a subdirectory named \[Session1\]\_\[Session2\].
+- Run sorting (at the moment, use Kilosort GUI) on the combined.dat file and curate.
 - Run post\_spike\_sort/separate\_session\_spiketimes\_from\_combined\_data.py (requires curated Phy cluster\_group.tsv file in the combined data folder). **--> in combined data folder saves two files: spike_mat_in_ms_\[subject\]_\[session\]_probe\[probe#\]_from_combined_data.npy**
 - Continue with https://github.com/Ott-Decision-Circuits-Lab/spike_response_analysis/tree/master/session_stitching
