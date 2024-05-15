@@ -37,19 +37,20 @@ PLOT_NOISE = False
 PLOT_PEAKS_ON_ELECTRODES = False
 
 
-job_kwargs = dict(chunk_duration='1s', progress_bar=True)
-if platform.system() != 'Windows':
-    job_kwargs['n_jobs'] = 40   
-    
+# -------------------------------------------------------------------------- #
+#              VARIABLES THAT SHOULD BE UPDATED BEFORE RUNNING
+# -------------------------------------------------------------------------- #
+subject = 'Nina2'
+trodes_date = '20210623_121426'
+local_drive = 'X:'
 # -------------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------------- #
 #                               Paths
 # -------------------------------------------------------------------------- #
-trodes_date = '20210623_121426'
-base_folder = Path(f'X:/Nina2/ephys/{trodes_date}.rec')
-rec_file = Path(f'O:/data/Nina2/ephys/{trodes_date}.rec/{trodes_date}.rec')
+base_folder = Path(f'{local_drive}/{subject}/ephys/{trodes_date}.rec')
+rec_file = Path(f'O:/data/{subject}/ephys/{trodes_date}.rec/{trodes_date}.rec')
 sorting_folder = base_folder / 'sorting_output'
 
 if not USE_REC:
@@ -58,8 +59,14 @@ if not USE_REC:
     binary_file = base_folder / (binary_folder + f'.probe{probe_num}.dat')
     chan_map_file = base_folder / (binary_folder + f'.channelmap_probe{probe_num}.dat')
 # -------------------------------------------------------------------------- #
-    
-print('Sorting', rec_file)
+
+
+job_kwargs = dict(chunk_duration='1s', progress_bar=True)
+if platform.system() != 'Windows':
+    job_kwargs['n_jobs'] = 40
+
+
+print('Sorting', base_folder)
 
 
 if USE_REC:
