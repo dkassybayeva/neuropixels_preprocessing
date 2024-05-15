@@ -168,22 +168,3 @@ def get_session_path(metadata, data_root, is_ephys_session):
     assert path.exists(session_paths['behav_dir'])
 
     return session_paths
-
-
-def get_stitched_session_paths(data_root, sesh_1_metadata, sesh_2_metadata):
-    session1_paths = get_session_path(sesh_1_metadata, data_root, is_ephys_session=True)
-    session2_paths = get_session_path(sesh_2_metadata, data_root, is_ephys_session=True)
-    rat = sesh_1_metadata['rat_name']
-
-    stitch_paths = dict()
-    combined_session = f"{sesh_1_metadata['date']}_{sesh_2_metadata['date']}"
-    root_path = save_directory_helper(data_root)
-    stitch_paths['stitch_dir'] = root_path + f'{rat}/{combined_session}/'
-    assert path.exists(stitch_paths['stitch_dir'])
-
-    stitch_paths['probe_dir'] = stitch_paths['stitch_dir'] + f"probe{sesh_1_metadata['probe_num']}/kilosort{sesh_1_metadata['kilosort_ver']}/"
-    stitch_paths['preprocess_dir'] = stitch_paths['stitch_dir'] + f"preprocessing_output/probe{sesh_1_metadata['probe_num']}/"
-    stitch_paths['matches_dir'] = stitch_paths['preprocess_dir'] + 'matches/'
-
-    return {f"{sesh_1_metadata['date']}":session1_paths, f"{sesh_2_metadata['date']}":session2_paths, 'stitched':stitch_paths}
-
