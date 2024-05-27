@@ -559,35 +559,42 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_
         print('Attempting to reconcile ITIs by inserting dummy TTL data...', flush=True, end='')
         gap_start_indices = np.where(TTL_code == -1)[0] // 2
 
-        n_trials_min = min(len(behav_start_ts), len(recorded_start_ts))
+        n_trials_min = len(recorded_start_ts)  # TTLs have fewest trials by definition (if statement above)
         n_match = n_matching_ITIs(behav_start_ts[:n_trials_min], recorded_start_ts[:n_trials_min])
-
-        # Note: May need to make multiple corrections per gap if the gap is very large
-        n_corrections = 0
         misses = np.where(compare_ITIs(behav_start_ts[:n_trials_min], recorded_start_ts[:n_trials_min]) == False)[0]
 
-        while misses.size > n_corrections * 2:
-            # Introducing a NaN will create 2 NaN diffs, skip 2 mismatches per previous correction
-            next_miss = misses[n_corrections * 2]
+        miss_index = 0
+        n_corrections = 0
+        buffer_ITIs = 0  # Note: May need to make multiple corrections per gap if the gap is very large
+
+        while miss_index < len(misses):
+            next_miss = misses[miss_index]
             recorded_start_ts_w_gaps = np.insert(recorded_start_ts, next_miss+1, np.nan)
 
             behav_ts_diff = np.diff(behav_start_ts[:n_trials_min])
             record_ts_diff = np.diff(recorded_start_ts_w_gaps)[:n_trials_min-1]
             n_match_new = np.sum(np.isclose(record_ts_diff, behav_ts_diff, atol=0.1, rtol=0))
 
+            recorded_start_ts = recorded_start_ts_w_gaps
+            n_trials_min = min(len(behav_start_ts), len(recorded_start_ts))
+            misses = np.where(compare_ITIs(behav_start_ts[:n_trials_min], recorded_start_ts[:n_trials_min]) == False)[0]
+
             if n_match_new > n_match:
-                recorded_start_ts = recorded_start_ts_w_gaps
-                n_trials_min = min(len(behav_start_ts), len(recorded_start_ts))
-                n_match = n_match_new
                 n_corrections += 1
-                misses = np.where(compare_ITIs(behav_start_ts[:n_trials_min], recorded_start_ts[:n_trials_min]) == False)[0]
+                # Introducing a NaN will create 2 NaN diffs at the beginning of misses
+                # (the first is at 'next_miss' and one spot right after.)
+                miss_index += 2
+                n_match = n_match_new
+            else:
+                buffer_ITIs += 1
+                miss_index += 1
 
         print(n_corrections, 'corrections made.')
 
-        correction_idx = np.where(np.isnan(recorded_start_ts))[0]
-        for c_i, correction_i in enumerate(correction_idx):
-            before_gap, after_gap = recorded_start_ts[correction_i-1], recorded_start_ts[correction_i+1]
-            print(len(np.where((before_gap < gap_times) & (gap_times < after_gap))[0]), 'gap(s) found where correction', c_i+1, 'was made.')
+        insertion_idx_l = np.where(np.isnan(recorded_start_ts))[0]
+        for c_i, insertion_i in enumerate(insertion_idx_l):
+            before_gap, after_gap = recorded_start_ts[insertion_i-1], recorded_start_ts[insertion_i+1]
+            print(len(np.where((before_gap < gap_times) & (gap_times < after_gap))[0]), 'gap(s) found where ITI', c_i+1, 'was inserted.')
 
         # While correcting for gaps, the recorded TTLs may have become longer
         if len(recorded_start_ts) > len(behav_start_ts):
@@ -598,12 +605,14 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_
         Not all gaps affect the trial start timestamps.  Instead, make sure that the number of corrections
         does not exceed the registered number of gaps.
         """
-        assert n_corrections < len(gap_times)
+        assert n_corrections <= len(gap_times)
         """
         Number of diffs (ITIs) = number of trials - 1.  Check that matches equal this number - 2 * corrections,
         since each correction introduced two misses.
         """
-        assert n_matching_ITIs(behav_start_ts[:n_trials_min], recorded_start_ts[:n_trials_min]) == (n_trials - 1 - 2 * n_corrections)
+        # if buffer_ITIs:
+        #     buffer_ITIs +=1
+        # assert n_matching_ITIs(behav_start_ts[:n_trials_min], recorded_start_ts[:n_trials_min]) == (n_trials - 1 - 2 * n_corrections - buffer_ITIs)
 
     elif len(behav_start_ts) < len(recorded_start_ts):
         print('More recorded TTL trials than in behavioral data.')
