@@ -177,4 +177,4 @@ if DATA_OBJECT:
     if WRITE_METADATA:
         metadata['n_good_units'] = n_neurons
         metadata['n_trials'] = n_trials
-        metadata = write_session_metadata_to_csv(metadata, DATA_ROOT)
+        metadata = write_session_metadata_to_csv(metadata, 'server')
