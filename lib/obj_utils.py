@@ -32,6 +32,7 @@ def combine_session_data_objects(data_root, rat_name_l, date_l, subdir=''):
 
             _obj = from_pickle(_paths['preprocess_dir'] + f"probe{probe_i}/", TwoAFC, subdir)
             _obj.probe_dir = _paths['preprocess_dir'] + f"probe{probe_i}/"
+            _obj.sort_dir = _paths['rec_dir'] + f"sorting_output/probe{probe_i}/sorter_output/"
             print(_obj, 'loaded from ', _obj.data_path)
 
             _obj.behavior_mat_path = _paths['behav_dir'] + _metadata['behavior_mat_file']
