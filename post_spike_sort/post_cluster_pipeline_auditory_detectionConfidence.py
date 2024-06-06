@@ -25,6 +25,7 @@ SPIKES_AND_TTL = True
 SAVE_INDIVIDUAL_SPIKETRAINS = False  # Used for stitching sessions.  Otherwise unnecessary.
 BEHAVIOR = True
 #TWO_BEH = True
+DATA_OBJECT = False
 
 
 metadata = dict(
@@ -229,3 +230,33 @@ if BEHAVIOR:
                 dump(results, preprocess_dir + f"probe{metadata['probe_num']}/trial_binned_mat_start_align_detectionConfidence.npy", compress=3)
 print('Process Finished.')
 
+#%%-------------------------------------------------------
+# Align to specific events
+#---------------------------------------------------------
+if DATA_OBJECT:
+    n_neurons = 0
+    for probe_i in range(1, metadata['n_probes']+1):
+        metadata['probe_num'] = probe_i
+
+        # -------------------------------------------------------- #
+        # Chop neuron activity into trials and align to trial start
+        # -------------------------------------------------------- #
+        probe_save_dir = preprocess_dir + f"probe{probe_i}/"
+        trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(preprocess_dir, probe_save_dir)
+
+        n_probe_neurons, n_trials, _ = trialwise_binned_mat.shape
+        n_neurons += n_probe_neurons
+        print('Probe', probe_i, 'has', n_probe_neurons, 'neurons with', n_trials, 'trials.')
+
+        # ------------------------------------------------------------------------- #
+        # Downsample spiking activity, create alignment traces, and save separately
+        # ------------------------------------------------------------------------- #
+        trace_utils.align_traces_to_task_events(cbehav_df, trialwise_binned_mat, alignment_param_dict, save_dir=probe_save_dir)
+        trace_utils.interpolate_traces(cbehav_df, trialwise_binned_mat, interpolation_param_dict, save_dir=probe_save_dir)
+
+        # -------------------------------------------------------- #
+        # Save datapath, behavioral and metadata to data object
+        # -------------------------------------------------------- #
+        print('Creating data object...', end='')
+        metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
+        data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
