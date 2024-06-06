@@ -29,11 +29,11 @@ BEHAVIOR = True
 
 metadata = dict(
     ott_lab = True,
-    rat_name = 'R13',
-    date = '20231212',
-    behavior_mat_file = ['13_AuditoryTuning_20231212_153306.mat', '13_DetectionConfidence_20231212_155237.mat'],
-    trodes_datetime = '20231212_153718',
-    n_probes = 2,
+    rat_name = 'R12',
+    date = '20231219',
+    behavior_mat_file = ['12_AuditoryTuning_20231219_164310.mat', '12_DetectionConfidence_20231219_172431.mat'],
+    trodes_datetime = '20231219_170949',
+    n_probes = 1,
     DIO_port_num = 1,
     task = 'reward-bias',
     sps = sps,
@@ -48,7 +48,7 @@ metadata = dict(
 #                       Set up paths
 #----------------------------------------------------------------------#
 session_paths = dict()
-session_paths['rec_dir'] = rec_dir = f'Y:{metadata["rat_name"]}/{metadata["trodes_datetime"]}.rec/'
+session_paths['rec_dir'] = rec_dir = f'X:{metadata["rat_name"]}/ephys/{metadata["trodes_datetime"]}.rec/'
 assert path.exists(session_paths['rec_dir'])
 # session path for spikeinterface with ks4
 session_paths['probe_dir'] = session_paths['rec_dir'] + f'spike_interface_output/' + '{}/sorter_output/'

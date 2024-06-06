@@ -49,8 +49,8 @@ if platform.system() != 'Windows':
 # -------------------------------------------------------------------------- #
 #                               Paths
 # -------------------------------------------------------------------------- #
-base_folder = Path('X:/R12/20231212_183552.rec')
-rec_file = base_folder / '20231212_183552.rec'
+base_folder = Path('X:/R12/ephys/20231219_170949.rec')
+rec_file = base_folder / '20231219_170949.rec'
 sorting_folder = base_folder / 'spike_interface_output'
 
 if not USE_REC:
