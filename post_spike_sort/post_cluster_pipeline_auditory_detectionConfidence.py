@@ -1,22 +1,24 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Dec  8 10:33:50 2022
+Created on Thu Jan  8 10:33:50 2024
 
-@author: Greg Knoll
+@author: Dariya Kassybayeva
 """
 # %% 
-from joblib import load, dump
+import os
 import numpy as np
+from tqdm import trange
+import joblib
 
+from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile, get_Trodes_timestamps
 import neuropixels_preprocessing.lib.timing_utils as tu
 import neuropixels_preprocessing.lib.obj_utils as ou
 import neuropixels_preprocessing.lib.behavior_utils as bu
 import neuropixels_preprocessing.lib.data_objs as data_objs
-from neuropixels_preprocessing.session_params import *
 import neuropixels_preprocessing.lib.trace_utils as trace_utils
+from neuropixels_preprocessing.session_params import *
 
-
-#%%
+#%% 
 #----------------------------------------------------------------------#
 # The information in the metadata block of session_params needs to be
 # filled out and updated for each recording session.
@@ -42,6 +44,63 @@ metadata = dict(
     probe_num = 1,
     kilosort_ver = 4
 )
+
+# ----------------------------------------------------------------------- #
+#                           Constants
+# ----------------------------------------------------------------------- #
+# -------recording--------- #
+fs = 30e3  # Trodes sampling frequency in Hz
+ms_converter = 1000 / fs
+n_Npix1_electrodes = 960
+n_active_electrodes = 384
+
+# -------analysis bins--------- #
+max_ISI = 0.001  # max intersample interval (ISI), above which the period is considered a "gap" in the recording
+trace_subsample_bin_size_ms = 10 # sample period in ms
+sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of aligned traces
+
+# -------params for trace interpolation------- #
+"""
+For the source of these numbers, see 'Temporal dynaics clustering' in Hirokawa et al. Nature (2019) in Methods.
+"""
+interpolation_param_dict = dict(
+    trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
+    resp_start_align_buffer=None,  # for ResponseStart
+    trial_event_interpolation_lengths = [
+        int(0.5 * sps),  # ITI->center poke
+        int(0.45 * sps), # center->stim_begin
+        int(.5 * sps),   # stim delivery
+        int(.3 * sps),   # movement to side port
+        # int(0.5 * sps),  # first 0.5s of anticipation epoch
+        # int(0.5 * sps),  # second part of anticipation epoch warped into 0.5s (actually half second in reward-bias)
+        int(3.0 * sps),  # anticipation epoch
+        int(1.5 * sps),  # after feedback
+    ],
+    pre_center_interval = int(0.5 * sps),
+    post_response_interval = None,  # int(0.5 * sps) or None.  If None, then the midpoint between response start and end is used
+    downsample_dt=trace_subsample_bin_size_ms,
+)
+
+alignment_param_dict = dict(
+    trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
+    resp_start_align_buffer=None,  # for ResponseStart
+    downsample_dt=trace_subsample_bin_size_ms,
+    pre_stim_interval = int(0.5 * sps),  # truncated at center_poke
+    post_stim_interval = int(0.5*sps),  # truncated at stim_off
+    pre_response_interval = int(3.0*sps),  # truncated at stim_off
+    post_response_interval = int(4.0*sps),  # truncated at response_end
+    pre_reward_interval = int(6.0*sps),  # truncated at response_time
+    post_reward_interval = int(5.0*sps),  # truncated at trial_end
+)
+
+
+
+# ---------file names---------- #
+spike_mat_str_indiv = f'spike_mat_in_ms.npy'
+gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
+# ---------------------------------------------------------------------
+
+
 #----------------------------------------------------------------------#
 
 # %%
@@ -238,8 +297,8 @@ if BEHAVIOR:
                 # -------------------------------------------------------- #
                 # Save datapath, behavioral and metadata to data object
                 # -------------------------------------------------------- #
-                print('Creating data object...', end='')
-                metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
-                data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
+                #print('Creating data object...', end='')
+                #metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
+                #data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
 
 print('Process Finished.')
