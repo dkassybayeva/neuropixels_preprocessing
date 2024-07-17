@@ -8,7 +8,7 @@ Created on Thu Jan  8 10:33:50 2024
 import os
 import numpy as np
 from tqdm import trange
-import joblib
+from joblib import load, dump
 
 from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile, get_Trodes_timestamps
 import neuropixels_preprocessing.lib.timing_utils as tu
@@ -23,11 +23,9 @@ from neuropixels_preprocessing.session_params import *
 # The information in the metadata block of session_params needs to be
 # filled out and updated for each recording session.
 #----------------------------------------------------------------------#
-SPIKES_AND_TTL = True
+SPIKES_AND_TTL = False
 SAVE_INDIVIDUAL_SPIKETRAINS = False  # Used for stitching sessions.  Otherwise unnecessary.
 BEHAVIOR = True
-#TWO_BEH = True
-DATA_OBJECT = False
 
 
 metadata = dict(
@@ -44,7 +42,7 @@ metadata = dict(
     probe_num = 1,
     kilosort_ver = 4
 )
-
+#%% 
 # ----------------------------------------------------------------------- #
 #                           Constants
 # ----------------------------------------------------------------------- #
@@ -196,7 +194,7 @@ if BEHAVIOR:
        
             trialstart_str = 'recorded_TTL_trial_start_time'
             trial_len = _sd[trialstart_str][1:] - _sd[trialstart_str][:-1]
-#%%       
+# 
             behav_dict = dict(
                 volume = _sd['Custom']['Volume'][:n_trials],
                 frequency = _sd['Custom']['Frequency'][:n_trials],
@@ -210,7 +208,7 @@ if BEHAVIOR:
             dump(behav_df, preprocess_dir_auditory + "behav_df", compress=3)
             
             downsample_dt = 25  # sample period in ms
- #%%          
+ #      
             #----------------------------------------
             # Align the spikes with behavior
             #----------------------------------------
@@ -237,7 +235,7 @@ if BEHAVIOR:
                 results = {'binned_mat': trial_binned_mat_start_align, 'downsample_dt': downsample_dt}
                 dump(results, preprocess_dir + f"probe{metadata['probe_num']}/trial_binned_mat_start_align_auditory.npy", compress=3)
                 
- #%%      
+ #     
         elif beh == 1:
             #TO DO: I can make preprocess_dir[0] and[1] and just loop through it?
             _sd = load(preprocess_dir_dc + 'TrialEvents.npy')
@@ -251,6 +249,7 @@ if BEHAVIOR:
                 stimulus_start_time = _sd['Custom']['TrialData']['StimulusStartTime'][:n_trials],
                 reward_start_time = _sd['Custom']['TrialData']['RewardStartTime'][:n_trials],
                 signal_volume = _sd['Custom']['TrialData']['SignalVolume'][:n_trials],
+                MadeChoice = _sd['Custom']['TrialData']['ResponseLeft'][:n_trials], # ResponseLeft in behavior/TrialEvents.npy has values 1 - Left, 0 - Right, and NaN - no choice,
                 TrialStartTimestamp = _sd['TrialStartTimestamp'][:n_trials],
                 TrialEndTimestamp = _sd['TrialEndTimestamp'][:n_trials],
                 TTLTrialStartTime = _sd[trialstart_str][:n_trials],
@@ -261,7 +260,7 @@ if BEHAVIOR:
             dump(behav_df, preprocess_dir_dc + "behav_df", compress=3)
             
             downsample_dt = 25  # sample period in ms
-#%%
+#
             #----------------------------------------
             # Align the spikes with behavior and to specific events
             #----------------------------------------
@@ -281,7 +280,16 @@ if BEHAVIOR:
                 # -------------------------------------------------------- #
                 # Chop neuron activity into trials and align to trial start
                 # -------------------------------------------------------- #
-                trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(preprocess_dir, probe_save_dir)
+                # -- This part replaces align_trialwise_spike_times_to_start function because of the path problems
+                cbehav_df = behav_df[behav_df['MadeChoice']].reset_index(drop=True)
+                # align spike times to behavioral data timeframe
+                # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
+                trialwise_start_align_spike_mat_in_ms, _ = trace_utils.trial_start_align(cbehav_df, spike_mat, sps=1000)
+                assert trialwise_start_align_spike_mat_in_ms.shape[1] == len(cbehav_df)
+                
+                dump(trialwise_start_align_spike_mat_in_ms, probe_save_dir + 'trialwise_start_align_spike_mat_in_ms', compress=3)
+                # --
+                trialwise_binned_mat = trialwise_start_align_spike_mat_in_ms
                 
                 n_probe_neurons, n_trials, _ = trialwise_binned_mat.shape
                 n_neurons += n_probe_neurons
