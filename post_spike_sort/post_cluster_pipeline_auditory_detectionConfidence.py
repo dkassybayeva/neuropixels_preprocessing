@@ -30,10 +30,10 @@ DATA_OBJECT = False
 
 metadata = dict(
     ott_lab = True,
-    rat_name = 'R12',
+    rat_name = 'R13',
     date = '20231219',
-    behavior_mat_file = ['12_AuditoryTuning_20231219_164310.mat', '12_DetectionConfidence_20231219_172431.mat'],
-    trodes_datetime = '20231219_170949',
+    behavior_mat_file = ['13_AuditoryTuning_20231213_131543.mat', '13_DetectionConfidence_20231213_160823.mat'],
+    trodes_datetime = '20231213_155419',
     n_probes = 1,
     DIO_port_num = 1,
     task = 'reward-bias',
@@ -49,7 +49,7 @@ metadata = dict(
 #                       Set up paths
 #----------------------------------------------------------------------#
 session_paths = dict()
-session_paths['rec_dir'] = rec_dir = f'X:{metadata["rat_name"]}/ephys/{metadata["trodes_datetime"]}.rec/'
+session_paths['rec_dir'] = rec_dir = f'Y:{metadata["rat_name"]}/{metadata["trodes_datetime"]}.rec/'
 assert path.exists(session_paths['rec_dir'])
 # session path for spikeinterface with ks4
 session_paths['probe_dir'] = session_paths['rec_dir'] + f'spike_interface_output/' + '{}/sorter_output/'
@@ -128,7 +128,7 @@ if SPIKES_AND_TTL:
   # %% behavior for Detection Confidence
   #Probably will need a for loop to load two behav files and allign them 
 if BEHAVIOR:
-    for beh in range(0, 2):
+    for beh in range(0, 2): 
         if beh == 0:
             _sd = load(preprocess_dir_auditory + 'TrialEvents.npy')
        
@@ -204,10 +204,12 @@ if BEHAVIOR:
             downsample_dt = 25  # sample period in ms
 #%%
             #----------------------------------------
-            # Align the spikes with behavior
+            # Align the spikes with behavior and to specific events
             #----------------------------------------
+            n_neurons = 0
             for probe_i in range(1, metadata['n_probes']+1):
                 metadata['probe_num'] = probe_i
+                probe_save_dir = preprocess_dir + f"probe{probe_i}/"
                 
                 # load neural data: [number of neurons x time bins in ms]
                 spike_mat = load(preprocess_dir + f"probe{probe_i}/" + spike_mat_str_indiv)['spike_mat']
@@ -216,47 +218,28 @@ if BEHAVIOR:
                 
                 # align spike times to behavioral data timeframe
                 # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
-                trialwise_spike_mat_start_aligned, _ = trace_utils.trial_start_align(behav_df, spike_mat, sps=1000)
                 
-                # subsample (bin) data:
-                # [n_neurons x n_trials x (-1 means numpy ca lculates: trial_len / dt) x ds]
-                # then sum over the dt bins
-                n_neurons = trialwise_spike_mat_start_aligned.shape[0]
-                n_trials = trialwise_spike_mat_start_aligned.shape[1]
-                trial_binned_mat_start_align = trialwise_spike_mat_start_aligned.reshape(n_neurons, n_trials, -1, downsample_dt)
-                trial_binned_mat_start_align = trial_binned_mat_start_align.sum(axis=-1)  # sum over bins
+                # -------------------------------------------------------- #
+                # Chop neuron activity into trials and align to trial start
+                # -------------------------------------------------------- #
+                trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(preprocess_dir, probe_save_dir)
                 
-                results = {'binned_mat': trial_binned_mat_start_align, 'downsample_dt': downsample_dt}
-                dump(results, preprocess_dir + f"probe{metadata['probe_num']}/trial_binned_mat_start_align_detectionConfidence.npy", compress=3)
+                n_probe_neurons, n_trials, _ = trialwise_binned_mat.shape
+                n_neurons += n_probe_neurons
+                print('Probe', probe_i, 'has', n_probe_neurons, 'neurons with', n_trials, 'trials.')
+                
+                # ------------------------------------------------------------------------- #
+                # Downsample spiking activity, create alignment traces, and save separately
+                # ------------------------------------------------------------------------- #
+                trace_utils.align_traces_to_task_events(cbehav_df, trialwise_binned_mat, alignment_param_dict, save_dir=probe_save_dir)
+                trace_utils.interpolate_traces(cbehav_df, trialwise_binned_mat, interpolation_param_dict, save_dir=probe_save_dir)
+                
+                
+                # -------------------------------------------------------- #
+                # Save datapath, behavioral and metadata to data object
+                # -------------------------------------------------------- #
+                print('Creating data object...', end='')
+                metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
+                data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
+
 print('Process Finished.')
-
-#%%-------------------------------------------------------
-# Align to specific events
-#---------------------------------------------------------
-if DATA_OBJECT:
-    n_neurons = 0
-    for probe_i in range(1, metadata['n_probes']+1):
-        metadata['probe_num'] = probe_i
-
-        # -------------------------------------------------------- #
-        # Chop neuron activity into trials and align to trial start
-        # -------------------------------------------------------- #
-        probe_save_dir = preprocess_dir + f"probe{probe_i}/"
-        trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(preprocess_dir, probe_save_dir)
-
-        n_probe_neurons, n_trials, _ = trialwise_binned_mat.shape
-        n_neurons += n_probe_neurons
-        print('Probe', probe_i, 'has', n_probe_neurons, 'neurons with', n_trials, 'trials.')
-
-        # ------------------------------------------------------------------------- #
-        # Downsample spiking activity, create alignment traces, and save separately
-        # ------------------------------------------------------------------------- #
-        trace_utils.align_traces_to_task_events(cbehav_df, trialwise_binned_mat, alignment_param_dict, save_dir=probe_save_dir)
-        trace_utils.interpolate_traces(cbehav_df, trialwise_binned_mat, interpolation_param_dict, save_dir=probe_save_dir)
-
-        # -------------------------------------------------------- #
-        # Save datapath, behavioral and metadata to data object
-        # -------------------------------------------------------- #
-        print('Creating data object...', end='')
-        metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
-        data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
