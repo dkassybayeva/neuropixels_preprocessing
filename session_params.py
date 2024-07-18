@@ -65,7 +65,7 @@ def get_root_path(data_root):
         print('USING LOCAL DATA FOR TESTING!!!')
         data_root = f'/home/{getlogin()}/Workspace/ott_neuropix_data/'
     else:
-        data_root = data_root + 'Neurodata/'
+        data_root = data_root #+ 'Neurodata/'
     return data_root
 
 
@@ -86,27 +86,36 @@ def write_session_metadata_to_csv(data_root):
                'behav_datetime', 'task', 'behavior_mat_file']
 
     metadata = dict(
-        ott_lab = False,
-        rat_name = 'Nina2',
-        date = '20210623',
-        experimenter = 'Amy',
-        region = 'lOFC',
+        ott_lab = True,
+        rat_name = 'R13',
+        date = '20231213',
+        experimenter = 'Dariya',
+        region = 'rAC',
         # ----------------------------------- #
-        trodes_datetime = '20210623_121426',
+        trodes_datetime = '20231213_155419',
         trodes_logfile = '',
         trodes_config = '',
         recording_type = 'neuropixels_1.0',
         n_probes = 2,
-        DIO_port_num = 6,
-        kilosort_ver = 2.5,
+        DIO_port_num = 1,
+        kilosort_ver = 4.0,
         # ----------------------------------- #
-        behav_datetime = '20210623',
-        task = 'time-investment', # ['matching', 'reward-bias', 'time-investment']
+        behav_datetime = '20231213',
+        task = 'double', # ['matching', 'reward-bias', 'time-investment', 'double']
         # ----------------------------------- #
     )
 
-    task_type = 'TwoArmBanditVariant' if metadata['task'] == 'matching' else 'DiscriminationConfidence'
-    metadata['behavior_mat_file'] = f'{metadata["rat_name"]}_{task_type}_{metadata["behav_datetime"]}.mat'
+    if metadata['task'] == 'matching':
+        task_type = 'TwoArmBanditVariant'
+    elif metadata['task'] == 'double':
+        task_type = ['AuditoryTuning', 'DetectionConfidence'] 
+    else:
+        task_type = 'DiscriminationConfidence'
+    
+    if metadata['task'] == 'double':
+        metadata['behavior_mat_file'] = [f'{metadata["rat_name"]}_{task_type[0]}_{metadata["behav_datetime"]}.mat', f'{metadata["rat_name"]}_{task_type[1]}_{metadata["behav_datetime"]}.mat']
+    else:    
+        metadata['behavior_mat_file'] = f'{metadata["rat_name"]}_{task_type}_{metadata["behav_datetime"]}.mat'
 
     DATA_DIR = save_directory_helper(data_root)
 

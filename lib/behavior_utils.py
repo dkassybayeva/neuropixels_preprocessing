@@ -110,7 +110,10 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
     # --------------------------------------------------------------------- #
     #                       Choice variables
     # --------------------------------------------------------------------- #
-    choice_left = _sd_custom['ChoiceLeft'][:n_trials]
+    if metadata['task'] == 'double':
+        choice_left = _sd_custom['ResponseLeft'][:n_trials]
+    else: 
+        choice_left = _sd_custom['ChoiceLeft'][:n_trials]
     left_choice_idx, right_choice_idx = one_zero_idx(choice_left)
     _sd['ChoseLeft'] = left_choice_idx
     _sd['ChoseRight'] = right_choice_idx
@@ -122,10 +125,14 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
 
     assert np.all((_sd['ChoseLeft'] | _sd['ChoseRight']) == ~_sd['NoChoice'])
     assert np.all(_sd['MadeChoice'] == ~_sd['NoChoice'])
+    
+    if metadata['task'] == 'double':
+        choice_correct = _sd_custom['ResponseCorrect'][:n_trials]
+    elif not metadata['task']=='matching':
+        choice_correct = _sd_custom['ChoiceCorrect'][:n_trials]
 
     if not metadata['task']=='matching':
         # Correct and error trials
-        choice_correct = _sd_custom['ChoiceCorrect'][:n_trials]
         _sd['CorrectChoice'], _sd['ErrorChoice'] = one_zero_idx(choice_correct)
         assert np.all((_sd['CorrectChoice'] | _sd['ErrorChoice']) == ~_sd['NoChoice'])
         assert ~np.any([x in np.where(_sd['ErrorChoice'])[0] for x in np.where(_sd['CorrectChoice'])[0]])

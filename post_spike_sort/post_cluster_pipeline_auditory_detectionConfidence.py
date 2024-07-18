@@ -17,85 +17,107 @@ import neuropixels_preprocessing.lib.behavior_utils as bu
 import neuropixels_preprocessing.lib.data_objs as data_objs
 import neuropixels_preprocessing.lib.trace_utils as trace_utils
 from neuropixels_preprocessing.session_params import *
+import pandas as pd
 
-#%% 
+#%%
 #----------------------------------------------------------------------#
 # The information in the metadata block of session_params needs to be
 # filled out and updated for each recording session.
 #----------------------------------------------------------------------#
+DATA_ROOT = 'Y:'  # ['local', 'server', 'X:', etc.]
 SPIKES_AND_TTL = False
-SAVE_INDIVIDUAL_SPIKETRAINS = False  # Used for stitching sessions.  Otherwise unnecessary.
 BEHAVIOR = True
+LFPs = False
+DATA_OBJECT = True
+
+SAVE_INDIVIDUAL_SPIKETRAINS = True
+WRITE_METADATA = True
+    
+if WRITE_METADATA:
+    metadata = write_session_metadata_to_csv(DATA_ROOT)
+else:
+    rat = 'R13'
+    date = '20231213'
+    metadata = load_session_metadata_from_csv(DATA_ROOT, rat, date)
+#%%   
+# #%% old
+# #----------------------------------------------------------------------#
+# # The information in the metadata block of session_params needs to be
+# # filled out and updated for each recording session.
+# #----------------------------------------------------------------------#
+# SPIKES_AND_TTL = False
+# SAVE_INDIVIDUAL_SPIKETRAINS = False  # Used for stitching sessions.  Otherwise unnecessary.
+# BEHAVIOR = True
 
 
-metadata = dict(
-    ott_lab = True,
-    rat_name = 'R13',
-    date = '20231219',
-    behavior_mat_file = ['13_AuditoryTuning_20231213_131543.mat', '13_DetectionConfidence_20231213_160823.mat'],
-    trodes_datetime = '20231213_155419',
-    n_probes = 1,
-    DIO_port_num = 1,
-    task = 'reward-bias',
-    sps = sps,
-    task_type = 'DetectionConfidence',
-    probe_num = 1,
-    kilosort_ver = 4
-)
-#%% 
-# ----------------------------------------------------------------------- #
-#                           Constants
-# ----------------------------------------------------------------------- #
-# -------recording--------- #
-fs = 30e3  # Trodes sampling frequency in Hz
-ms_converter = 1000 / fs
-n_Npix1_electrodes = 960
-n_active_electrodes = 384
+# metadata = dict(
+#     ott_lab = True,
+#     rat_name = 'R13',
+#     date = '20231213',
+#     behavior_mat_file = ['13_AuditoryTuning_20231213_131543.mat', '13_DetectionConfidence_20231213_160823.mat'],
+#     trodes_datetime = '20231213_155419',
+#     n_probes = 1,
+#     DIO_port_num = 1,
+#     task = 'reward-bias',
+#     sps = sps,
+#     task_type = 'DetectionConfidence',
+#     probe_num = 1,
+#     kilosort_ver = 4
+# )
+# #%% 
+# # ----------------------------------------------------------------------- #
+# #                           Constants
+# # ----------------------------------------------------------------------- #
+# # -------recording--------- #
+# fs = 30e3  # Trodes sampling frequency in Hz
+# ms_converter = 1000 / fs
+# n_Npix1_electrodes = 960
+# n_active_electrodes = 384
 
-# -------analysis bins--------- #
-max_ISI = 0.001  # max intersample interval (ISI), above which the period is considered a "gap" in the recording
-trace_subsample_bin_size_ms = 10 # sample period in ms
-sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of aligned traces
+# # -------analysis bins--------- #
+# max_ISI = 0.001  # max intersample interval (ISI), above which the period is considered a "gap" in the recording
+# trace_subsample_bin_size_ms = 10 # sample period in ms
+# sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of aligned traces
 
-# -------params for trace interpolation------- #
-"""
-For the source of these numbers, see 'Temporal dynaics clustering' in Hirokawa et al. Nature (2019) in Methods.
-"""
-interpolation_param_dict = dict(
-    trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
-    resp_start_align_buffer=None,  # for ResponseStart
-    trial_event_interpolation_lengths = [
-        int(0.5 * sps),  # ITI->center poke
-        int(0.45 * sps), # center->stim_begin
-        int(.5 * sps),   # stim delivery
-        int(.3 * sps),   # movement to side port
-        # int(0.5 * sps),  # first 0.5s of anticipation epoch
-        # int(0.5 * sps),  # second part of anticipation epoch warped into 0.5s (actually half second in reward-bias)
-        int(3.0 * sps),  # anticipation epoch
-        int(1.5 * sps),  # after feedback
-    ],
-    pre_center_interval = int(0.5 * sps),
-    post_response_interval = None,  # int(0.5 * sps) or None.  If None, then the midpoint between response start and end is used
-    downsample_dt=trace_subsample_bin_size_ms,
-)
+# # -------params for trace interpolation------- #
+# """
+# For the source of these numbers, see 'Temporal dynaics clustering' in Hirokawa et al. Nature (2019) in Methods.
+# """
+# interpolation_param_dict = dict(
+#     trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
+#     resp_start_align_buffer=None,  # for ResponseStart
+#     trial_event_interpolation_lengths = [
+#         int(0.5 * sps),  # ITI->center poke
+#         int(0.45 * sps), # center->stim_begin
+#         int(.5 * sps),   # stim delivery
+#         int(.3 * sps),   # movement to side port
+#         # int(0.5 * sps),  # first 0.5s of anticipation epoch
+#         # int(0.5 * sps),  # second part of anticipation epoch warped into 0.5s (actually half second in reward-bias)
+#         int(3.0 * sps),  # anticipation epoch
+#         int(1.5 * sps),  # after feedback
+#     ],
+#     pre_center_interval = int(0.5 * sps),
+#     post_response_interval = None,  # int(0.5 * sps) or None.  If None, then the midpoint between response start and end is used
+#     downsample_dt=trace_subsample_bin_size_ms,
+# )
 
-alignment_param_dict = dict(
-    trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
-    resp_start_align_buffer=None,  # for ResponseStart
-    downsample_dt=trace_subsample_bin_size_ms,
-    pre_stim_interval = int(0.5 * sps),  # truncated at center_poke
-    post_stim_interval = int(0.5*sps),  # truncated at stim_off
-    pre_response_interval = int(3.0*sps),  # truncated at stim_off
-    post_response_interval = int(4.0*sps),  # truncated at response_end
-    pre_reward_interval = int(6.0*sps),  # truncated at response_time
-    post_reward_interval = int(5.0*sps),  # truncated at trial_end
-)
+# alignment_param_dict = dict(
+#     trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
+#     resp_start_align_buffer=None,  # for ResponseStart
+#     downsample_dt=trace_subsample_bin_size_ms,
+#     pre_stim_interval = int(0.5 * sps),  # truncated at center_poke
+#     post_stim_interval = int(0.5*sps),  # truncated at stim_off
+#     pre_response_interval = int(3.0*sps),  # truncated at stim_off
+#     post_response_interval = int(4.0*sps),  # truncated at response_end
+#     pre_reward_interval = int(6.0*sps),  # truncated at response_time
+#     post_reward_interval = int(5.0*sps),  # truncated at trial_end
+# )
 
 
 
-# ---------file names---------- #
-spike_mat_str_indiv = f'spike_mat_in_ms.npy'
-gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
+# # ---------file names---------- #
+# spike_mat_str_indiv = f'spike_mat_in_ms.npy'
+# gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
 # ---------------------------------------------------------------------
 
 
@@ -106,7 +128,7 @@ gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
 #                       Set up paths
 #----------------------------------------------------------------------#
 session_paths = dict()
-session_paths['rec_dir'] = rec_dir = f'Y:{metadata["rat_name"]}/{metadata["trodes_datetime"]}.rec/'
+session_paths['rec_dir'] = rec_dir = f'Y:{metadata["rat_name"]}/ephys/{metadata["trodes_datetime"]}.rec/'
 assert path.exists(session_paths['rec_dir'])
 # session path for spikeinterface with ks4
 session_paths['probe_dir'] = session_paths['rec_dir'] + f'spike_interface_output/' + '{}/sorter_output/'
@@ -181,10 +203,14 @@ if SPIKES_AND_TTL:
     # Note: This function doesn't care about absolute Trodes times
     tu.reconcile_TTL_and_behav_trial_start_times(preprocess_dir, TTL_indices_beh_1, preprocess_dir_auditory, behavior_mat_file[0])
     tu.reconcile_TTL_and_behav_trial_start_times(preprocess_dir, TTL_indices_beh_2, preprocess_dir_dc, behavior_mat_file[1])
+
+#%%
+if BEHAVIOR:
+    bu.create_behavioral_dataframe(preprocess_dir_dc, metadata)
   
   # %% behavior for Detection Confidence
   #Probably will need a for loop to load two behav files and allign them 
-if BEHAVIOR:
+if DATA_OBJECT:
     for beh in range(0, 2): 
         if beh == 0:
             _sd = load(preprocess_dir_auditory + 'TrialEvents.npy')
@@ -249,7 +275,8 @@ if BEHAVIOR:
                 stimulus_start_time = _sd['Custom']['TrialData']['StimulusStartTime'][:n_trials],
                 reward_start_time = _sd['Custom']['TrialData']['RewardStartTime'][:n_trials],
                 signal_volume = _sd['Custom']['TrialData']['SignalVolume'][:n_trials],
-                MadeChoice = _sd['Custom']['TrialData']['ResponseLeft'][:n_trials], # ResponseLeft in behavior/TrialEvents.npy has values 1 - Left, 0 - Right, and NaN - no choice,
+                MadeChoice = _sd['Custom']['TrialData']['ResponseLeft'][:n_trials],
+                PokeCenterStart = _sd['Custom']['TrialData']['ResponseLeft'][:n_trials],
                 TrialStartTimestamp = _sd['TrialStartTimestamp'][:n_trials],
                 TrialEndTimestamp = _sd['TrialEndTimestamp'][:n_trials],
                 TTLTrialStartTime = _sd[trialstart_str][:n_trials],
@@ -272,7 +299,7 @@ if BEHAVIOR:
                 # load neural data: [number of neurons x time bins in ms]
                 spike_mat = load(preprocess_dir + f"probe{probe_i}/" + spike_mat_str_indiv)['spike_mat']
                 behav_df = load(preprocess_dir_dc + 'behav_df')
-                
+                behav_df['MadeChoice'] = behav_df['MadeChoice'].notnull() # ResponseLeft in behavior/TrialEvents.npy has values 1 - Left, 0 - Right, and NaN - no choice
                 
                 # align spike times to behavioral data timeframe
                 # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
