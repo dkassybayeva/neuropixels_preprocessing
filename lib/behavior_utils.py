@@ -174,7 +174,7 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
         _sd['WaitingTime'] = _sd_custom['FeedbackWaitingTime'][:n_trials]
         _sd['BaitedLeft'] = _sd_custom['Baited'][0, :n_trials]
         _sd['BaitedRight'] = _sd_custom['Baited'][1, :n_trials]
-    else:
+    elif not metadata['task'] == 'double':
         _sd['FixBroke'] = _sd_custom['FixBroke'][:n_trials] == 1
         if metadata['ott_lab']:
             _sd['NoTrialStart'] = (_sd_custom['Initiated'] != 1)[:n_trials]
@@ -182,6 +182,19 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
 
         _sd['CatchTrial'] = _sd_custom['CatchTrial'][:n_trials] == 1
         _sd['WaitingTime'] = _sd_custom['FeedbackTime'][:n_trials]
+    else: #for DetectionConfidence
+        _sd['BrokeFixation'] = _sd_custom['BrokeFixation'][:n_trials]
+        _sd['CatchTrial'] = _sd_custom['CatchTrial'][:n_trials] == 1
+        _sd['WaitingTime'] = _sd_custom['WaitingTime'][:n_trials]
+        
+        # SkippedFeedback - correct trials, that are not catch and not rewarded
+        _sd['SkippedFeedback'] = (_sd['CorrectChoice']) & (~_sd['CatchTrial']) & (~_sd['Rewarded'])
+        
+        if metadata['ott_lab']:
+            _sd['NoTrialStart'] = (_sd_custom['CinDuration'].isna())[:n_trials]
+            # NoChoice = there is a trial start, it's not Center Out Early, but there is no Response
+            _sd['NoDecision'] = (~_sd['NoTrialStart']) & (_sd['CoutEarly'] == 0) & _sd[ 'NoChoice']
+
 
     if metadata['task'] == 'reward-bias':
         _sd['SkippedReward'] = _sd['CorrectChoice'] & (~_sd['Rewarded'])
@@ -208,6 +221,15 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
         Feedback_str = 'FeedbackWaitingTime'  # Time spent in the choice port before leaving or reward
         Sample_str = 'SampleTime'
         DV_str = None
+    elif metadata['task'] == 'double':
+        Cin_str = 'Cin_PreStim'
+        StimOn_str = 'Cin_Stim'
+        Rin_str = 'LinError_GraceStart' #not really right or left, rather correct/incorrect choice
+        Lin_str = 'LinCorrect_GraceStart'
+        Feedback_str = 'WaitingTime' # Time spent in the choice port before leaving or reward
+        Response_str = 'ResponseTime' #Time between Cin_Stim and entering side port
+        Sample_str = 'SampleLength' if OTT_LAB_DATA else 'ST'
+        DV_str = 'DecisionVariable' 
     else:
         Cin_str = 'stay_Cin'
         StimOn_str = 'stimulus_delivery_min'
