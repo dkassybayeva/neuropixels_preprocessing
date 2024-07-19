@@ -188,7 +188,7 @@ def extract_TTL_trial_start_times(session_path, gap_filename, DIO_port, save_dir
     """
 
     #for spikeinterface together with Trode extracted DIO files
-    dio_path = session_path + (session_path.split('.')[0]).split('/')[1]+'.DIO/'
+    dio_path = session_path + (session_path.split('.')[0]).split('/')[2]+'.DIO/'
     #dio_path = session_path + '.'.join(session_path.split('.')[:-2]) + '.DIO/'
 
     # each analog MCU input pin will have its own .dat file

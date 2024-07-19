@@ -25,7 +25,7 @@ import pandas as pd
 # filled out and updated for each recording session.
 #----------------------------------------------------------------------#
 DATA_ROOT = 'Y:'  # ['local', 'server', 'X:', etc.]
-SPIKES_AND_TTL = False
+SPIKES_AND_TTL = True
 BEHAVIOR = True
 LFPs = False
 DATA_OBJECT = True
@@ -131,8 +131,12 @@ metadata['probe_num'] = '' # don't need probe dir for now
 session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
 preprocess_dir = session_paths['preprocess_dir']
 ou.make_dir_if_nonexistent(preprocess_dir)
+preprocess_dir_auditory = session_paths['preprocess_dir_auditory']
+ou.make_dir_if_nonexistent(preprocess_dir_auditory)
+preprocess_dir_dc = session_paths['preprocess_dir_dc']
+ou.make_dir_if_nonexistent(preprocess_dir_dc)
 rec_dir = session_paths['rec_dir']
-behavior_mat_file = session_paths['behav_dir'] + metadata['behavior_mat_file']
+behavior_mat_file = [session_paths['behav_dir'] + metadata['behavior_mat_file'][0], session_paths['behav_dir'] + metadata['behavior_mat_file'][1]]
 
 # #----------------------------------------------------------------------#
 # #                       Set up paths
@@ -166,53 +170,62 @@ behavior_mat_file = session_paths['behav_dir'] + metadata['behavior_mat_file']
 #                           PIPELINE                                   #
 #----------------------------------------------------------------------#
 
-  # %% Align start times of TTL and spike_times.npy
-  #----------------------------------------------------------------------#
+# %% Align start times of TTL and spike_times.npy
+#----------------------------------------------------------------------#
 
-if SPIKES_AND_TTL:
-    for probe_i in range(1, metadata['n_probes']+1):
-        metadata['probe_num'] = probe_i
+# if SPIKES_AND_TTL:
+#     for probe_i in range(1, metadata['n_probes']+1):
+#         metadata['probe_num'] = probe_i
 
-        # load/create ephys-specific (probe-specific) paths
-        probe_dir = session_paths['probe_dir'].format(probe_i)
-        spike_dir = preprocess_dir + f'probe{probe_i}/'
-        ou.make_dir_if_nonexistent(spike_dir)
-        if SAVE_INDIVIDUAL_SPIKETRAINS:
-            ou.make_dir_if_nonexistent(spike_dir + 'spike_times/')
+#         # load/create ephys-specific (probe-specific) paths
+#         session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
+#         probe_dir = session_paths['probe_dir'].format(probe_i)
+#         spike_dir = preprocess_dir + f'probe{probe_i}/'
+#         ou.make_dir_if_nonexistent(spike_dir)
+#         if SAVE_INDIVIDUAL_SPIKETRAINS:
+#             ou.make_dir_if_nonexistent(spike_dir + 'spike_times/')
 
-        # process ephys recordings
-        tu.create_spike_mat(probe_dir, spike_dir, session_paths['timestamps_dat'], metadata, fs, save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
+#         # process ephys recordings
+#         tu.create_spike_mat(probe_dir, spike_dir, session_paths['timestamps_dat'], metadata, fs, save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
+        
+#         ##if using ks4 without spikeinterface
+#         # session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
+#         # spike_dir = preprocess_dir + f'probe{probe_i}/'
+#         # ou.make_dir_if_nonexistent(spike_dir)
+#         # if SAVE_INDIVIDUAL_SPIKETRAINS:
+#         #     ou.make_dir_if_nonexistent(spike_dir + 'spike_times/')
+#         #tu.create_spike_mat(session_paths['probe_dir'], spike_dir, session_paths['timestamps_dat'], metadata, fs, save_individual_spiketrains=SAVE_INDIVIDUAL_SPIKETRAINS)
 
-    tu.find_recording_gaps(session_paths['timestamps_dat'], fs, max_ISI, preprocess_dir + gap_filename)
-    tu.extract_TTL_trial_start_times(rec_dir, gap_filename, metadata['DIO_port_num'], save_dir=preprocess_dir)
+#     tu.find_recording_gaps(session_paths['timestamps_dat'], fs, max_ISI, preprocess_dir + gap_filename)
+#     tu.extract_TTL_trial_start_times(rec_dir, gap_filename, metadata['DIO_port_num'], save_dir=preprocess_dir)
     
-    # @TODO: Find spot to break up TTL based on last trial start time + last trial length + buffer in ms
-    #last_TTL_based_on_behav_guess = behav_df['TrialEndTimestamp'][-1:].values[0]
-    #last TTL based on TTL gaps and timestamps
-    # --------------------------------------------------------------------- #
-    # Trial start in absolute time from the recording system
-    # --------------------------------------------------------------------- #
-    TTL_results = load(preprocess_dir + 'TTL_events.npy') 
+#     # @TODO: Find spot to break up TTL based on last trial start time + last trial length + buffer in ms
+#     #last_TTL_based_on_behav_guess = behav_df['TrialEndTimestamp'][-1:].values[0]
+#     #last TTL based on TTL gaps and timestamps
+#     # --------------------------------------------------------------------- #
+#     # Trial start in absolute time from the recording system
+#     # --------------------------------------------------------------------- #
+#     TTL_results = load(preprocess_dir + 'TTL_events.npy') 
 
-    # first 0 is before Bpod session, first 1 is first trial, last 0 is end of last trial
-    TTL_timestamps_sec = TTL_results['timestamps'][1:]
-    TTL_code = TTL_results['TTL_code'][1:]
-    gap_lengths = TTL_results['gap_lengths']['gaps']
-    recorded_start_ts = TTL_timestamps_sec[TTL_code == 1]
+#     # first 0 is before Bpod session, first 1 is first trial, last 0 is end of last trial
+#     TTL_timestamps_sec = TTL_results['timestamps'][1:]
+#     TTL_code = TTL_results['TTL_code'][1:]
+#     gap_lengths = TTL_results['gap_lengths']['gaps']
+#     recorded_start_ts = TTL_timestamps_sec[TTL_code == 1]
     
-    #Find the longest gap between TTL trial start times
-    index_gap = np.argmax(np.ediff1d(recorded_start_ts))
-    index_last_TTL_start = len(recorded_start_ts)-1
-    TTL_biggest_gap = recorded_start_ts[index_gap+1]-recorded_start_ts[index_gap]
-    TTL_indices_beh_1 = [0, (index_gap+1)]
-    TTL_indices_beh_2 = [(index_gap+1), index_last_TTL_start]
+#     #Find the longest gap between TTL trial start times
+#     index_gap = np.argmax(np.ediff1d(recorded_start_ts))
+#     index_last_TTL_start = len(recorded_start_ts)-1
+#     TTL_biggest_gap = recorded_start_ts[index_gap+1]-recorded_start_ts[index_gap]
+#     TTL_indices_beh_1 = [0, (index_gap+1)]
+#     TTL_indices_beh_2 = [(index_gap+1), index_last_TTL_start]
 
-    last_TTL_based_on_TTL_events = recorded_start_ts[-1:][0]
-    # @TODO: break up TTL into "halves" for each experiment type 
-    # @TODO: run reconcile_TTL_and_behav_trial_start_times on both halves
-    # Note: This function doesn't care about absolute Trodes times
-    tu.reconcile_TTL_and_behav_trial_start_times(preprocess_dir, TTL_indices_beh_1, preprocess_dir_auditory, behavior_mat_file[0])
-    tu.reconcile_TTL_and_behav_trial_start_times(preprocess_dir, TTL_indices_beh_2, preprocess_dir_dc, behavior_mat_file[1])
+#     last_TTL_based_on_TTL_events = recorded_start_ts[-1:][0]
+#     # @TODO: break up TTL into "halves" for each experiment type 
+#     # @TODO: run reconcile_TTL_and_behav_trial_start_times on both halves
+#     # Note: This function doesn't care about absolute Trodes times
+#     tu.reconcile_TTL_and_behav_trial_start_times(preprocess_dir, TTL_indices_beh_1, preprocess_dir_auditory, behavior_mat_file[0])
+#     tu.reconcile_TTL_and_behav_trial_start_times(preprocess_dir, TTL_indices_beh_2, preprocess_dir_dc, behavior_mat_file[1])
 
 #%%
 if BEHAVIOR:
@@ -345,5 +358,9 @@ if DATA_OBJECT:
                 #print('Creating data object...', end='')
                 #metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
                 #data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
+
+if WRITE_METADATA:
+    insert_value_into_metadata_csv(DATA_ROOT, rat, date, 'n_good_units', n_neurons)
+    insert_value_into_metadata_csv(DATA_ROOT, rat, date, 'n_trials', n_trials)
 
 print('Process Finished.')

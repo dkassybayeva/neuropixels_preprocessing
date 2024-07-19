@@ -161,12 +161,22 @@ def get_session_path(metadata, data_root, is_ephys_session):
     if is_ephys_session:
         e_session = metadata['trodes_datetime']
         rec_dir = root_path + f'{rat}/ephys/{e_session}.rec/'
-        session_paths = dict(
-            rec_dir = rec_dir,
-            probe_dir = rec_dir + f'{e_session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/',
-            preprocess_dir = rec_dir + 'preprocessing_output/',
-            timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
-        )
+        if metadata['task'] == 'double':
+            session_paths = dict(
+                rec_dir = rec_dir,
+                probe_dir = rec_dir + f'spike_interface_output/' + '{}/sorter_output/', #session path for spikeinterface with ks4
+                preprocess_dir = rec_dir + 'preprocessing_output/',
+                preprocess_dir_auditory = rec_dir + 'preprocessing_output/auditoryTuning/',
+                preprocess_dir_dc = rec_dir + 'preprocessing_output/detectionConfidence/',
+                timestamps_dat = rec_dir + f'{e_session}.timestamps.dat',  # Trodes timestamps is from general KS dir
+            )
+        else:
+            session_paths = dict(
+                rec_dir = rec_dir,
+                probe_dir = rec_dir + f'{e_session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/',
+                preprocess_dir = rec_dir + 'preprocessing_output/',
+                timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
+           )
         assert path.exists(session_paths['rec_dir'])
     else:
         session_paths = dict()

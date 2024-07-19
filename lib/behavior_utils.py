@@ -191,9 +191,9 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
         _sd['SkippedFeedback'] = (_sd['CorrectChoice']) & (~_sd['CatchTrial']) & (~_sd['Rewarded'])
         
         if metadata['ott_lab']:
-            _sd['NoTrialStart'] = (_sd_custom['CinDuration'].isna())[:n_trials]
+            _sd['NoTrialStart'] = (np.isnan(_sd_custom['CinDuration']))[:n_trials]
             # NoChoice = there is a trial start, it's not Center Out Early, but there is no Response
-            _sd['NoDecision'] = (~_sd['NoTrialStart']) & (_sd['CoutEarly'] == 0) & _sd[ 'NoChoice']
+            _sd['NoDecision'] = (~_sd['NoTrialStart']) & (_sd_custom['CoutEarly'] == 0) & _sd[ 'NoChoice']
 
 
     if metadata['task'] == 'reward-bias':
