@@ -87,7 +87,7 @@ def write_session_metadata_to_csv(data_root):
 
     metadata = dict(
         ott_lab = True,
-        rat_name = 'R13',
+        rat_name = '13',
         date = '20231213',
         experimenter = 'Dariya',
         region = 'rAC',
