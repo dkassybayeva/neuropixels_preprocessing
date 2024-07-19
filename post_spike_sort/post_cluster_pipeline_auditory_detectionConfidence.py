@@ -125,31 +125,41 @@ else:
 
 # %%
 #----------------------------------------------------------------------#
-#                       Set up paths
+#                           PATHS
 #----------------------------------------------------------------------#
-session_paths = dict()
-session_paths['rec_dir'] = rec_dir = f'Y:{metadata["rat_name"]}/ephys/{metadata["trodes_datetime"]}.rec/'
-assert path.exists(session_paths['rec_dir'])
-# session path for spikeinterface with ks4
-session_paths['probe_dir'] = session_paths['rec_dir'] + f'spike_interface_output/' + '{}/sorter_output/'
-# session path for ks4
-#session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort/{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
-# session path for ks2.5
-#session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
-
-session_paths['timestamps_dat'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.timestamps.dat'
-
-session_paths['preprocess_dir'] = preprocess_dir =  session_paths['rec_dir'] + 'preprocessing_output/'
+metadata['probe_num'] = '' # don't need probe dir for now
+session_paths = get_session_path(metadata, DATA_ROOT, is_ephys_session=True)
+preprocess_dir = session_paths['preprocess_dir']
 ou.make_dir_if_nonexistent(preprocess_dir)
+rec_dir = session_paths['rec_dir']
+behavior_mat_file = session_paths['behav_dir'] + metadata['behavior_mat_file']
 
-session_paths['preprocess_dir_auditory'] = preprocess_dir_auditory =  session_paths['rec_dir'] + 'preprocessing_output/auditoryTuning/'
-ou.make_dir_if_nonexistent(preprocess_dir_auditory)
+# #----------------------------------------------------------------------#
+# #                       Set up paths
+# #----------------------------------------------------------------------#
+# session_paths = dict()
+# session_paths['rec_dir'] = rec_dir = f'Y:{metadata["rat_name"]}/ephys/{metadata["trodes_datetime"]}.rec/'
+# assert path.exists(session_paths['rec_dir'])
+# # session path for spikeinterface with ks4
+# session_paths['probe_dir'] = session_paths['rec_dir'] + f'spike_interface_output/' + '{}/sorter_output/'
+# # session path for ks4
+# #session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort/{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
+# # session path for ks2.5
+# #session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
 
-session_paths['preprocess_dir_dc'] = preprocess_dir_dc =  session_paths['rec_dir'] + 'preprocessing_output/detectionConfidence/'
-ou.make_dir_if_nonexistent(preprocess_dir_dc)
+# session_paths['timestamps_dat'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.timestamps.dat'
 
-behavior_mat_file = [session_paths['rec_dir'] + metadata['behavior_mat_file'][0], session_paths['rec_dir'] + metadata['behavior_mat_file'][1]]
-#----------------------------------------------------------------------#
+# session_paths['preprocess_dir'] = preprocess_dir =  session_paths['rec_dir'] + 'preprocessing_output/'
+# ou.make_dir_if_nonexistent(preprocess_dir)
+
+# session_paths['preprocess_dir_auditory'] = preprocess_dir_auditory =  session_paths['rec_dir'] + 'preprocessing_output/auditoryTuning/'
+# ou.make_dir_if_nonexistent(preprocess_dir_auditory)
+
+# session_paths['preprocess_dir_dc'] = preprocess_dir_dc =  session_paths['rec_dir'] + 'preprocessing_output/detectionConfidence/'
+# ou.make_dir_if_nonexistent(preprocess_dir_dc)
+
+# behavior_mat_file = [session_paths['rec_dir'] + metadata['behavior_mat_file'][0], session_paths['rec_dir'] + metadata['behavior_mat_file'][1]]
+# #----------------------------------------------------------------------#
 
 # %%
 #----------------------------------------------------------------------#
