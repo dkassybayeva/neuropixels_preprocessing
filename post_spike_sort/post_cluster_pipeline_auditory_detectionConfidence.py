@@ -286,30 +286,30 @@ if DATA_OBJECT:
                 
  #     
         elif beh == 1:
-            #TO DO: I can make preprocess_dir[0] and[1] and just loop through it?
-            _sd = load(preprocess_dir_dc + 'TrialEvents.npy')
+            # #TO DO: I can make preprocess_dir[0] and[1] and just loop through it?
+            # _sd = load(preprocess_dir_dc + 'TrialEvents.npy')
 
-            n_trials = _sd['nTrials'] - 1  # throw out last trial (may be incomplete)
+            # n_trials = _sd['nTrials'] - 1  # throw out last trial (may be incomplete)
       
-            trialstart_str = 'recorded_TTL_trial_start_time'
-            trial_len = _sd[trialstart_str][1:] - _sd[trialstart_str][:-1]
+            # trialstart_str = 'recorded_TTL_trial_start_time'
+            # trial_len = _sd[trialstart_str][1:] - _sd[trialstart_str][:-1]
       
-            behav_dict = dict(
-                stimulus_start_time = _sd['Custom']['TrialData']['StimulusStartTime'][:n_trials],
-                reward_start_time = _sd['Custom']['TrialData']['RewardStartTime'][:n_trials],
-                signal_volume = _sd['Custom']['TrialData']['SignalVolume'][:n_trials],
-                MadeChoice = _sd['Custom']['TrialData']['ResponseLeft'][:n_trials],
-                PokeCenterStart = _sd['Custom']['TrialData']['ResponseLeft'][:n_trials],
-                TrialStartTimestamp = _sd['TrialStartTimestamp'][:n_trials],
-                TrialEndTimestamp = _sd['TrialEndTimestamp'][:n_trials],
-                TTLTrialStartTime = _sd[trialstart_str][:n_trials],
-                TrialLength = trial_len[:n_trials]
-            )
-            behav_df = pd.DataFrame.from_dict(behav_dict)
+            # behav_dict = dict(
+            #     stimulus_start_time = _sd['Custom']['TrialData']['StimulusStartTime'][:n_trials],
+            #     reward_start_time = _sd['Custom']['TrialData']['RewardStartTime'][:n_trials],
+            #     signal_volume = _sd['Custom']['TrialData']['SignalVolume'][:n_trials],
+            #     MadeChoice = _sd['Custom']['TrialData']['ResponseLeft'][:n_trials],
+            #     PokeCenterStart = _sd['Custom']['TrialData']['ResponseLeft'][:n_trials],
+            #     TrialStartTimestamp = _sd['TrialStartTimestamp'][:n_trials],
+            #     TrialEndTimestamp = _sd['TrialEndTimestamp'][:n_trials],
+            #     TTLTrialStartTime = _sd[trialstart_str][:n_trials],
+            #     TrialLength = trial_len[:n_trials]
+            # )
+            # behav_df = pd.DataFrame.from_dict(behav_dict)
       
-            dump(behav_df, preprocess_dir_dc + "behav_df", compress=3)
+            # dump(behav_df, preprocess_dir_dc + "behav_df", compress=3)
             
-            downsample_dt = 25  # sample period in ms
+            # downsample_dt = 25  # sample period in ms
 #
             #----------------------------------------
             # Align the spikes with behavior and to specific events
