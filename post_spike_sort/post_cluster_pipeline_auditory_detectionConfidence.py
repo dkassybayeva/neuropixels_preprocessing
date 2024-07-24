@@ -31,7 +31,7 @@ LFPs = False
 DATA_OBJECT = True
 
 SAVE_INDIVIDUAL_SPIKETRAINS = True
-WRITE_METADATA = True
+WRITE_METADATA = False
     
 if WRITE_METADATA:
     metadata = write_session_metadata_to_csv(DATA_ROOT)
@@ -319,19 +319,18 @@ if DATA_OBJECT:
                 metadata['probe_num'] = probe_i
                 probe_save_dir = preprocess_dir + f"probe{probe_i}/"
                 
-                # load neural data: [number of neurons x time bins in ms]
-                spike_mat = load(preprocess_dir + f"probe{probe_i}/" + spike_mat_str_indiv)['spike_mat']
-                behav_df = load(preprocess_dir_dc + 'behav_df')
-                behav_df['MadeChoice'] = behav_df['MadeChoice'].notnull() # ResponseLeft in behavior/TrialEvents.npy has values 1 - Left, 0 - Right, and NaN - no choice
-                
-                # align spike times to behavioral data timeframe
-                # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
-                
+        
                 # -------------------------------------------------------- #
                 # Chop neuron activity into trials and align to trial start
                 # -------------------------------------------------------- #
-                # -- This part replaces align_trialwise_spike_times_to_start function because of the path problems
-                cbehav_df = behav_df[behav_df['MadeChoice']].reset_index(drop=True)
+                # -- This part replaces align_trialwise_spike_times_to_start function because of the path problems (identical except for behav_df path)
+                # load neural data: [number of neurons x time bins in ms]
+                spike_mat = load(preprocess_dir + f"probe{probe_i}/" + spike_mat_str_indiv)['spike_mat']
+
+                # make pandas behavior dataframe
+                behav_df = load(preprocess_dir_dc + 'behav_df') #DetectionConfidence preprocessing directory
+
+                cbehav_df = behav_df[behav_df['MadeChoice']].reset_index(drop=True) #Choice behavior only
                 # align spike times to behavioral data timeframe
                 # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
                 trialwise_start_align_spike_mat_in_ms, _ = trace_utils.trial_start_align(cbehav_df, spike_mat, sps=1000)
@@ -359,6 +358,7 @@ if DATA_OBJECT:
                 #metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
                 #data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
 
+#%%
 if WRITE_METADATA:
     insert_value_into_metadata_csv(DATA_ROOT, rat, date, 'n_good_units', n_neurons)
     insert_value_into_metadata_csv(DATA_ROOT, rat, date, 'n_trials', n_trials)
