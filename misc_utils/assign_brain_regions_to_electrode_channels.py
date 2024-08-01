@@ -17,7 +17,7 @@ from neuropixels_preprocessing.session_params import *
 # -------------------------------------------------------------------------- #
 #                   Load unit electrode numbers
 # -------------------------------------------------------------------------- #
-
+PREPROCESS_DIR = r'Y:\13\ephys\20231213_155419.rec\preprocessing_output'
 # In Phy, electrodes are referred to (unfortunately) as channels
 # Create a database of units and their "channels"
 session_data = joblib.load(PREPROCESS_DIR.format(session1, session1) + 'spike_mat_in_ms.npy')
@@ -52,8 +52,8 @@ unit_channel_df['electrode'] = active_electrodes[unit_channel_df.ch]
 # -------------------------------------------------------------------------- #
 #         Find which electrodes correspond to which brain region
 # -------------------------------------------------------------------------- #
-PROBE_PKL_PATH = r'C:/Users/science person/Documents/HERBS/slices/' + f'R{rat}/'
-probe_pkl = pd.read_pickle(PROBE_PKL_PATH + 'probe.pkl')
+PROBE_PKL_PATH = r'Y:/13/ephys/20231213_155419.rec/preprocessing_output/probe1/'
+probe_pkl = pd.read_pickle(PROBE_PKL_PATH + 'probe1.pkl')
 probe_data = probe_pkl['data']
 probe_df = pd.DataFrame(columns=['Region', 'Lowest Electrode', 'Highest Electrode'])
 

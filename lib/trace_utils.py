@@ -47,7 +47,7 @@ def align_spikes_to_event(event_name, prebuffer, postbuffer, behav_df, traces, m
     return spikes
 
 
-def trial_start_align(behav_df, traces, sps, max_allowable_len=36000):
+def trial_start_align(behav_df, traces, sps, max_allowable_len=36000 ):
     for red_flag in ['no_matching_TTL_start_time', 'large_TTL_gap_after_start']:
         if red_flag in behav_df.keys() and behav_df[red_flag].sum()>0:
             print('Trials with' + red_flag + '!!!')
