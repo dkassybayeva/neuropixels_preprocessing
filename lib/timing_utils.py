@@ -670,6 +670,7 @@ def group_codes_and_timestamps_by_trial(TTL_code, timestamps):
     start_code = 1  # trialStart (WaitForInitialPoke)
     pre_start = 0  # no state (between trials)
     post_start = 2  # state that is always followed by start_code state
+    gap_code = -1
 
     first_start = np.where(TTL_code==start_code)[0][0]
     n_codes = len(TTL_code)
@@ -683,7 +684,9 @@ def group_codes_and_timestamps_by_trial(TTL_code, timestamps):
     curr_trial_timestamps = []
     for x in range(first_start, n_codes):
         # if a trial start
-        if TTL_code[x] == start_code and TTL_code[x-1]==pre_start and TTL_code[x+1]==post_start:
+        if (TTL_code[x] == start_code
+            and (TTL_code[x-1]==pre_start or TTL_code[x-1]==gap_code)
+            and TTL_code[x+1]==post_start):
             n_trials = n_trials + 1
             if x != first_start:
                 # save previous trial's events to global container
