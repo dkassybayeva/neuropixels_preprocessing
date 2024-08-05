@@ -94,7 +94,7 @@ def write_session_metadata_to_csv(data_root):
         # ----------------------------------- #
         trodes_datetime = '20231213_155419',
         trodes_logfile = '',
-        trodes_config = '',
+        trodes_config = '20231120_R13_Tip',
         recording_type = 'neuropixels_1.0',
         n_probes = 2,
         DIO_port_num = 1,

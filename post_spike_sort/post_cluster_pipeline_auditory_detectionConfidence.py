@@ -37,7 +37,7 @@ if WRITE_METADATA:
     metadata = write_session_metadata_to_csv(DATA_ROOT)
 else:
     rat = '13'
-    date = '20231212'
+    date = '20231213'
     metadata = load_session_metadata_from_csv(DATA_ROOT, rat, date)
 #%%   
 # #%% old
