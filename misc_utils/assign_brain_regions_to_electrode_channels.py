@@ -19,10 +19,15 @@ from neuropixels_preprocessing.session_params import *
 # -------------------------------------------------------------------------- #
 # In Phy, electrodes are referred to (unfortunately) as channels
 # Create a database of units and their "channels"
-ROOT_DATAPATH = r'Y:/13\ephys/20231213_155419.rec/'
+DATA_ROOT = 'Y:' 
+rat = '13'
+date = '20231213'
+probe_num = 2
+metadata = load_session_metadata_from_csv(DATA_ROOT, rat, date)
+ROOT_DATAPATH = r'Y:/13/ephys/20231213_155419.rec/'
 PREPROCESS_DIR =  ROOT_DATAPATH + 'preprocessing_output/'
-SESSION_DIR = ROOT_DATAPATH + 'spike_interface_output/1/sorter_output/'
-session_data = joblib.load(PREPROCESS_DIR + 'probe1/' + 'spike_mat_in_ms.npy')
+SESSION_DIR = ROOT_DATAPATH + f'spike_interface_output/{probe_num}/sorter_output/'
+session_data = joblib.load(PREPROCESS_DIR + f'probe{probe_num}/' + 'spike_mat_in_ms.npy')
 unit_list = session_data['row_cluster_id']
 cl_df = pd.read_csv(SESSION_DIR + 'cluster_info.tsv', sep="\t")
 unit_channel_df = cl_df[cl_df['cluster_id'].isin(unit_list)][['cluster_id', 'ch']].reset_index(drop=True)
@@ -55,8 +60,8 @@ unit_channel_df['electrode'] = active_electrodes[unit_channel_df.ch]
 # -------------------------------------------------------------------------- #
 #         Find which electrodes correspond to which brain region
 # -------------------------------------------------------------------------- #
-PROBE_PKL_PATH = r'Y:/13/ephys/20231213_155419.rec/preprocessing_output/probe1/'
-probe_pkl = pd.read_pickle(PROBE_PKL_PATH + 'probe1.pkl')
+PROBE_PKL_PATH = f'Y:/13/ephys/20231213_155419.rec/preprocessing_output/probe{probe_num}/'
+probe_pkl = pd.read_pickle(PROBE_PKL_PATH + f'probe{probe_num}.pkl')
 probe_data = probe_pkl['data']
 probe_df = pd.DataFrame(columns=['Region', 'Lowest Electrode', 'Highest Electrode'])
 
@@ -70,7 +75,7 @@ for ROI_idx, ROI in enumerate(probe_data['label_name']):
     
 filename = f'R{rat}_probe_electrode_locations.csv'
 probe_df.to_csv(PROBE_PKL_PATH + filename, index=False, header=True)
-probe_df.to_csv(PREPROCESS_DIR + 'probe1/' + filename, index=False, header=True)
+probe_df.to_csv(PREPROCESS_DIR + f'probe{probe_num}/' + filename, index=False, header=True)
 # -------------------------------------------------------------------------- #
 
 
@@ -84,4 +89,4 @@ for ROI_idx, ROI in enumerate(probe_data['label_name']):
     ROI_units = (ROI_start < unit_channel_df.electrode) & (unit_channel_df.electrode <= ROI_end)
     unit_channel_df.region[ROI_units] = ROI
 
-unit_channel_df.to_csv(PREPROCESS_DIR + 'probe1/' + 'unit_electrode_and_brain_region.csv', index=False, header=True)
+unit_channel_df.to_csv(PREPROCESS_DIR + f'probe{probe_num}/' + 'unit_electrode_and_brain_region.csv', index=False, header=True)
