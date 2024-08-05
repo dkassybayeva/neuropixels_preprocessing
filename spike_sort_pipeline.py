@@ -49,7 +49,7 @@ local_drive = 'X:'
 # -------------------------------------------------------------------------- #
 #                               Paths
 # -------------------------------------------------------------------------- #
-base_folder = Path(f'{local_drive}/{subject}/ephys/{trodes_date}.rec')
+base_folder = Path(f'{local_drive}/Neurodata/{subject}/ephys/{trodes_date}.rec')
 rec_file = Path(f'O:/data/{subject}/ephys/{trodes_date}.rec/{trodes_date}.rec')
 sorting_folder = base_folder / 'sorting_output'
 

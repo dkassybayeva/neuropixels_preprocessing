@@ -13,10 +13,10 @@ clc
 %                           Input Paths
 % ------------------------------------------------------------------- %
 % raw binary dat files to combine (SSD or HHD)
-dat_files = {'X:\NeuroData\TQ03\20210616_115352.kilosort\20210616_115352.probe1.dat', 
-            'Y:\NeuroData\TQ03\TQ03_20210617_combined.kilosort\TQ03_20210617_combined.probe1.dat'};
 session_dates = {'20210616', '20210617'};
 probe_num = '1';
+dat_files = {'X:\Neurodata\Nina2\ephys\20210625_114657.rec\20210625_114657.kilosort\20210625_114657.probe2.dat', 
+             'Y:\Neurodata\Nina2\ephys\20210626_153916.rec\20210626_153916.kilosort\20210626_153916.probe2.dat'};
 % ------------------------------------------------------------------- %
 
 
@@ -24,7 +24,7 @@ probe_num = '1';
 %                           Output Paths
 % ------------------------------------------------------------------- %
 % Output folder for merged binary (SSD or HDD)
-multi_session_folder = fullfile('X:\NeuroData\TQ02\ephys\', strjoin(session_dates, '_'));
+multi_session_folder = fullfile('X:\Neurodata\Nina2\ephys\', strjoin(session_dates, '_'));
 combined_dat_folder = fullfile(multi_session_folder, strcat('probe', probe_num));
 if ~isfolder(combined_dat_folder), mkdir(combined_dat_folder), end
 % ------------------------------------------------------------------- %
