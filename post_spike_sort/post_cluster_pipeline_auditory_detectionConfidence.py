@@ -37,7 +37,7 @@ if WRITE_METADATA:
     metadata = write_session_metadata_to_csv(DATA_ROOT)
 else:
     rat = '13'
-    date = '20231213'
+    date = '20231212'
     metadata = load_session_metadata_from_csv(DATA_ROOT, rat, date)
 #%%   
 # #%% old
@@ -354,9 +354,9 @@ if DATA_OBJECT:
                 # -------------------------------------------------------- #
                 # Save datapath, behavioral and metadata to data object
                 # -------------------------------------------------------- #
-                #print('Creating data object...', end='')
-                #metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
-                #data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
+                print('Creating data object...', end='')
+                metadata['nrn_phy_ids'] = load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
+                data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
 
 #%%
 if WRITE_METADATA:
