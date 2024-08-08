@@ -11,18 +11,18 @@ from neuropixels_preprocessing.lib.data_objs import TwoAFC, from_pickle
 from neuropixels_preprocessing.session_params import load_session_metadata_from_csv, get_session_path
 
 
-def make_dir_if_nonexistent(path):
+def make_dir_if_nonexistent(path, verbose=True):
     """create a directory if it doesn't exist"""
     if not os.path.exists(path):
         os.makedirs(path)
-        print(f"{path} created.", flush=True)
+        if verbose:
+            print(f"{path} created.", flush=True)
     else:
-        print(f"{path} already exists.", flush=True)
+        if verbose:
+            print(f"{path} already exists.", flush=True)
 
 
-def combine_session_data_objects(data_root, rat_name_l, date_l, subdir=''):
-    if subdir:
-        print('Using subdir', subdir)
+def combine_session_data_objects(data_root, rat_name_l, date_l):
     data_obj_l = []
     for sesh_i in range(len(date_l)):
         _metadata = load_session_metadata_from_csv(data_root, rat=rat_name_l[sesh_i], session_date=date_l[sesh_i])
@@ -30,7 +30,7 @@ def combine_session_data_objects(data_root, rat_name_l, date_l, subdir=''):
             _metadata['probe_num'] = probe_i
             _paths = get_session_path(_metadata, data_root, is_ephys_session=True)
 
-            _obj = from_pickle(_paths['preprocess_dir'] + f"probe{probe_i}/", TwoAFC, subdir)
+            _obj = from_pickle(_paths['preprocess_dir'] + f"probe{probe_i}/", TwoAFC)
             _obj.probe_dir = _paths['preprocess_dir'] + f"probe{probe_i}/"
             _obj.sort_dir = _paths['rec_dir'] + f"sorting_output/probe{probe_i}/sorter_output/"
             print(_obj, 'loaded from ', _obj.data_path)

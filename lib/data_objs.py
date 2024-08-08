@@ -218,7 +218,7 @@ class DataContainer:
         print('Done.')
 
 
-def from_pickle(data_path, obj_class, sub_dir=''):
+def from_pickle(data_path, obj_class):
     metadata = joblib.load(data_path + 'metadata')
     behav_df =joblib.load(data_path + 'behav_df')
     
