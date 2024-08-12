@@ -31,7 +31,6 @@ folder = strcat(session, '.rec');
 rec_file_path = fullfile(DATAPATH, rat, 'ephys', folder);
 sorting_path = fullfile(rec_file_path, [char("sorting_output\probe" + string(probenum) + "\sorter_output")]);
 
-%rawfilename = fullfile(sorting_path, 'recording.dat');
 rawfilename = fullfile(rec_file_path, char(session + ".kilosort\" + session + ".probe" + string(probenum) + ".dat"));
 %----------------------------------------------------------------------%
 

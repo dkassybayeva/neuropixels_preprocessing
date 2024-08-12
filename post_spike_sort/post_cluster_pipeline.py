@@ -53,6 +53,7 @@ if SPIKES_AND_TTL:
     for probe_i in range(1, metadata['n_probes']+1):
         metadata['probe_num'] = probe_i
 
+        print('---------------------------------------------------------------------------------')
         # load/create ephys-specific (probe-specific) paths
         spike_dir = preprocess_dir + f'probe{probe_i}/'
         ou.make_dir_if_nonexistent(spike_dir)

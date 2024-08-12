@@ -40,22 +40,23 @@ PLOT_PEAKS_ON_ELECTRODES = False
 # -------------------------------------------------------------------------- #
 #              VARIABLES THAT SHOULD BE UPDATED BEFORE RUNNING
 # -------------------------------------------------------------------------- #
-subject = 'Nina2'
-trodes_date = '20210623_121426'
-local_drive = 'X:'
+subject = 'TQ02'
+trodes_datetime = '20210505_154357'
+local_drive = 'Y:'
 # -------------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------------- #
 #                               Paths
 # -------------------------------------------------------------------------- #
-base_folder = Path(f'{local_drive}/Neurodata/{subject}/ephys/{trodes_date}.rec')
-rec_file = Path(f'O:/data/{subject}/ephys/{trodes_date}.rec/{trodes_date}.rec')
+base_folder = Path(f'{local_drive}/Neurodata/{subject}/ephys/{trodes_datetime}.rec')
+# rec_file = Path(f'O:/data/{subject}/ephys/{trodes_datetime}.rec/{trodes_datetime}.rec')  # <---- for Server
+rec_file = base_folder / f'{trodes_datetime}.rec'
 sorting_folder = base_folder / 'sorting_output'
 
 if not USE_REC:
     probe_num = 1
-    binary_folder = f'{trodes_date}.kilosort/{trodes_date}'
+    binary_folder = f'{trodes_datetime}.kilosort/{trodes_datetime}'
     binary_file = base_folder / (binary_folder + f'.probe{probe_num}.dat')
     chan_map_file = base_folder / (binary_folder + f'.channelmap_probe{probe_num}.dat')
 # -------------------------------------------------------------------------- #
@@ -86,7 +87,7 @@ if USE_REC:
         plot_probe_group(raw_dat.get_probegroup(), same_axes=True)
         plt.show()
 else:
-    from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile
+    from misc_utils.TrodesToPython.readTrodesExtractedDataFile3 import readTrodesExtractedDataFile
     from probeinterface import Probe
     from probeinterface.io import parse_spikegadgets_header
     from xml.etree import ElementTree

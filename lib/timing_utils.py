@@ -91,7 +91,6 @@ def create_spike_mat(probe_sort_dir, preprocess_dir, timestamp_dat, session_meta
     last_spike_ms = int(np.ceil(last_spike_in_sec * 1000))
     spike_mat = np.zeros((len(good_clusters), last_spike_ms), dtype='uint8')
 
-    print('---------------------------------------------------------------------------------')
     print('Creating spike mat...')
     for i, clust_i in enumerate(good_clusters):
         print(f'{i+1} / {len(good_clusters)}\r', flush=True, end='')
