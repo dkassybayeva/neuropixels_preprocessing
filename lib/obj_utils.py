@@ -31,6 +31,7 @@ def combine_session_data_objects(data_root, rat_name_l, date_l):
             _paths = get_session_path(_metadata, data_root, is_ephys_session=True)
 
             _obj = from_pickle(_paths['preprocess_dir'] + f"probe{probe_i}/", TwoAFC)
+            _obj.n_neurons = len(_obj.metadata['nrn_phy_ids'])
             _obj.probe_dir = _paths['preprocess_dir'] + f"probe{probe_i}/"
             _obj.sort_dir = _paths['rec_dir'] + f"sorting_output/probe{probe_i}/sorter_output/"
             print(_obj, 'loaded from ', _obj.data_path)
