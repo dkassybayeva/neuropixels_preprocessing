@@ -36,9 +36,10 @@ class DataContainer:
         
     def load_traces(self, trace_type, downsample_dt):
         trace_dict = joblib.load(self.data_path + f'{trace_type}_aligned_traces_{downsample_dt}ms_bins')
+        self.choice_df = bu.select_choice_trials_w_TTLs(self.behav_df)
         self.n_neurons, self.n_trials, _ = trace_dict['traces'].shape
         assert self.n_neurons == len(self.metadata['nrn_phy_ids'])
-        assert self.n_trials == len(self.behav_df)
+        assert self.n_trials == len(self.choice_df)
         self.sps = 1000 / downsample_dt
         
         if trace_type=='stimulus':        
@@ -212,15 +213,14 @@ class DataContainer:
             print('folder created...', end='')
         # ------------------------------------------------------------- #
 
-        joblib.dump(self.behav_df, self.data_path + 'behav_df', compress=5)
         joblib.dump(self.metadata, self.data_path + 'metadata', compress=5)
         
         print('Done.')
 
 
-def from_pickle(data_path, obj_class):
+def from_pickle(data_path, behav_path, obj_class):
     metadata = joblib.load(data_path + 'metadata')
-    behav_df =joblib.load(data_path + 'behav_df')
+    behav_df = joblib.load(behav_path + 'behav_df')
     
     for red_flag in ['no_matching_TTL_start_time', 'large_TTL_gap_after_start']:
         if red_flag in behav_df.keys() and behav_df[red_flag].sum()>0:

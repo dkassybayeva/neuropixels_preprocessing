@@ -879,17 +879,16 @@ def align_trialwise_spike_times_to_start(datapath, probe_datapath):
     spike_mat = load(probe_datapath + 'spike_mat_in_ms.npy')['spike_mat']
 
     # make pandas behavior dataframe
-    behav_df = load(datapath + 'behav_df')
+    choice_df = bu.select_choice_trials_w_TTLs(load(datapath + 'behav_df'))
 
-    cbehav_df = behav_df[behav_df['MadeChoice']].reset_index(drop=True)
     # align spike times to behavioral data timeframe
     # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
-    trialwise_start_align_spike_mat_in_ms, _ = trace_utils.trial_start_align(cbehav_df, spike_mat, sps=1000)
-    assert trialwise_start_align_spike_mat_in_ms.shape[1] == len(cbehav_df)
+    trialwise_start_align_spike_mat_in_ms, _ = trace_utils.trial_start_align(choice_df, spike_mat, sps=1000)
+    assert trialwise_start_align_spike_mat_in_ms.shape[1] == len(choice_df)
 
     dump(trialwise_start_align_spike_mat_in_ms, probe_datapath + 'trialwise_start_align_spike_mat_in_ms', compress=3)
     print('Results saved to ', probe_datapath + 'trialwise_start_align_spike_mat_in_ms')
     print('---------------------------------------------------------------------------------')
 
-    return trialwise_start_align_spike_mat_in_ms, cbehav_df
+    return trialwise_start_align_spike_mat_in_ms, choice_df
 

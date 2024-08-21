@@ -78,15 +78,6 @@ if BEHAVIOR:
     print('---------------------------------------------------------------------------------')
     print('Processing behavioral data...')
     bu.create_behavioral_dataframe(preprocess_dir, metadata)
-    print('Removing trials corresponding to or preceding a gap...', flush=True, end='')
-    behav_df = joblib.load(preprocess_dir + 'behav_df')
-    no_matching_TTL_start_time = np.where(behav_df['no_matching_TTL_start_time'])[0]
-    no_matching_TTL_end_time = no_matching_TTL_start_time - 1
-    behav_df.drop(np.hstack([no_matching_TTL_start_time, no_matching_TTL_end_time]), axis=0, inplace=True)
-    behav_df.reset_index(inplace=True, drop=True)
-    assert np.all(behav_df['no_matching_TTL_start_time'] == False)
-    assert np.all(~np.isnan(behav_df['TrialLength']))
-    joblib.dump(behav_df, preprocess_dir + "behav_df", compress=3)
     print('Done.')
 
 
@@ -118,8 +109,7 @@ if LFPs:
         good_cluster_channels = cluster_label_df.ch[cluster_label_df['group'] == 'good'].to_numpy()
         assert len(good_clusters) == len(good_cluster_channels)
 
-        behav_df = joblib.load(preprocess_dir + 'behav_df')
-        cbehav_df = behav_df[behav_df['MadeChoice']].reset_index(drop=True)
+        choice_df = bu.select_choice_trials_w_TTLs(joblib.load(preprocess_dir + 'behav_df'))
         trodes_timestamps = get_Trodes_timestamps(session_paths['timestamps_dat'])
         len_recording_sec = (trodes_timestamps[-1] - trodes_timestamps[0]) / fs
         ch_lfp_data = readTrodesExtractedDataFile(LFP_dir + LFP_file_str.format(str(1000 * probe_i + good_cluster_channels[0])))['data']
@@ -136,12 +126,12 @@ if LFPs:
             ch_lfp_data_ms_arr = np.repeat(ch_lfp_data_arr, 2).reshape(-1, subsample_bins).mean(axis=1)
 
             # add neuron axis in order to reuse trial_start_align (can handle spiking data of all neurons at once)
-            ch_lfp_trialwise, temp_df = trace_utils.trial_start_align(cbehav_df, ch_lfp_data_ms_arr[np.newaxis, ...], sps=1000)
+            ch_lfp_trialwise, temp_df = trace_utils.trial_start_align(choice_df, ch_lfp_data_ms_arr[np.newaxis, ...], sps=1000)
             ch_lfp_trialwise_list.append(ch_lfp_trialwise[0])  # remove the extra neuron axis
 
         neuron_trialwise_lfp_mat = np.array(ch_lfp_trialwise_list)
         assert neuron_trialwise_lfp_mat.shape[0] == len(good_clusters)
-        assert neuron_trialwise_lfp_mat.shape[1] == len(cbehav_df)
+        assert neuron_trialwise_lfp_mat.shape[1] == len(choice_df)
         joblib.dump(neuron_trialwise_lfp_mat, lfp_output_dir + 'trialwise_start_align_lfp_mat_in_ms',compress=5)
 
 
@@ -154,7 +144,7 @@ if DATA_OBJECT:
         # Chop neuron activity into trials and align to trial start
         # -------------------------------------------------------- #
         probe_save_dir = preprocess_dir + f"probe{probe_i}/"
-        trialwise_binned_mat, cbehav_df = tu.align_trialwise_spike_times_to_start(preprocess_dir, probe_save_dir)
+        trialwise_binned_mat, choice_df = tu.align_trialwise_spike_times_to_start(preprocess_dir, probe_save_dir)
 
         n_probe_neurons, n_trials, _ = trialwise_binned_mat.shape
         n_neurons += n_probe_neurons
@@ -163,15 +153,15 @@ if DATA_OBJECT:
         # ------------------------------------------------------------------------- #
         # Downsample spiking activity, create alignment traces, and save separately
         # ------------------------------------------------------------------------- #
-        trace_utils.align_traces_to_task_events(cbehav_df, trialwise_binned_mat, alignment_param_dict, save_dir=probe_save_dir)
-        trace_utils.interpolate_traces(cbehav_df, trialwise_binned_mat, interpolation_param_dict, save_dir=probe_save_dir)
+        trace_utils.align_traces_to_task_events(choice_df, trialwise_binned_mat, alignment_param_dict, save_dir=probe_save_dir)
+        trace_utils.interpolate_traces(choice_df, trialwise_binned_mat, interpolation_param_dict, save_dir=probe_save_dir)
 
         # -------------------------------------------------------- #
         # Save datapath, behavioral and metadata to data object
         # -------------------------------------------------------- #
         print('Creating data object...')
         metadata['nrn_phy_ids'] = joblib.load(probe_save_dir + f"spike_mat_in_ms.npy")['row_cluster_id']
-        data_objs.TwoAFC(probe_save_dir, cbehav_df, metadata).to_pickle()
+        data_objs.TwoAFC(probe_save_dir, choice_df, metadata).to_pickle()
         print('---------------------------------------------------------------------------------')
 
 
