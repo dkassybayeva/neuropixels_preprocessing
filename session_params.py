@@ -17,6 +17,7 @@ def read_metadata():
         n_probes = 2,
         DIO_port_num = 6,
         kilosort_ver = 4,
+        valid_periods = '',  # A string with periods separated by a comma (e.g., '0-1000, 2000-T').  T=end of session.
         # ----------------------------------- #
         behav_datetime = '20210617',
         task = 'time-investment'  # ['matching', 'reward-bias', 'time-investment']
@@ -86,29 +87,29 @@ gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
 
 def get_root_path(data_root):
     if data_root=='server':
-        data_root='O:data/'
+        data_root='O:gregory/'
         if not path.exists(data_root):
-            data_root='/media/ottlab/data/'
+            data_root='/media/ottlab/gregory/'
     elif data_root=='local':
-        print('USING LOCAL DATA FOR TESTING!!!')
         data_root = f'/home/{getlogin()}/Workspace/ott_neuropix_data/'
     else:
         data_root = data_root + 'Neurodata/'
+    data_root += 'data_cache/'
+    print('Loading data from', data_root)
     return data_root
-
 
 def save_directory_helper(data_root):
     if data_root=='server':
-        data_root = 'O:share/ephys/'
+        data_root = 'O:gregory/'
         if not path.exists(data_root):
-            data_root = '/media/ottlab/share/ephys/'
+            data_root = '/media/ottlab/gregory/'
     elif data_root == 'local':
         data_root = f'/home/{getlogin()}/Workspace/ott_neuropix_data/'
+    data_root += 'clustering_results/'
     return data_root
 
-
 def write_session_metadata_to_csv(metadata, data_root):
-    DATA_DIR = save_directory_helper(data_root)
+    DATA_DIR = get_root_path(data_root)
     ephys_metadata_file = DATA_DIR + 'ephys_sessions_metadata.csv'
 
     try:
@@ -125,7 +126,7 @@ def write_session_metadata_to_csv(metadata, data_root):
 
 
 def load_session_metadata_from_csv(data_root, rat, session_date):
-    DATA_DIR = save_directory_helper(data_root)
+    DATA_DIR = get_root_path(data_root)
     ephys_metadata_file = DATA_DIR + 'ephys_sessions_metadata.csv'
     ephys_df = pd.read_csv(ephys_metadata_file)
 
