@@ -22,6 +22,7 @@ class DataContainer:
     def __init__(self, data_path, behav_df, metadata):
         self.data_path = data_path
         self.behav_df = behav_df
+        self.choice_df = bu.select_choice_trials_w_TTLs(self.behav_df)
         self.metadata = metadata
         self.objID = f"{metadata['rat_name']}_{metadata['date']}_{metadata['task']}_probe{metadata['probe_num']}"
             
@@ -33,10 +34,9 @@ class DataContainer:
     
     def neurons_of_cluster(self, clust_i):
        return self.cluster_neurons[self.cluster_labels == clust_i]
-        
+
     def load_traces(self, trace_type, downsample_dt):
         trace_dict = joblib.load(self.data_path + f'{trace_type}_aligned_traces_{downsample_dt}ms_bins')
-        self.choice_df = bu.select_choice_trials_w_TTLs(self.behav_df)
         self.n_neurons, self.n_trials, _ = trace_dict['traces'].shape
         assert self.n_neurons == len(self.metadata['nrn_phy_ids'])
         assert self.n_trials == len(self.choice_df)
@@ -218,13 +218,14 @@ class DataContainer:
         print('Done.')
 
 
-def from_pickle(data_path, behav_path, obj_class):
+def from_pickle(behav_path, probe, obj_class):
+    data_path = behav_path + f"probe{probe}/"
     metadata = joblib.load(data_path + 'metadata')
     behav_df = joblib.load(behav_path + 'behav_df')
     
     for red_flag in ['no_matching_TTL_start_time', 'large_TTL_gap_after_start']:
         if red_flag in behav_df.keys() and behav_df[red_flag].sum()>0:
-            print('Trials with' + red_flag + '!!!')
+            print('Trials with ' + red_flag + '!!!')
 
     return obj_class(data_path, behav_df=behav_df, metadata=metadata)
 
