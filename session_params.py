@@ -1,6 +1,34 @@
 from os import path, makedirs, getlogin
 import pandas as pd
 
+
+def read_metadata():
+    metadata = dict(
+        ott_lab = False,
+        rat_name = 'TQ03',
+        date = '20210617',
+        experimenter = 'Amy',
+        region = 'lOFC',
+        # ----------------------------------- #
+        trodes_datetime = '20210617_115450',
+        trodes_logfile = '',
+        trodes_config = '',
+        recording_type = 'neuropixels_1.0',
+        n_probes = 2,
+        DIO_port_num = 6,
+        kilosort_ver = 4,
+        valid_periods = '',  # A string with periods separated by a comma (e.g., '0-1000, 2000-T').  T=end of session.
+        # ----------------------------------- #
+        behav_datetime = '20210617',
+        task = 'time-investment'  # ['matching', 'reward-bias', 'time-investment']
+        # ----------------------------------- #
+    )
+
+    metadata['behavior_mat_file'] = f'TQ03_time-investment_Jun17_2021_Session2.mat'
+
+    return metadata
+
+
 # ----------------------------------------------------------------------- #
 #                           Constants
 # ----------------------------------------------------------------------- #
@@ -17,7 +45,7 @@ sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of a
 
 # -------params for trace interpolation------- #
 """
-For the source of these numbers, see 'Temporal dynaics clustering' in Hirokawa et al. Nature (2019) in Methods.
+For the source of these numbers, see 'Temporal dynamics clustering' in Hirokawa et al. Nature (2019) in Methods.
 """
 interpolation_param_dict = dict(
     trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
@@ -56,83 +84,49 @@ spike_mat_str_indiv = f'spike_mat_in_ms.npy'
 gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
 # ----------------------------------------------------------------------- #
 
+
 def get_root_path(data_root):
     if data_root=='server':
-        data_root='O:data/'
+        data_root='O:gregory/'
         if not path.exists(data_root):
-            data_root='/media/ottlab/data/'
+            data_root='/media/ottlab/gregory/'
     elif data_root=='local':
-        print('USING LOCAL DATA FOR TESTING!!!')
         data_root = f'/home/{getlogin()}/Workspace/ott_neuropix_data/'
     else:
         data_root = data_root #+ 'Neurodata/'
+    data_root += 'data_cache/'
+    print('Loading data from', data_root)
     return data_root
-
 
 def save_directory_helper(data_root):
     if data_root=='server':
-        data_root = 'O:share/ephys/'
+        data_root = 'O:gregory/'
         if not path.exists(data_root):
-            data_root = '/media/ottlab/share/ephys/'
+            data_root = '/media/ottlab/gregory/'
     elif data_root == 'local':
         data_root = f'/home/{getlogin()}/Workspace/ott_neuropix_data/'
+    data_root += 'clustering_results/'
     return data_root
 
-
-def write_session_metadata_to_csv(data_root):
-    columns = ['ott_lab', 'rat_name', 'date', 'experimenter', 'region',
-               'trodes_datetime', 'trodes_logfile', 'trodes_config', 'recording_type',
-               'n_probes', 'DIO_port_num', 'kilosort_ver',
-               'behav_datetime', 'task', 'behavior_mat_file']
-
-    metadata = dict(
-        ott_lab = True,
-        rat_name = '13',
-        date = '20231213',
-        experimenter = 'Dariya',
-        region = 'rAC',
-        # ----------------------------------- #
-        trodes_datetime = '20231213_155419',
-        trodes_logfile = '',
-        trodes_config = '20231120_R13_Tip',
-        recording_type = 'neuropixels_1.0',
-        n_probes = 2,
-        DIO_port_num = 1,
-        kilosort_ver = 4.0,
-        # ----------------------------------- #
-        behav_datetime = '20231213',
-        task = 'double', # ['matching', 'reward-bias', 'time-investment', 'double']
-        # ----------------------------------- #
-    )
-
-    if metadata['task'] == 'matching':
-        task_type = 'TwoArmBanditVariant'
-    elif metadata['task'] == 'double':
-        task_type = ['AuditoryTuning', 'DetectionConfidence'] 
-    else:
-        task_type = 'DiscriminationConfidence'
-    
-    if metadata['task'] == 'double':
-        metadata['behavior_mat_file'] = [f'{metadata["rat_name"]}_{task_type[0]}_{metadata["behav_datetime"]}.mat', f'{metadata["rat_name"]}_{task_type[1]}_{metadata["behav_datetime"]}.mat']
-    else:    
-        metadata['behavior_mat_file'] = f'{metadata["rat_name"]}_{task_type}_{metadata["behav_datetime"]}.mat'
-
-    DATA_DIR = save_directory_helper(data_root)
-
+def write_session_metadata_to_csv(metadata, data_root):
+    DATA_DIR = get_root_path(data_root)
     ephys_metadata_file = DATA_DIR + 'ephys_sessions_metadata.csv'
+
     try:
         ephys_df = pd.read_csv(ephys_metadata_file)
     except:
+        columns = ['ott_lab', 'rat_name', 'date', 'experimenter', 'region',
+                   'trodes_datetime', 'trodes_logfile', 'trodes_config', 'recording_type',
+                   'n_probes', 'DIO_port_num', 'kilosort_ver',
+                   'behav_datetime', 'task', 'behavior_mat_file']
         ephys_df = pd.DataFrame(columns=columns)
 
     ephys_df.loc[len(ephys_df)] = metadata
     ephys_df.to_csv(ephys_metadata_file, index=False)
 
-    return metadata
-
 
 def load_session_metadata_from_csv(data_root, rat, session_date):
-    DATA_DIR = save_directory_helper(data_root)
+    DATA_DIR = get_root_path(data_root)
     ephys_metadata_file = DATA_DIR + 'ephys_sessions_metadata.csv'
     ephys_df = pd.read_csv(ephys_metadata_file)
 
@@ -161,22 +155,12 @@ def get_session_path(metadata, data_root, is_ephys_session):
     if is_ephys_session:
         e_session = metadata['trodes_datetime']
         rec_dir = root_path + f'{rat}/ephys/{e_session}.rec/'
-        if metadata['task'] == 'double':
-            session_paths = dict(
-                rec_dir = rec_dir,
-                probe_dir = rec_dir + f'spike_interface_output/' + '{}/sorter_output/', #session path for spikeinterface with ks4
-                preprocess_dir = rec_dir + 'preprocessing_output/',
-                preprocess_dir_auditory = rec_dir + 'preprocessing_output/auditoryTuning/',
-                preprocess_dir_dc = rec_dir + 'preprocessing_output/detectionConfidence/',
-                timestamps_dat = rec_dir + f'{e_session}.timestamps.dat',  # Trodes timestamps is from general KS dir
-            )
-        else:
-            session_paths = dict(
-                rec_dir = rec_dir,
-                probe_dir = rec_dir + f'{e_session}.kilosort{metadata["kilosort_ver"]}_probe{metadata["probe_num"]}/',
-                preprocess_dir = rec_dir + 'preprocessing_output/',
-                timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
-           )
+        session_paths = dict(
+            rec_dir = rec_dir,
+            probe_dir = rec_dir + 'sorting_output/probe{}/sorter_output/',
+            preprocess_dir = rec_dir + 'preprocessing_output/',
+            timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
+        )
         assert path.exists(session_paths['rec_dir'])
     else:
         session_paths = dict()
@@ -185,22 +169,3 @@ def get_session_path(metadata, data_root, is_ephys_session):
     assert path.exists(session_paths['behav_dir'])
 
     return session_paths
-
-
-def get_stitched_session_paths(data_root, sesh_1_metadata, sesh_2_metadata):
-    session1_paths = get_session_path(sesh_1_metadata, data_root, is_ephys_session=True)
-    session2_paths = get_session_path(sesh_2_metadata, data_root, is_ephys_session=True)
-    rat = sesh_1_metadata['rat_name']
-
-    stitch_paths = dict()
-    combined_session = f"{sesh_1_metadata['date']}_{sesh_2_metadata['date']}"
-    root_path = save_directory_helper(data_root)
-    stitch_paths['stitch_dir'] = root_path + f'{rat}/{combined_session}/'
-    assert path.exists(stitch_paths['stitch_dir'])
-
-    stitch_paths['probe_dir'] = stitch_paths['stitch_dir'] + f"probe{sesh_1_metadata['probe_num']}/kilosort{sesh_1_metadata['kilosort_ver']}/"
-    stitch_paths['preprocess_dir'] = stitch_paths['stitch_dir'] + f"preprocessing_output/probe{sesh_1_metadata['probe_num']}/"
-    stitch_paths['matches_dir'] = stitch_paths['preprocess_dir'] + 'matches/'
-
-    return {f"{sesh_1_metadata['date']}":session1_paths, f"{sesh_2_metadata['date']}":session2_paths, 'stitched':stitch_paths}
-

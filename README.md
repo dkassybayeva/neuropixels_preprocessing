@@ -1,92 +1,71 @@
-# Neuropixels Preprocessing
+## Neuropixels Preprocessing
 Preprocessing pipeline for Neuropixels recordings using kilosort, additional cluster metrics, Phy2, and export functions to cellbase
 
-## Extracting Traces Using Trodes
+### Extracting traces using Trodes
 
 1) Transfer .rec file for days you wish to process from the server. It’s best for this to go to an SSD (i.e., X: or Y: drive).
 
 2) Open Trodes. From the main menu select Open Playback File, and browse to your desired .rec file.
 
-3) File -> extract -> analogio, dio, kilosort, “start”. This takes a few hours to run on an SSD and overnight on an HDD.  This will result in new folders in the same directory as the .rec file, one for DIO, analog, and kilosort, each containing their respective .dat files.
+3) File -> extract -> check dio and kilosort -> “start”. This may take a while to show the progress as a percent.  New folders will be created in the same directory as the .rec file, one for DIO and another for kilosort, each containing their respective .dat files.  The kilosort folder also contains the channel map .dat for kilosort as well as the timestamps that will be needed to sync the TTL and behavioral times in the post-spike pipeline.
 
-4) After double checking the backup of the .rec file is still on the server (and correct size etc.), delete the local copy to save space. 
+4) After double checking that the original .rec file is still on the server (with the correct size etc.), delete the local copy to save space. The size of the combined kilosort .dat files is approximately the same as the .rec, so this will save about 0.5TB.
 
-## Spike Sorting:
+### Spike sorting
 
-5) Run Kilosort in Matlab:
+1) Run Kilosort 4 either using the GUI directly or using spike_sort_pipeline.py:
+
+   - At the moment, the preferred method is to use the kilosort .dat files exported from Trodes, as described above in Extracting Traces Using Trodes.
+     To use the .dat files, set `USE_REC=False` at the top of spike_sort_pipeline.py.  After that, the bare minimum to run
+     sorting with Kilosort 4 is to set `RUN_SORTING = True` and then update the paths in the PATHS section,
+     including the `if not USE_REC` block, where the probe number can be given.<br/><br/>
    
-   - <b>For a single session:</b> Run Kilsort/main\_kilosort.m with combined\_session=false and session\_rec set to the appropriate .rec file name.
+     Other variables of interest are:
+     - `AGGREGATE_SORTING = False`  Only used for `USE_REC=True`.  At the moment should always be set to False because this causes very slow sorting.
+     - `FILTER_RAW_BEFORE_SORTING = True`  Should be set to True.  Simply filters the raw data.
+     - `SAVE_PREPROCESSING = False`  Can be used as intermediate step to save the preprocessing, but the only processing used at the moment 
+     	is the filtering, and that is very fast.  Therefore, setting this  saves disk space and time.
+     - `RUN_ANALYSIS = True`  This should be set to True in order to calculate the quality metrics needed for manual curation in Phy.
+	   <br/><br/>
+   
+	- <b>The sorting output should be saved to an SSD drive, otherwise Phy will be very slow.</b>  The default output path is in the main .rec
+      folder under sorting_output/.
+	  <br/><br/>
 
-   - <b>To stitch two sessions:</b> First run Kilosort/combine\_session\_binaries.m after entering the proper input and output paths (to .rec files of the individual sessions).  This will create a combined.mat file in the output directory in a subdirectory named \[Session1\]\_\[Session2\]. Then run Kilsort/main\_kilosort.m with combined\_session=true and session\_rec=\[Session1\]\_\[Session2\].
 
-You must edit the file paths in the script(s). It’s good for the temporary files to be located on an SSD for speed, but the KS output file doesn’t have to be. The config files are found in Kilosort/configFiles.
-
-6) Open anaconda powershell, and change directory to the Kilosort (KS) output directory
-
-7) Start the phy anaconda environment (e.g., conda activate phy)
-
-8) Start phy for clustering (phy template-gui params.py)
-
-9) Cluster manually
-
-	a) Keyboard shortcuts to remember: alt + g labels a spike as good, alt + m labels it as bad, and :merge merges together all the selected clusters. In FeatureView, CTRL+LeftClick to encircle points and then press K to split them.
+2) Manual curation in Phy 
+	- Open Anaconda powershell, and change directory to the sorting_output directory 
+    - Start the phy anaconda environment (e.g., conda activate phy2, but this may vary on the computer.  Type `$conda env list` to see available environments. 
+    - Start phy for clustering: `$ phy template-gui params.py`
+      - If an error occurs, make sure that the path at the top of params.py points to the probe's .dat file in the .kilosort folder.
+	- Cluster manually 
+      - keyboard shortcuts to remember: alt + g labels a spike as good, alt + m labels it as bad, and :merge merges together all the selected clusters. In FeatureView, CTRL+LeftClick to encircle points and then press K to split them. 
+      - We prefilter with the following stats: fr > 0.5 & Amplitude > 700 & KSLabel == ‘good’ & ISIv < 3 (see .txt on the server for current filter settings).
+	  - When stitching multiple sessions together, the curation can be somewhat lenient: Take a cell if it matches the above filter criteria and
+		1) has consistent spike amplitudes,
+		2) isn’t obviously two clusters,
+		3) has a consistent firing rate across the session break. 
 	
-	b) We prefilter with the following stats: fr > 0.5 & Amplitude > 700 & KSLabel == ‘good’ & ISIv < 3
-	
-	c) When stitching multiple sessions together, the curation can be somewhat lenient: Take a cell if it matches the above filter criteria and
-	
-	- has consistent spike amplitudes,
-	
-	- isn’t obviously two clusters,
-	
-	- and has a consistent firing rate across the session break. 
-	
-	If it’s a badly aligned day, many cells won't look consistent, especially in the upper part of the probe. 
+      - If it’s a badly aligned day, many cells won't look consistent, especially in the upper part of the probe. 
 
-10) Re-evaluate the cluster metrics by running rerun\_metrics\_after\_cluster\_alteration.m
+[//]: # (10&#41; Re-evaluate the cluster metrics by running rerun\_metrics\_after\_cluster\_alteration.m)
 
-## After Spike Sorting (scripts in post\_spike\_sort/ directory):
+### Spike time, TTL, and behavioral timestamp reconciliation 
 
-### Single Session:
+Scripts for this section are found in the post_spike_sort/ directory.
 
-#### Python-only:
+#### Single session
 
-- Copy relevant behavior file (BPod session file, e.g., [subject]\_[protocol]\_[monthDay]\_[year]\_Session[#].mat) to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
-- open post\_cluster\_pipeline.py, change the relevant variables and paths up to the PIPELINE heading, and run it.    **--> spike\_mat\_in\_ms.npy**    (\[OPTIONAL\] Set SAVE_INDIVIDUAL_SPIKETRAINS = True when stitching sessions. **--> spike\_times/spike\_times\_in\_sec\_shank=\[PROBE#\]\_clust=\[UNIT#\].npy**)
+1) Make sure that the relevant behavior file (BPod session file, e.g., [subject]\_[protocol]\_[monthDay]\_[year]\_Session[#].mat) is in the bpod_session folder (e.g., O:\data\\[subject\]\bpod_session\\[bpod_datetime\]\).
+2) Open post\_cluster\_pipeline.py, change the relevant variables and paths up to the PIPELINE heading, and run it.    **--> spike\_mat\_in\_ms.npy**
+	- If stitching sessions, set SAVE_INDIVIDUAL_SPIKETRAINS = True
 
-- \[OPTIONAL\] Run post\_spike\_sort/extract\_waveforms.py. (This step is required to compare neurons when validating stitched sessions.) **--> waveforms/unit\_\[UNIT#\].mat**
+	  **--> spike\_times/spike\_times\_in\_sec\_shank=\[PROBE#\]\_clust=\[UNIT#\].npy**)
 
-#### With Matlab (Matlab\_pipline/):
 
-- Copy convert_spikes_pkl_to_mat_file.py from this repository to the Kilosort output directory (e.g., X:\NeuroData\SubjectName\date_time.rec\data_time.kilosort_probe1\)
-and run it (e.g., cmd: python convert_spikes.py) **--> spikes_per_cluster.mat**
-
-- Run extract_Trodes_spiketimes_and_gaps__KS_waveforms.m in Matlab, editing directories as relevant.  This creates spike time vectors in the cellbase subdirectory, matching the Kilosort/Phy cluster information with the timekeeping from Trodes.  This data is saved for each unit in the cellbase directory under **TT[shank#]\_[clusterID].mat**.  It also saves the waveforms in WF[shank#]\_[clusterID].mat, as well as "gaps" (GAPS.mat), the cluster quality metrics (PhyLabels\_[shank#].mat) and the analog input TTL events (EVENTS.mat).
-
-- For each day (from cellbase directory):
-	
-	a) Copy relevant behavior file (BPod session file) to the cellbase directory (e.g., [subject]\_[protocol]\_[monthDay]\_[year]\_Session[#].mat)
- 	
-	b) Run MakeTrialEventsNeuropixels.m on cellbase directory **-> creates TE.mat, TEbis.mat, and TrialEvents.mat**, as well as two Aligned*.mat files.  TrialEvents.mat has the extracted trial events data.
-	
-	c) If 2nd day in alignment MakeTrialEvents2TorbenNP needs to be edited to say: Events\_TTL2 Events\_TS2 on line 45, Events\_TTL1 Events\_TS1 if first day
-	
-- processTrialEventsDual2AFC.m **--> RecBehav.mat**
-    - curates results in to TrialEvents.mat of all trials from Bpod
-    - adds some [1 x nTrials] fields 
-    - removes any Bpod settings structs or anything that isn't [1 x nTrials] array
-
-- process\_TTcellbase.m **--> traces\_ms.mat**
-
-    - combines all TT[shank#]\_[clusterID].mat files created by MakeTTNeuropixel(\_batchalign).m into a signle binary matrix with spike times
-
-- create\_data\_objects\_with\_aligned\_traces.py: uses **traces\_ms.m** and **RecBehav.mat**
-
-    - requires (pip install): mat73, imblearn
-    - aligns the spiking and behavioral data to different events (e.g., trial start vs response start)
-    - collects all data (including spiking and behavioral data [now pandas DataFrame]) into a DataContainer object specific to the experiment type (e.g., 2AFC) and saves the entire object using pickle
-
-### Stitching Sessions
-
-- Run post\_spike\_sort/separate\_session\_spiketimes\_from\_combined\_data.py (requires curated Phy cluster\_group.tsv file in the combined data folder). **--> in combined data folder saves two files: spike_mat_in_ms_\[subject\]_\[session\]_probe\[probe#\]_from_combined_data.npy**
-- Continue with https://github.com/Ott-Decision-Circuits-Lab/spike_response_analysis/tree/master/session_stitching
+#### Stitching sessions
+0) Run post\_spike\_sort/extract\_waveforms.m for both individual sessions. (This step is required to compare neurons when validating stitched sessions.) **--> waveforms/unit\_\[UNIT#\].mat**
+1) Run misc_utils/combine\_session\_dat_files.m after entering the proper input (to .rec files of the individual sessions) and output paths .  This will create a combined.dat file in the output directory in a subdirectory named \[Session1\]\_\[Session2\].
+2) Sort (at the moment, use Kilosort GUI) the combined.dat file and curate in Phy.
+3) Run post\_spike\_sort/separate\_session\_spiketimes\_from\_combined\_data.py (requires curated Phy cluster\_group.tsv file in the combined data folder). **--> in combined data folder saves two files: spike_mat_in_ms_\[subject\]_\[session\]_probe\[probe#\]_from_combined_data.npy**
+4) Continue with https://github.com/Ott-Decision-Circuits-Lab/spike_response_analysis/tree/master/session_stitching

@@ -5,6 +5,25 @@ from scipy.io import loadmat
 from joblib import load, dump
 import matplotlib.pyplot as plt
 
+def select_choice_trials_w_TTLs(behav_df):
+    print('Removing trials corresponding to or preceding a gap...', flush=True)
+    no_matching_TTL_start_time = np.where(behav_df['no_matching_TTL_start_time'])[0]
+    no_matching_TTL_end_time = no_matching_TTL_start_time - 1
+    behav_df.drop(np.hstack([no_matching_TTL_start_time, no_matching_TTL_end_time]), axis=0, inplace=True)
+    behav_df.reset_index(drop=True, inplace=True)
+    assert np.all(behav_df['no_matching_TTL_start_time'] == False)
+    if np.isnan(behav_df.iloc[-1]['TrialLength']):
+        behav_df = behav_df[:-1]
+    assert np.all(~np.isnan(behav_df['TrialLength']))
+
+    print('or occurring in an invalid period detected during curation...', flush=True)
+    behav_df = behav_df[behav_df['valid_curation']]
+    behav_df.reset_index(drop=True, inplace=True)
+    assert np.all(behav_df['valid_curation'])
+
+    print('and selecting choice trials.', flush=True)
+    choice_df = behav_df[behav_df['MadeChoice']]
+    return choice_df.reset_index(drop=True)
 
 def filter_valid_time_investment_trials(behav_data, task, minimum_wait_time=2.0):
     """
@@ -101,6 +120,9 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
     # --------------------------------------------------------------------- #
     #  new session dataframe for trialwise data in which we are interested
     # --------------------------------------------------------------------- #
+    # Bpod iterates the trial number as the trial is created, meaning when stop is pressed,
+    # a trial has been registered, but there is no data for it.
+    # Therefore, the actual number of datapoints is nTrials-1.
     n_trials = behav_data['nTrials'] - 1
     _sd = pd.DataFrame()
     _sd['TrialNumber'] = np.arange(n_trials)
@@ -267,16 +289,13 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
         _sd['TrialTypes'] = behav_data['TrialTypes'][:n_trials]
 
     if ephys:
-        if OTT_LAB_DATA:
-            _sd['TTLTrialStartTime'] = behav_data['recorded_TTL_trial_start_time'][:n_trials]
-            _sd['no_matching_TTL_start_time'] = behav_data['no_matching_TTL_start_time'][:n_trials]
-            _sd['large_TTL_gap_after_start'] = behav_data['large_TTL_gap_after_start'][:n_trials]
-
-        else:
-            _sd['TTLTrialStartTime'] = behav_data['TrialStartAligned'][:n_trials]
+        _sd['TTLTrialStartTime'] = behav_data['recorded_TTL_trial_start_time'][:n_trials]
+        _sd['no_matching_TTL_start_time'] = behav_data['no_matching_TTL_start_time'][:n_trials]
+        _sd['large_TTL_gap_after_start'] = behav_data['large_TTL_gap_after_start'][:n_trials]
 
         _sd['NextTrialStart'] = _sd['TTLTrialStartTime'].shift(-1).to_numpy()
         _sd['TrialLength'] = (_sd['NextTrialStart'] - _sd['TTLTrialStartTime']).to_numpy()
+
     # ------------------------------------------------------------------------ #
 
 
@@ -311,9 +330,19 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
             print('Why does DV not match left and right click amount?')
         _sd['RatioDiscri'] = np.log10(_sd['NRightClicks'] / _sd['NLeftClicks'])
     # ---------------------------------------------------------------------- #
-    
-    _sd = _sd[:-1]  # Last trial is invalid
-    return _sd 
+
+    valid_period_l = metadata['valid_periods']
+    if pd.isnull(valid_period_l):
+        _sd['valid_curation'] = True
+    else:
+        _sd['valid_curation'] = False
+        valid_period_l = valid_period_l.split(',')
+        for period in valid_period_l:
+            start, end = np.array(period.split('-'))
+            end = np.ceil(_sd['TTLTrialStartTime'].max()) if end == 'T' else end
+            _sd.loc[(int(start) <= _sd['TTLTrialStartTime']) & (_sd['TTLTrialStartTime'] <= int(end)), 'valid_curation'] = True
+
+    return _sd
 
 
 def create_behavioral_dataframe(output_dir, metadata):

@@ -6,7 +6,8 @@ convert KS2.5 clustering results, cured in Phy, to spike times
 using Trode's timestamps
 
 author: GK (from Matlab_pipeline/extract_spiketimes_and_gaps_and_waveforms.m)
-date: March, 2023
+date: March 2023
+updated: May 2024
 %}
 
 probenum = 1;
@@ -14,6 +15,7 @@ sf = 30000.0;  % sampling frequency
 
 n_waveforms = 100;
 random_waveforms = true;
+
 % samples around the spike times to load
 waveform_win = [-20:40];  
 waveform_len = length(waveform_win);
@@ -22,14 +24,14 @@ waveform_len = length(waveform_win);
 %                           PATHS
 %----------------------------------------------------------------------%
 DATAPATH = 'Y:\Neurodata';
-rat = 'R1';
-session = '20230507_123146';
+rat = 'TQ03';
+session = '20210617_115450';
 folder = strcat(session, '.rec');
 
-kfolder = [char(".kilosort2.5_probe" + string(probenum))];
+rec_file_path = fullfile(DATAPATH, rat, 'ephys', folder);
+sorting_path = fullfile(rec_file_path, [char("sorting_output\probe" + string(probenum) + "\sorter_output")]);
 
-rec_file_path = fullfile(DATAPATH, rat, folder);
-session_path = fullfile(rec_file_path, [session kfolder]);
+rawfilename = fullfile(rec_file_path, char(session + ".kilosort\" + session + ".probe" + string(probenum) + ".dat"));
 %----------------------------------------------------------------------%
 
 
@@ -43,7 +45,6 @@ n_channels = 384;
 dataType = 'int16'; % data type of raw data file
 bytes_per_sample = 2;
 
-rawfilename = fullfile(session_path, 'temp_wh.dat');
 total_bytes_in_file = get_file_size(rawfilename);
 nSamp = total_bytes_in_file / n_channels / bytes_per_sample;
 
@@ -54,30 +55,14 @@ mmf = memmapfile(rawfilename, 'Format', {dataType, [n_channels, nSamp], 'x'});
 %----------------------------------------------------------------------%
 %                   Load Kilosort/Phy Cluster Data
 %----------------------------------------------------------------------%
-% % Phy's clustering results have to be converted to mat file before
-% % (cf convert_spikes.py)
-% PhySpikes = load(fullfile(session_path,'spikes_per_cluster.mat'));
-
 % KS cluster id per spike
-SpikeCluster = readNPY(fullfile(session_path,'spike_clusters.npy'));
+SpikeCluster = readNPY(fullfile(sorting_path,'spike_clusters.npy'));
 
 % Phy curing table
-PhyLabels = tdfread(fullfile(session_path,'cluster_info.tsv'));
+PhyLabels = tdfread(fullfile(sorting_path,'cluster_info.tsv'));
 
 % load KS timestamps (these are indices in reality!) for each spike index
-KSspiketimes = load(fullfile(session_path,'spike_times.mat')); 
-KSspiketimes = KSspiketimes.spikeTimes;
-%----------------------------------------------------------------------%
-
-
-%----------------------------------------------------------------------%
-%              Load Trodes Times for Relative Timekeeping
-%----------------------------------------------------------------------%
-% load Trodes timestamps - in the general kilosort folder
-% kilosort_path = fullfile(rec_file_path,[session,'.kilosort_probe1']);
-% time_file = fullfile(kilosort_path, [session, '.timestamps.dat']);
-% Ttime = readTrodesExtractedDataFile(time_file); % >1GB var (3h recording)
-% Trodestimestamps = Ttime.fields.data;  % >1GB variable for a 3h recording
+KSspiketimes = readNPY(fullfile(sorting_path,'spike_times.npy'));
 %----------------------------------------------------------------------%
 
 
@@ -87,13 +72,10 @@ KSspiketimes = KSspiketimes.spikeTimes;
 good_idx = find(all((PhyLabels.group(:,1:4)=='good'),2)); % row # of 'good'
 good = PhyLabels.cluster_id( good_idx ); %Phy cluster_id labelled as 'good'
 
-cellbase_dir = fullfile(session_path, 'preprocessing_output/waveforms');
-if ~isfolder(cellbase_dir)
-    mkdir(cellbase_dir)
+waveform_dir = fullfile(rec_file_path, 'preprocessing_output', char("probe" + string(probenum)), 'waveforms');
+if ~isfolder(waveform_dir)
+    mkdir(waveform_dir)
 end
-
-% create new, empty column in PhyLabels
-% PhyLabels.cellbase_name = cell(length(PhyLabels.cluster_id), 1);
 %----------------------------------------------------------------------%
 
 
@@ -151,7 +133,7 @@ for k =1:length(good)
     wave_mat = squeeze(wave_mat(:, loudest_ch, :));
     %------------------------------------------------------------%
 
-    fname = fullfile(cellbase_dir, [unitname, '.mat']);
+    fname = fullfile(waveform_dir, [unitname, '.mat']);
     save(fname, 'wave_mat');    
 end
 %----------------------------------------------------------------------%

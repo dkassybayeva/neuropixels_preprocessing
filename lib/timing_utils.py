@@ -19,7 +19,7 @@ from neuropixels_preprocessing.misc_utils.TrodesToPython.readTrodesExtractedData
 import neuropixels_preprocessing.lib.trace_utils as trace_utils
 import neuropixels_preprocessing.lib.behavior_utils as bu
 
-def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadata, fs, save_individual_spiketrains):
+def create_spike_mat(probe_sort_dir, preprocess_dir, timestamp_dat, session_metadata, fs, save_individual_spiketrains):
     """
     Make spiking matrix (and optionally individual spike time vectors, or 
     spike trains) for single unit recordings from Neuropixels & Trodes, 
@@ -30,7 +30,7 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
 
     Parameters
     ----------
-    session_dir : TYPE
+    probe_sort_dir : TYPE
         DESCRIPTION.
     timestamp_dat : TYPE
         DESCRIPTION.
@@ -54,13 +54,15 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
     #                   Load Kilosort/Phy Spike Data
     #----------------------------------------------------------------------#
     # Phy's clustering results
-    cluster_spikes_dict = load(session_dir + '.phy/spikes_per_cluster.pkl')
+    cluster_spikes_dict = load(probe_sort_dir + '.phy/spikes_per_cluster.pkl')
     
-    # load KS timestamps (these are indices in reality!) for each spike index
     #for ks 2.5
     #spike_times_arr = h5py.File(session_dir + 'spike_times.mat')['spikeTimes'][()][0]
     #for ks 4.0 I checked and spike-times.mat files have exact same info as spike_times.npy
-    spike_times_arr = np.load(session_dir + 'spike_times.npy')
+    #spike_times_arr = np.load(session_dir + 'spike_times.npy')
+
+    # Load Kilosort timestamps (these are indices in reality!) for each spike
+    spike_times_arr = np.load(probe_sort_dir + 'spike_times.npy').flatten()
     #----------------------------------------------------------------------#
     
     
@@ -78,7 +80,7 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
     # Phy curing table (cluster metadata)
     # index corresponds to the key in cluster_spikes_dict, 
     # i.e., cluster_spikes_dict[n].size==cluster_label_df.iloc[n]['n_spikes']
-    cluster_label_df = pd.read_csv(session_dir + 'cluster_info.tsv', sep="\t")
+    cluster_label_df = pd.read_csv(probe_sort_dir + 'cluster_info.tsv', sep="\t")
     
     # Phy cluster_id labelled as 'good'
     good_clusters = cluster_label_df.cluster_id[cluster_label_df['group'] =='good'].to_numpy()
@@ -93,7 +95,7 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
     last_spike_in_sec = trodes_timestamps[-1] / fs
     last_spike_ms = int(np.ceil(last_spike_in_sec * 1000))
     spike_mat = np.zeros((len(good_clusters), last_spike_ms), dtype='uint8')
-    
+
     print('Creating spike mat...')
     for i, clust_i in enumerate(good_clusters):
         print(f'{i+1} / {len(good_clusters)}\r', flush=True, end='')
@@ -126,7 +128,7 @@ def create_spike_mat(session_dir, preprocess_dir, timestamp_dat, session_metadat
     
     results = {'spike_mat': spike_mat, 'row_cluster_id': good_clusters}
     dump(results, preprocess_dir + 'spike_mat_in_ms.npy', compress=3)
-    print('\nSaved to ' + preprocess_dir)
+    print('Saved to ' + preprocess_dir)
 # ---------------------------------------------------------------------------------------- #
 
 
@@ -478,7 +480,7 @@ def reconcile_TTL_and_behav_trial_start_times(session_dir, TTL_indices_beh, save
 
 
 # ---------------------------Legacy Code---------------------------- #
-def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_file):
+def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_file, gap_filename):
     """
     Synchronize trial events to recording times.
 
@@ -502,15 +504,20 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_
     # --------------------------------------------------------------------- #
     # Trial start time recorded by the recording system (Neuralynx or Trodes)
     # --------------------------------------------------------------------- #
+    print('---------------------------------------------------------------------------------')
+    print('Reconciling recorded and behavioral timestamps...')
     # Load converted TRODES event file
-    print('Grouping TTL events by trial and getting recorded trial start times...')
+    print('Grouping TTL events by trial and getting recorded trial start times...', end='', flush=True)
     try:
         TTL_results = load(save_dir + 'TTL_events.npy')
     except:
         print('TTL_events.npy file not found.  Make sure the TTL events \n\
         have been extraced from the TRODES .DIO files.')
         return
-
+    
+    TTL_code = TTL_results['TTL_code'][1:]
+    gap_times = load(save_dir + gap_filename)['gaps_ts']
+    
     trialwise_TTLs = group_codes_and_timestamps_by_trial(**TTL_results)
 
     aligned_trialwise_TTLs, recorded_start_ts = align_TTL_events(trialwise_TTLs, save=(True, save_dir))
@@ -535,50 +542,124 @@ def add_TTL_trial_start_times_to_behav_data(session_dir, save_dir, behavior_mat_
     # --------------------------------------------------------------------- #
     # Reconcile the recorded and behavioral timestamps
     # --------------------------------------------------------------------- #
-    print('Reconciling recorded and behavioral timestamps...')
     # First check the number of trials
     print(f'{n_trials} behavioral trials, {len(recorded_start_ts)} TTLs')
 
-    # Match timestamps - in case of mismatch, try to fix
-    if not is_match(behav_start_ts, recorded_start_ts):
-        print("Timestamps do not match.  Removing ISI violations...")
-        # note: obsolete due the introduction of TTL parsing
-        recorded_start_ts = clear_ttls_with_isi_violation(recorded_start_ts)
+    # # Match timestamps - in case of mismatch, try to fix
+    # if not is_match(behav_start_ts, recorded_start_ts):
+    #     print("Timestamps do not match.  Removing ISI violations...")
+    #     # note: obsolete due the introduction of TTL parsing
+    #     recorded_start_ts = clear_ttls_with_isi_violation(recorded_start_ts)
 
-        if not is_match(behav_start_ts, recorded_start_ts):
-            print('Still no match. Try to match time series by shifting...')
-            recorded_start_ts = reconcile_with_shift(behav_start_ts, recorded_start_ts)
+    #     if not is_match(behav_start_ts, recorded_start_ts):
+    #         print('Still no match. Try to match time series by shifting...')
+    #         recorded_start_ts = reconcile_with_shift(behav_start_ts, recorded_start_ts)
 
-            if not is_match(behav_start_ts, recorded_start_ts):
-                print('Still no match. Try to interpolate missing TTLs...')
-                recorded_start_ts = try_interpolation(behav_start_ts, recorded_start_ts,
-                                                      first_trial_of_next_session=n_trials + 1)
+    #         if not is_match(behav_start_ts, recorded_start_ts):
+    #             print('Still no match. Try to interpolate missing TTLs...')
+    #             recorded_start_ts = try_interpolation(behav_start_ts, recorded_start_ts,
+    #                                                   first_trial_of_next_session=n_trials + 1)
 
-                if not is_match(behav_start_ts, recorded_start_ts):
-                    Exception('Matching TTLs failed.')
+    #             assert is_match(behav_start_ts, recorded_start_ts), 'Matching TTLs failed.'
+    def compare_ITIs(arr1, arr2):
+        return np.isclose(np.diff(arr1), np.diff(arr2), atol=0.1, rtol=0)
+
+    def n_matching_ITIs(arr1, arr2):
+        return np.sum(compare_ITIs(arr1, arr2))
+
+    if len(behav_start_ts) > len(recorded_start_ts):
+        print('Not all behavioral trials accounted for in the TTL data.')
+        print('This is likely due to the', len(gap_times),'gaps that were found.')
+        print('Attempting to reconcile ITIs by inserting dummy TTL data...', flush=True, end='')
+        gap_start_indices = np.where(TTL_code == -1)[0] // 2
+
+        n_trials_min = len(recorded_start_ts)  # TTLs have fewest trials by definition (if statement above)
+        n_match = n_matching_ITIs(behav_start_ts[:n_trials_min], recorded_start_ts[:n_trials_min])
+        misses = np.where(compare_ITIs(behav_start_ts[:n_trials_min], recorded_start_ts[:n_trials_min]) == False)[0]
+
+        miss_index = 0
+        n_corrections = 0
+        buffer_ITIs = 0  # Note: May need to make multiple corrections per gap if the gap is very large
+
+        while miss_index < len(misses):
+            next_miss = misses[miss_index]
+            recorded_start_ts_w_gaps = np.insert(recorded_start_ts, next_miss+1, np.nan)
+
+            behav_ts_diff = np.diff(behav_start_ts[:n_trials_min])
+            record_ts_diff = np.diff(recorded_start_ts_w_gaps)[:n_trials_min-1]
+            n_match_new = np.sum(np.isclose(record_ts_diff, behav_ts_diff, atol=0.1, rtol=0))
+
+            recorded_start_ts = recorded_start_ts_w_gaps
+            n_trials_min = min(len(behav_start_ts), len(recorded_start_ts))
+            misses = np.where(compare_ITIs(behav_start_ts[:n_trials_min], recorded_start_ts[:n_trials_min]) == False)[0]
+
+            if n_match_new > n_match:
+                n_corrections += 1
+                # Introducing a NaN will create 2 NaN diffs at the beginning of misses
+                # (the first is at 'next_miss' and one spot right after.)
+                miss_index += 2
+                n_match = n_match_new
+            else:
+                buffer_ITIs += 1
+                miss_index += 1
+
+        print(n_corrections, 'corrections made.')
+
+        insertion_idx_l = np.where(np.isnan(recorded_start_ts))[0]
+        for c_i, insertion_i in enumerate(insertion_idx_l):
+            before_gap, after_gap = recorded_start_ts[insertion_i-1], recorded_start_ts[insertion_i+1]
+            print(len(np.where((before_gap < gap_times) & (gap_times < after_gap))[0]), 'gap(s) found where ITI', c_i+1, 'was inserted.')
+
+        # While correcting for gaps, the recorded TTLs may have become longer
+        if len(recorded_start_ts) > len(behav_start_ts):
+            print('Deleting superfluous TTLs resulting from corrections.')
+            recorded_start_ts = recorded_start_ts[:len(behav_start_ts)]
+
+        """
+        Not all gaps affect the trial start timestamps.  Instead, make sure that the number of corrections
+        does not exceed the registered number of gaps.
+        """
+        assert n_corrections <= len(gap_times)
+        """
+        Number of diffs (ITIs) = number of trials - 1.  Check that matches equal this number - 2 * corrections,
+        since each correction introduced two misses.
+        """
+        # if buffer_ITIs:
+        #     buffer_ITIs +=1
+        # assert n_matching_ITIs(behav_start_ts[:n_trials_min], recorded_start_ts[:n_trials_min]) == (n_trials - 1 - 2 * n_corrections - buffer_ITIs)
+
+    elif len(behav_start_ts) < len(recorded_start_ts):
+        print('More recorded TTL trials than in behavioral data.')
+        _end = min(len(behav_start_ts), len(recorded_start_ts))
+        n_match = n_matching_ITIs(behav_start_ts[:_end], recorded_start_ts[:_end])
+        if n_match == n_trials - 1:
+            recorded_start_ts = recorded_start_ts[:len(behav_start_ts)]
+            print('All behavioral ITIs match TTL ITIs. TTL data trimmed to match.')
+        else:
+            raise Exception('TTL data does not match behavioral data.')
 
     print('Timestamp matching resolved.')
+    # ------------------------------------------------------------------------- #
+    #                           all ITIs match                                  #
+    # ------------------------------------------------------------------------- #
+    session_data['recorded_TTL_trial_start_time'] = recorded_start_ts
+    session_data['no_matching_TTL_start_time'] = np.isnan(recorded_start_ts)
 
-    # If the timestamp arrays have different lengths, eliminate timestamps
-    # from the longer series to make them the same length
-    if len(recorded_start_ts) > len(behav_start_ts):
-        # missing timestamp in behavior file (likely reason: autosave was used)
-        recorded_start_ts = recorded_start_ts[:len(behav_start_ts)]
-    elif len(recorded_start_ts) < len(behav_start_ts):
-        # missing timestamp from recording sys (likely reason: recording stopped)
-        session_data = shorten_session_data(session_data, len(recorded_start_ts))
-        print('Trial Event File shortened to match TTL!')
-    print('Done.')
+    trials_preceding_gap = np.zeros_like(recorded_start_ts)
+    missing_trials = np.where(np.isnan(recorded_start_ts))[0]
+    for m_trial in missing_trials:
+        if ~np.isnan(recorded_start_ts[m_trial - 1]):  # only count recorded trials followed by a missing trial
+            trials_preceding_gap[m_trial - 1] = 1
+
+    session_data['large_TTL_gap_after_start'] = trials_preceding_gap
 
     # --------------------------------------------------------------------- #
     # Finally, save the trial-start timestamps of the aligned, recorded TTLs
     # These will be used to align the trialwise spiking data
     # --------------------------------------------------------------------- #
-
-    session_data['TrialStartAligned'] = recorded_start_ts
-
+    print('Saving...', flush=False, end='')
     dump(session_data, save_dir + 'TrialEvents.npy', compress=3)
-    print('Results saved to ' + save_dir + 'TrialEvents.npy.')
+    print('\rResults saved to ' + save_dir + 'TrialEvents.npy.')
 
 
 def group_codes_and_timestamps_by_trial(TTL_code, timestamps):
@@ -603,6 +684,7 @@ def group_codes_and_timestamps_by_trial(TTL_code, timestamps):
     start_code = 1  # trialStart (WaitForInitialPoke)
     pre_start = 0  # no state (between trials)
     post_start = 2  # state that is always followed by start_code state
+    gap_code = -1
 
     first_start = np.where(TTL_code==start_code)[0][0]
     n_codes = len(TTL_code)
@@ -616,7 +698,9 @@ def group_codes_and_timestamps_by_trial(TTL_code, timestamps):
     curr_trial_timestamps = []
     for x in range(first_start, n_codes):
         # if a trial start
-        if TTL_code[x] == start_code and TTL_code[x-1]==pre_start and TTL_code[x+1]==post_start:
+        if (TTL_code[x] == start_code
+            and (TTL_code[x-1]==pre_start or TTL_code[x-1]==gap_code)
+            and TTL_code[x+1]==post_start):
             n_trials = n_trials + 1
             if x != first_start:
                 # save previous trial's events to global container
@@ -804,19 +888,22 @@ def shorten_session_data(session_data, n_trials):
 
 # ---------------------------------------------------------------------------------------- #
 def align_trialwise_spike_times_to_start(datapath, probe_datapath):
+    print('---------------------------------------------------------------------------------')
+    print('Aligning spikes to trial start...')
     # load neural data: [number of neurons x time bins in ms]
     spike_mat = load(probe_datapath + 'spike_mat_in_ms.npy')['spike_mat']
 
     # make pandas behavior dataframe
-    behav_df = load(datapath + 'behav_df')
+    choice_df = bu.select_choice_trials_w_TTLs(load(datapath + 'behav_df'))
 
-    cbehav_df = behav_df[behav_df['MadeChoice']].reset_index(drop=True)
     # align spike times to behavioral data timeframe
     # spike_times_start_aligned = array [n_neurons x n_trials x longest_trial period in ms]
-    trialwise_start_align_spike_mat_in_ms, _ = trace_utils.trial_start_align(cbehav_df, spike_mat, sps=1000)
-    assert trialwise_start_align_spike_mat_in_ms.shape[1] == len(cbehav_df)
-    
-    dump(trialwise_start_align_spike_mat_in_ms, probe_datapath + 'trialwise_start_align_spike_mat_in_ms', compress=3)
+    trialwise_start_align_spike_mat_in_ms, _ = trace_utils.trial_start_align(choice_df, spike_mat, sps=1000)
+    assert trialwise_start_align_spike_mat_in_ms.shape[1] == len(choice_df)
 
-    return trialwise_start_align_spike_mat_in_ms, cbehav_df
+    dump(trialwise_start_align_spike_mat_in_ms, probe_datapath + 'trialwise_start_align_spike_mat_in_ms', compress=3)
+    print('Results saved to ', probe_datapath + 'trialwise_start_align_spike_mat_in_ms')
+    print('---------------------------------------------------------------------------------')
+
+    return trialwise_start_align_spike_mat_in_ms, choice_df
 

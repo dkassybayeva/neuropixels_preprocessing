@@ -50,11 +50,12 @@ def align_spikes_to_event(event_name, prebuffer, postbuffer, behav_df, traces, m
 def trial_start_align(behav_df, traces, sps, max_allowable_len=36000 ):
     for red_flag in ['no_matching_TTL_start_time', 'large_TTL_gap_after_start']:
         if red_flag in behav_df.keys() and behav_df[red_flag].sum()>0:
-            print('Trials with' + red_flag + '!!!')
+            print('Trials with', red_flag + '!!!')
 
     if np.isnan(behav_df['TTLTrialStartTime']).sum():
-        print('Removing trials without TTL start times.')
+        print('Removing trials without TTL start times...', flush=True, end='')
         behav_df = behav_df[~np.isnan(behav_df['TTLTrialStartTime'])]
+        print('Done.')
 
     # ----------------------------------------------------------------------- #
     # Find longest trial, so that all trials can be zero padded to same len
@@ -193,7 +194,7 @@ def align_helper(traces, begin_arr, end_arr, index_arr, pre_buffer, post_buffer)
 
     begin_arr[begin_arr < 0] = 0  # set negative indices to beginning of trace
     len_preceding_arr = index_arr - begin_arr  # bin number of event relative to beginning of frame
-    assert np.all(len_preceding_arr > 0)
+    assert np.all(len_preceding_arr >= 0)
     alignment_idx = pre_buffer
     assert max(len_preceding_arr) <= pre_buffer
     offset_arr = alignment_idx - len_preceding_arr
@@ -204,8 +205,10 @@ def align_helper(traces, begin_arr, end_arr, index_arr, pre_buffer, post_buffer)
 
     aligned_arr = np.full([traces.shape[0], traces.shape[1], pre_buffer+1+post_buffer], np.nan)
     for i in trange(traces.shape[1]):
-        aligned_arr[:, i, offset_arr[i]:alignment_idx] = traces[:, i, begin_arr[i]:index_arr[i]]
-        aligned_arr[:, i, alignment_idx:(alignment_idx+len_after_arr[i])] = traces[:, i, index_arr[i]:end_arr[i]]
+        if index_arr[i] - begin_arr[i] > 0:
+            aligned_arr[:, i, offset_arr[i]:alignment_idx] = traces[:, i, begin_arr[i]:index_arr[i]]
+        if end_arr[i] - index_arr[i] > 0:
+            aligned_arr[:, i, alignment_idx:(alignment_idx+len_after_arr[i])] = traces[:, i, index_arr[i]:end_arr[i]]
 
     return aligned_arr, alignment_idx
 
@@ -218,6 +221,8 @@ def align_traces_to_task_events(behav_df,
     '''
     Create different alignments from neuropixels data.
     '''
+    print('---------------------------------------------------------------------------------')
+    print('Aligning spike times to task events...')
     d=alignment_param_dict
     sub_dt = d['downsample_dt']
     # -------------------------------------------------------------------- #
@@ -233,6 +238,7 @@ def align_traces_to_task_events(behav_df,
     # ---------------------------------------------------------------------- #
 
     # -----------------------Stimulus-aligned frame------------------------------- #
+    print('Aligning to stimulus:')
     align_dict = dict(index_arr = event_idx['stim_on'])
     align_dict['begin_arr']   = np.maximum(event_idx['stim_on'] - d['pre_stim_interval'],  event_idx['center_poke'])
     align_dict['end_arr']     = np.minimum(event_idx['stim_on'] + d['post_stim_interval'], event_idx['stim_off'])
@@ -244,6 +250,7 @@ def align_traces_to_task_events(behav_df,
     joblib.dump(dict(traces=stim_aligned, ind=stim_point, params=d), save_dir + f'stimulus_aligned_traces_{sub_dt}ms_bins', compress=5)
     
     # -----------------------Response-aligned frame------------------------------- #
+    print('Aligning to response:')
     align_dict = dict(index_arr = event_idx['response_start'])
     align_dict['begin_arr']   = np.maximum(event_idx['response_start'] - d['pre_response_interval'], event_idx['stim_off'])
     align_dict['end_arr']     = np.minimum(event_idx['response_start'] + d['post_response_interval'], event_idx['response_end'])
@@ -255,6 +262,7 @@ def align_traces_to_task_events(behav_df,
     joblib.dump(dict(traces=response_aligned, ind=response_point), save_dir + f'response_aligned_traces_{sub_dt}ms_bins', compress=5)
 
     # -----------------------Reward-aligned frame--------------------------------- #
+    print('Aligning to reward:')
     align_dict = dict(index_arr = event_idx['response_end'])
     align_dict['begin_arr']   = np.maximum(event_idx['response_end'] - d['pre_reward_interval'], event_idx['response_start'])
     align_dict['end_arr']     = np.minimum(event_idx['response_end'] + d['post_reward_interval'], event_idx['trial_len_in_bins'])
@@ -279,6 +287,7 @@ def interpolate_traces(behav_df,
     AKA time warping [see Williams et al., (2020), Neuron 105, 246–259 for a description of the problem]
     will have the biggest effect on the response delay (anticipation) period
     """
+    print('Interpolating (warping) traces...')
     d = interpolation_param_dict
     
     # -------------------------------------------------------------------- #
@@ -338,7 +347,8 @@ def interpolate_trial_trace(trial_i, traces, event_idx, interp_lens, pre_center_
         event_idx['response_end'][trial_i],
         event_idx['trial_len_in_bins'][trial_i],
     ]
-    assert np.all(np.diff(events_list) >= 0)
+    assert np.all(np.diff(events_list) >= 0), 'Not all events sequential'
+
     interp_frames = [np.arange(beg, end, dtype='int') for beg, end in zip(events_list[:-1], events_list[1:])]
 
     return create_trial_interp(traces[:, trial_i, :], interp_frames=interp_frames, interp_lens=interp_lens)
