@@ -5,26 +5,33 @@ import pandas as pd
 def read_metadata():
     metadata = dict(
         ott_lab = False,
-        rat_name = 'TQ03',
-        date = '20210617',
-        experimenter = 'Amy',
-        region = 'lOFC',
+        rat_name = '34',
+        date = '20240911',
+        experimenter = 'Dariya',
+        region = 'mPFC',
         # ----------------------------------- #
-        trodes_datetime = '20210617_115450',
+        trodes_datetime = '20240911_143028',
         trodes_logfile = '',
         trodes_config = '',
         recording_type = 'neuropixels_1.0',
-        n_probes = 2,
+        n_probes = 1,
         DIO_port_num = 6,
         kilosort_ver = 4,
         valid_periods = '',  # A string with periods separated by a comma (e.g., '0-1000, 2000-T').  T=end of session.
         # ----------------------------------- #
-        behav_datetime = '20210617',
-        task = 'time-investment'  # ['matching', 'reward-bias', 'time-investment']
+        behav_datetime = '20240911',
+        task = 'double'  # ['matching', 'reward-bias', 'time-investment', 'double']
         # ----------------------------------- #
     )
 
-    metadata['behavior_mat_file'] = f'TQ03_time-investment_Jun17_2021_Session2.mat'
+    
+    #metadata['behavior_mat_file'] = f'TQ03_time-investment_Jun17_2021_Session2.mat'
+
+    if metadata['task'] == 'double':
+        task_type = ['AuditoryTuning', 'DetectionConfidence'] 
+    
+    if metadata['task'] == 'double':
+        metadata['behavior_mat_file'] = [f'{metadata["rat_name"]}_{task_type[0]}_{metadata["behav_datetime"]}.mat', f'{metadata["rat_name"]}_{task_type[1]}_{metadata["behav_datetime"]}.mat']
 
     return metadata
 
@@ -94,7 +101,7 @@ def get_root_path(data_root):
         data_root = f'/home/{getlogin()}/Workspace/ott_neuropix_data/'
     else:
         data_root = data_root #+ 'Neurodata/'
-    data_root += 'data_cache/'
+    #data_root += 'data_cache/'
     print('Loading data from', data_root)
     return data_root
 
@@ -105,7 +112,7 @@ def save_directory_helper(data_root):
             data_root = '/media/ottlab/gregory/'
     elif data_root == 'local':
         data_root = f'/home/{getlogin()}/Workspace/ott_neuropix_data/'
-    data_root += 'clustering_results/'
+    #data_root += 'clustering_results/'
     return data_root
 
 def write_session_metadata_to_csv(metadata, data_root):
@@ -118,7 +125,8 @@ def write_session_metadata_to_csv(metadata, data_root):
         columns = ['ott_lab', 'rat_name', 'date', 'experimenter', 'region',
                    'trodes_datetime', 'trodes_logfile', 'trodes_config', 'recording_type',
                    'n_probes', 'DIO_port_num', 'kilosort_ver',
-                   'behav_datetime', 'task', 'behavior_mat_file']
+                   'behav_datetime', 't
+                    ask', 'behavior_mat_file']
         ephys_df = pd.DataFrame(columns=columns)
 
     ephys_df.loc[len(ephys_df)] = metadata
@@ -155,12 +163,24 @@ def get_session_path(metadata, data_root, is_ephys_session):
     if is_ephys_session:
         e_session = metadata['trodes_datetime']
         rec_dir = root_path + f'{rat}/ephys/{e_session}.rec/'
-        session_paths = dict(
-            rec_dir = rec_dir,
-            probe_dir = rec_dir + 'sorting_output/probe{}/sorter_output/',
-            preprocess_dir = rec_dir + 'preprocessing_output/',
-            timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
-        )
+        if metadata['task'] == 'double':
+            session_paths = dict(
+                rec_dir = rec_dir,
+                #probe_dir = rec_dir + f'spike_interface_output/' + '{}/sorter_output/', #session path for spikeinterface with ks4
+                probe_dir = rec_dir + 'sorting_output/probe{}/sorter_output/',
+                preprocess_dir = rec_dir + 'preprocessing_output/',
+                preprocess_dir_auditory = rec_dir + 'preprocessing_output/auditoryTuning/',
+                preprocess_dir_dc = rec_dir + 'preprocessing_output/detectionConfidence/',
+                #timestamps_dat = rec_dir + f'{e_session}.timestamps.dat',  
+                timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat', # Trodes timestamps is from general KS dir
+            )
+        else:
+            session_paths = dict(
+                rec_dir = rec_dir,
+                probe_dir = rec_dir + 'sorting_output/probe{}/sorter_output/',
+                preprocess_dir = rec_dir + 'preprocessing_output/',
+                timestamps_dat = rec_dir + f'{e_session}.kilosort/{e_session}.timestamps.dat',  # Trodes timestamps in general KS dir
+            )
         assert path.exists(session_paths['rec_dir'])
     else:
         session_paths = dict()

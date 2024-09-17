@@ -221,7 +221,7 @@ class DataContainer:
 def from_pickle(behav_path, probe, obj_class):
     data_path = behav_path + f"probe{probe}/"
     metadata = joblib.load(data_path + 'metadata')
-    behav_df = joblib.load(behav_path + 'behav_df')
+    behav_df = joblib.load(behav_path + 'detectionConfidence/' +'behav_df')
     
     for red_flag in ['no_matching_TTL_start_time', 'large_TTL_gap_after_start']:
         if red_flag in behav_df.keys() and behav_df[red_flag].sum()>0:

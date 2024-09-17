@@ -16,10 +16,10 @@ def select_choice_trials_w_TTLs(behav_df):
         behav_df = behav_df[:-1]
     assert np.all(~np.isnan(behav_df['TrialLength']))
 
-    print('or occurring in an invalid period detected during curation...', flush=True)
-    behav_df = behav_df[behav_df['valid_curation']]
-    behav_df.reset_index(drop=True, inplace=True)
-    assert np.all(behav_df['valid_curation'])
+    # print('or occurring in an invalid period detected during curation...', flush=True)
+    # behav_df = behav_df[behav_df['valid_curation']]
+    # behav_df.reset_index(drop=True, inplace=True)
+    # assert np.all(behav_df['valid_curation'])
 
     print('and selecting choice trials.', flush=True)
     choice_df = behav_df[behav_df['MadeChoice']]
@@ -310,37 +310,38 @@ def calc_event_outcomes(behav_data, metadata, ephys=True):
     # ---------------------------------------------------------------------- #
     #                       Discrimination measures
     # ---------------------------------------------------------------------- #
-    if DV_str in _sd_custom.keys():
-        _sd['DV'] = _sd_custom[DV_str][:n_trials]
-        _sd['NRightClicks'] = np.zeros(n_trials)
-        _sd['NLeftClicks'] = np.zeros(n_trials)
-        for trial_i in range(n_trials):
-            rct = _sd_custom['RightClickTrain'][trial_i]
-            if type(rct) == np.ndarray:
-                _sd.loc[trial_i, 'NRightClicks'] = len(rct)
-            else:
-                _sd.loc[trial_i, 'NRightClicks'] = 1
+    if metadata['task'] != 'double':
+       if DV_str in _sd_custom.keys():
+            _sd['DV'] = _sd_custom[DV_str][:n_trials]
+            _sd['NRightClicks'] = np.zeros(n_trials)
+            _sd['NLeftClicks'] = np.zeros(n_trials)
+            for trial_i in range(n_trials):
+                rct = _sd_custom['RightClickTrain'][trial_i]
+                if type(rct) == np.ndarray:
+                    _sd.loc[trial_i, 'NRightClicks'] = len(rct)
+                else:
+                    _sd.loc[trial_i, 'NRightClicks'] = 1
 
-            lct = _sd_custom['LeftClickTrain'][trial_i]
-            if type(lct) == np.ndarray:
-                _sd.loc[trial_i, 'NLeftClicks'] = len(lct)
-            else:
-                _sd.loc[trial_i, 'NLeftClicks'] = 1
-        if not np.all(_sd['DV'] == (_sd['NLeftClicks'] - _sd['NRightClicks']) / (_sd['NLeftClicks'] + _sd['NRightClicks'])):
-            print('Why does DV not match left and right click amount?')
-        _sd['RatioDiscri'] = np.log10(_sd['NRightClicks'] / _sd['NLeftClicks'])
-    # ---------------------------------------------------------------------- #
+                lct = _sd_custom['LeftClickTrain'][trial_i]
+                if type(lct) == np.ndarray:
+                    _sd.loc[trial_i, 'NLeftClicks'] = len(lct)
+                else:
+                    _sd.loc[trial_i, 'NLeftClicks'] = 1
+            if not np.all(_sd['DV'] == (_sd['NLeftClicks'] - _sd['NRightClicks']) / (_sd['NLeftClicks'] + _sd['NRightClicks'])):
+                print('Why does DV not match left and right click amount?')
+            _sd['RatioDiscri'] = np.log10(_sd['NRightClicks'] / _sd['NLeftClicks'])
+        # ---------------------------------------------------------------------- #
 
-    valid_period_l = metadata['valid_periods']
-    if pd.isnull(valid_period_l):
-        _sd['valid_curation'] = True
-    else:
-        _sd['valid_curation'] = False
-        valid_period_l = valid_period_l.split(',')
-        for period in valid_period_l:
-            start, end = np.array(period.split('-'))
-            end = np.ceil(_sd['TTLTrialStartTime'].max()) if end == 'T' else end
-            _sd.loc[(int(start) <= _sd['TTLTrialStartTime']) & (_sd['TTLTrialStartTime'] <= int(end)), 'valid_curation'] = True
+       valid_period_l = metadata['valid_periods']
+       if pd.isnull(valid_period_l):
+            _sd['valid_curation'] = True
+       else:
+            _sd['valid_curation'] = False
+            valid_period_l = valid_period_l.split(',')
+            for period in valid_period_l:
+               start, end = np.array(period.split('-'))
+               end = np.ceil(_sd['TTLTrialStartTime'].max()) if end == 'T' else end
+               _sd.loc[(int(start) <= _sd['TTLTrialStartTime']) & (_sd['TTLTrialStartTime'] <= int(end)), 'valid_curation'] = True
 
     return _sd
 

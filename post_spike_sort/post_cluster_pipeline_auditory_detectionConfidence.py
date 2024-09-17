@@ -34,96 +34,12 @@ SAVE_INDIVIDUAL_SPIKETRAINS = True
 WRITE_METADATA = False
     
 if WRITE_METADATA:
-    metadata = write_session_metadata_to_csv(DATA_ROOT)
+    metadata = write_session_metadata_to_csv(metadata, DATA_ROOT)
 else:
-    rat = '13'
-    date = '20231212'
+    rat = '34'
+    date = '20240911'
     metadata = load_session_metadata_from_csv(DATA_ROOT, rat, date)
 #%%   
-# #%% old
-# #----------------------------------------------------------------------#
-# # The information in the metadata block of session_params needs to be
-# # filled out and updated for each recording session.
-# #----------------------------------------------------------------------#
-# SPIKES_AND_TTL = False
-# SAVE_INDIVIDUAL_SPIKETRAINS = False  # Used for stitching sessions.  Otherwise unnecessary.
-# BEHAVIOR = True
-
-
-# metadata = dict(
-#     ott_lab = True,
-#     rat_name = 'R13',
-#     date = '20231213',
-#     behavior_mat_file = ['13_AuditoryTuning_20231213_131543.mat', '13_DetectionConfidence_20231213_160823.mat'],
-#     trodes_datetime = '20231213_155419',
-#     n_probes = 1,
-#     DIO_port_num = 1,
-#     task = 'reward-bias',
-#     sps = sps,
-#     task_type = 'DetectionConfidence',
-#     probe_num = 1,
-#     kilosort_ver = 4
-# )
-# #%% 
-# # ----------------------------------------------------------------------- #
-# #                           Constants
-# # ----------------------------------------------------------------------- #
-# # -------recording--------- #
-# fs = 30e3  # Trodes sampling frequency in Hz
-# ms_converter = 1000 / fs
-# n_Npix1_electrodes = 960
-# n_active_electrodes = 384
-
-# # -------analysis bins--------- #
-# max_ISI = 0.001  # max intersample interval (ISI), above which the period is considered a "gap" in the recording
-# trace_subsample_bin_size_ms = 10 # sample period in ms
-# sps = 1000 / trace_subsample_bin_size_ms  # (samples per second) resolution of aligned traces
-
-# # -------params for trace interpolation------- #
-# """
-# For the source of these numbers, see 'Temporal dynaics clustering' in Hirokawa et al. Nature (2019) in Methods.
-# """
-# interpolation_param_dict = dict(
-#     trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
-#     resp_start_align_buffer=None,  # for ResponseStart
-#     trial_event_interpolation_lengths = [
-#         int(0.5 * sps),  # ITI->center poke
-#         int(0.45 * sps), # center->stim_begin
-#         int(.5 * sps),   # stim delivery
-#         int(.3 * sps),   # movement to side port
-#         # int(0.5 * sps),  # first 0.5s of anticipation epoch
-#         # int(0.5 * sps),  # second part of anticipation epoch warped into 0.5s (actually half second in reward-bias)
-#         int(3.0 * sps),  # anticipation epoch
-#         int(1.5 * sps),  # after feedback
-#     ],
-#     pre_center_interval = int(0.5 * sps),
-#     post_response_interval = None,  # int(0.5 * sps) or None.  If None, then the midpoint between response start and end is used
-#     downsample_dt=trace_subsample_bin_size_ms,
-# )
-
-# alignment_param_dict = dict(
-#     trial_times_in_reference_to='TrialStart',  # ['TrialStart', 'ResponseStart']
-#     resp_start_align_buffer=None,  # for ResponseStart
-#     downsample_dt=trace_subsample_bin_size_ms,
-#     pre_stim_interval = int(0.5 * sps),  # truncated at center_poke
-#     post_stim_interval = int(0.5*sps),  # truncated at stim_off
-#     pre_response_interval = int(3.0*sps),  # truncated at stim_off
-#     post_response_interval = int(4.0*sps),  # truncated at response_end
-#     pre_reward_interval = int(6.0*sps),  # truncated at response_time
-#     post_reward_interval = int(5.0*sps),  # truncated at trial_end
-# )
-
-
-
-# # ---------file names---------- #
-# spike_mat_str_indiv = f'spike_mat_in_ms.npy'
-# gap_filename = f"trodes_intersample_periods_longer_than_{max_ISI}s.npy"
-# ---------------------------------------------------------------------
-
-
-#----------------------------------------------------------------------#
-
-# %%
 #----------------------------------------------------------------------#
 #                           PATHS
 #----------------------------------------------------------------------#
@@ -137,33 +53,6 @@ preprocess_dir_dc = session_paths['preprocess_dir_dc']
 ou.make_dir_if_nonexistent(preprocess_dir_dc)
 rec_dir = session_paths['rec_dir']
 behavior_mat_file = [session_paths['behav_dir'] + eval(metadata['behavior_mat_file'])[0], session_paths['behav_dir'] + eval(metadata['behavior_mat_file'])[1]]
-
-# #----------------------------------------------------------------------#
-# #                       Set up paths
-# #----------------------------------------------------------------------#
-# session_paths = dict()
-# session_paths['rec_dir'] = rec_dir = f'Y:{metadata["rat_name"]}/ephys/{metadata["trodes_datetime"]}.rec/'
-# assert path.exists(session_paths['rec_dir'])
-# # session path for spikeinterface with ks4
-# session_paths['probe_dir'] = session_paths['rec_dir'] + f'spike_interface_output/' + '{}/sorter_output/'
-# # session path for ks4
-# #session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort/{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
-# # session path for ks2.5
-# #session_paths['probe_dir'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.kilosort{metadata["kilosort_ver"]}'+'_probe{}/'
-
-# session_paths['timestamps_dat'] = session_paths['rec_dir'] + f'{metadata["trodes_datetime"]}.timestamps.dat'
-
-# session_paths['preprocess_dir'] = preprocess_dir =  session_paths['rec_dir'] + 'preprocessing_output/'
-# ou.make_dir_if_nonexistent(preprocess_dir)
-
-# session_paths['preprocess_dir_auditory'] = preprocess_dir_auditory =  session_paths['rec_dir'] + 'preprocessing_output/auditoryTuning/'
-# ou.make_dir_if_nonexistent(preprocess_dir_auditory)
-
-# session_paths['preprocess_dir_dc'] = preprocess_dir_dc =  session_paths['rec_dir'] + 'preprocessing_output/detectionConfidence/'
-# ou.make_dir_if_nonexistent(preprocess_dir_dc)
-
-# behavior_mat_file = [session_paths['rec_dir'] + metadata['behavior_mat_file'][0], session_paths['rec_dir'] + metadata['behavior_mat_file'][1]]
-# #----------------------------------------------------------------------#
 
 # %%
 #----------------------------------------------------------------------#
@@ -286,31 +175,6 @@ if DATA_OBJECT:
                 
  #     
         elif beh == 1:
-            # #TO DO: I can make preprocess_dir[0] and[1] and just loop through it?
-            # _sd = load(preprocess_dir_dc + 'TrialEvents.npy')
-
-            # n_trials = _sd['nTrials'] - 1  # throw out last trial (may be incomplete)
-      
-            # trialstart_str = 'recorded_TTL_trial_start_time'
-            # trial_len = _sd[trialstart_str][1:] - _sd[trialstart_str][:-1]
-      
-            # behav_dict = dict(
-            #     stimulus_start_time = _sd['Custom']['TrialData']['StimulusStartTime'][:n_trials],
-            #     reward_start_time = _sd['Custom']['TrialData']['RewardStartTime'][:n_trials],
-            #     signal_volume = _sd['Custom']['TrialData']['SignalVolume'][:n_trials],
-            #     MadeChoice = _sd['Custom']['TrialData']['ResponseLeft'][:n_trials],
-            #     PokeCenterStart = _sd['Custom']['TrialData']['ResponseLeft'][:n_trials],
-            #     TrialStartTimestamp = _sd['TrialStartTimestamp'][:n_trials],
-            #     TrialEndTimestamp = _sd['TrialEndTimestamp'][:n_trials],
-            #     TTLTrialStartTime = _sd[trialstart_str][:n_trials],
-            #     TrialLength = trial_len[:n_trials]
-            # )
-            # behav_df = pd.DataFrame.from_dict(behav_dict)
-      
-            # dump(behav_df, preprocess_dir_dc + "behav_df", compress=3)
-            
-            # downsample_dt = 25  # sample period in ms
-#
             #----------------------------------------
             # Align the spikes with behavior and to specific events
             #----------------------------------------
